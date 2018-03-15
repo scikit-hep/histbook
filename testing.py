@@ -1,6 +1,5 @@
-import math
 import pandas
-
+import altair
 import vegascope
 
 canvas = vegascope.LocalCanvas()
@@ -10,7 +9,7 @@ df.sumw = [0, 12, 40, 125, 266, 1032, 377, 185, 21, 5]
 
 def plothist(df, level=0):
     ascolumn = df.reset_index(level=level)
-    lastrow = ascolumn.iloc[[-1]]
+    lastrow = ascolumn.iloc[[-1]].copy()
     ascolumn["index"] = ascolumn["index"].apply(lambda x: x.left)
     lastrow["index"] = lastrow["index"].apply(lambda x: x.right)
     ascolumn = pandas.concat([ascolumn, lastrow])
