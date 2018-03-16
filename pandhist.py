@@ -210,6 +210,8 @@ def _makefill(specification):
         elif spec[0] == "cut":
             stridemap[i] = stride
             stride *= 2
+        elif spec[0] == "sumw2" or spec[0] == "sumwx" or spec[0] == "sumwx2" or spec[0] == "min" or spec[0] == "max":
+            pass
         else:
             raise AssertionError(spec[0])
 
@@ -226,19 +228,28 @@ def _makefill(specification):
     indexsym = _newsymbol(symbols)
     statements.append(_wrap(ast.Assign([ast.Name(indexsym, ast.Store())], ast.Num(0))))
 
+    column = 1
+    quantities = {}
     for i, spec in enumerate(newspecification):
         stmts = spec[-1]
-        if not isinstance(stmts[-1], ast.Expr):
-            raise SyntaxError("last statement in a quantity must be a pure expression, not {0}".format(repr(spec[-2])))
+        if len(stmts) > 0:
+            if not isinstance(stmts[-1], ast.Expr):
+                raise SyntaxError("last statement in a quantity must be a pure expression, not {0}".format(repr(spec[-2])))
+            if spec[-2] not in quantities:
+                quantity = _newsymbol(symbols)
+                statements.extend(stmts[:-1])
+                statements.append(_wrap(ast.Assign([ast.Name(quantity, ast.Store())], stmts[-1].value)))
+                quantities[spec[-2]] = quantity
+            else:
+                quantity = quantities[spec[-2]]
+        else:
+            assert spec[0] == "sumw2"
 
         if spec[0] == "bin":
             numbins = int(spec[1])
             low = float(spec[2])
             high = float(spec[3])
             closed = spec[4]
-            quantity = _newsymbol(symbols)
-            statements.extend(stmts[:-1])
-            statements.append(_wrap(ast.Assign([ast.Name(quantity, ast.Store())], stmts[-1].value)))
             statements.extend(ast.parse("""
 if {QUANTITY} {GT} {HIGH}:
     {INDEX} += {HIGHSKIP}
@@ -255,13 +266,40 @@ elif {QUANTITY} {GT} {LOW}:
            FACTOR=numbins/(high - low),
            STRIDE=stridemap[i]
            )).body)
-            
-        else:
+
+        elif spec[0] == "irrbin":
             raise NotImplementedError
 
-    statements.extend(ast.parse("""
-self.values[{INDEX}, 0] += weight
-""".format(INDEX=indexsym)).body)
+        elif spec[0] == "frac":
+            raise NotImplementedError
+
+        elif spec[0] == "cut":
+            raise NotImplementedError
+
+        elif spec[0] == "sumw2":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*weight".format(INDEX=indexsym, COLUMN=column)).body)
+            column += 1
+
+        elif spec[0] == "sumwx":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*{QUANTITY}".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+            column += 1
+
+        elif spec[0] == "sumwx2":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*{QUANTITY}*{QUANTITY}".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+            column += 1
+
+        elif spec[0] == "min":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = min(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+            column += 1
+
+        elif spec[0] == "max":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = max(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+            column += 1
+
+        else:
+            raise AssertionError(spec[0])
+
+    statements.extend(ast.parse("self.values[{INDEX}, 0] += weight".format(INDEX=indexsym)).body)
 
     print meta.dump_python_source(module).strip()
 
@@ -270,4 +308,3 @@ self.values[{INDEX}, 0] += weight
     return globs["fill"]
 
 import meta
-
