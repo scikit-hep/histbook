@@ -29,6 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ast
+import math
 import types
 
 import numpy
@@ -128,10 +129,24 @@ class HistogramLayoutBinning(HistogramLayout):
                                       self.indexes + [["pass", "fail"]],
                                       self.expressions + [expression])
 
+def _replace(node, **replacements):
+    if isinstance(node, ast.Name) and node.id in replacements:
+        return replacements[node.id]
+    elif isinstance(node, ast.AST):
+        for n in node._fields:
+            setattr(node, n, _replace(getattr(node, n), **replacements))
+        return node
+    elif isinstance(node, dict):
+        return dict((n, _replace(x, **replacements)) for n, x in node.items())
+    elif isinstance(node, list):
+        return [_replace(x, **replacements) for x in node]
+    else:
+        return node
+
 def _symbols(node, inputs, symbols):
     if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
         if node.id not in symbols:
-            inputs.add(node.id)
+            inputs.append(node.id)
         symbols.add(node.id)
     elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
         symbols.add(node.id)
@@ -153,47 +168,106 @@ def _newsymbol(symbols):
     symbols.add(trial)
     return trial
         
-_newsymbol.n = 1
+_newsymbol.n = 0
 
-def _replace(node, **replacements):
-    if isinstance(node, ast.Name) and node.id in replacements:
-        return replacements[node.id]
-    elif isinstance(node, ast.AST):
+def _wrap(node):
+    if isinstance(node, ast.AST):
+        if not hasattr(node, "lineno"):
+            node.lineno = 1
+        if not hasattr(node, "col_offset"):
+            node.col_offset = 0
         for n in node._fields:
-            setattr(node, n, _replace(getattr(node, n), **replacements))
-        return node
+            _wrap(getattr(node, n))
     elif isinstance(node, dict):
-        return dict((n, _replace(x, **replacements)) for n, x in node.items())
+        for x in node.values():
+            _wrap(x)
     elif isinstance(node, list):
-        return [_replace(x, **replacements) for x in node]
-    else:
-        return node
-
-def _statements(code, **replacements):
-    return _replace(ast.parse(code).body, **replacements)
-
-def _expression(code, **replacements):
-    return _replace(ast.parse(code).body[0].value, **replacements)
-
-def _makestatements(index, specification, statements):
-    statements.extend(_statements("print 'hello'"))
-    return index
-
+        for x in node:
+            _wrap(x)
+    return node
+    
 def _makefill(specification):
     expressions = []
     newspecification = []
     for spec in specification:
         newspecification.append(spec + (ast.parse(spec[-1]).body,))
-        expressions.append(newspecification[-1])
+        expressions.append(newspecification[-1][-1])
 
-    inputs = set()
+    stridemap = {}
+    stride = 1
+    for i, spec in reversed(list(enumerate(specification))):
+        if spec[0] == "bin":
+            numbins = int(spec[1])
+            stridemap[i] = stride
+            stride *= numbins + 2
+        elif spec[0] == "irrbin":
+            numedges = len(spec[1])
+            stridemap[i] = stride
+            stride *= numedges + 1
+        elif spec[0] == "frac":
+            stridemap[i] = stride
+            stride *= 2
+        elif spec[0] == "cut":
+            stridemap[i] = stride
+            stride *= 2
+        else:
+            raise AssertionError(spec[0])
+
+    inputs = []
     symbols = set()
     _symbols(expressions, inputs, symbols)
 
-    module = ast.parse("def fill(**vars): REPLACEME")
-    module.body[0].body = []
-    _makestatements(0, specification, module.body[0].body)
+    statements = []
+    module = ast.parse("def fill(self{0}, weight=1.0): REPLACEME".format("".join(", " + x for x in inputs)))
+    module.body[0].body = statements
 
-    globs = {}
+    floorsym = _newsymbol(symbols)
+    ceilsym = _newsymbol(symbols)
+    indexsym = _newsymbol(symbols)
+    statements.append(_wrap(ast.Assign([ast.Name(indexsym, ast.Store())], ast.Num(0))))
+
+    for i, spec in enumerate(newspecification):
+        stmts = spec[-1]
+        if not isinstance(stmts[-1], ast.Expr):
+            raise SyntaxError("last statement in a quantity must be a pure expression, not {0}".format(repr(spec[-2])))
+
+        if spec[0] == "bin":
+            numbins = int(spec[1])
+            low = float(spec[2])
+            high = float(spec[3])
+            closed = spec[4]
+            quantity = _newsymbol(symbols)
+            statements.extend(stmts[:-1])
+            statements.append(_wrap(ast.Assign([ast.Name(quantity, ast.Store())], stmts[-1].value)))
+            statements.extend(ast.parse("""
+if {QUANTITY} {GT} {HIGH}:
+    {INDEX} += {HIGHSKIP}
+elif {QUANTITY} {GT} {LOW}:
+    {INDEX} += ({ONE_PLUS}int({FLOOR_OR_CEIL}({FACTOR}*({QUANTITY} - {LOW}))))*{STRIDE}
+""".format(QUANTITY=quantity,
+           GT=">=" if closed == "left" else ">",
+           HIGH=high,
+           INDEX=indexsym,
+           HIGHSKIP=(numbins + 1)*stridemap[i],
+           LOW=low,
+           ONE_PLUS="1 + " if closed == "left" else "",
+           FLOOR_OR_CEIL=floorsym if closed == "left" else ceilsym,
+           FACTOR=numbins/(high - low),
+           STRIDE=stridemap[i]
+           )).body)
+            
+        else:
+            raise NotImplementedError
+
+    statements.extend(ast.parse("""
+self.values[{INDEX}, 0] += weight
+""".format(INDEX=indexsym)).body)
+
+    print meta.dump_python_source(module).strip()
+
+    globs = {floorsym: math.floor, ceilsym: math.ceil}
     exec(compile(module, "<generated by pandhist>", "exec"), globs)
     return globs["fill"]
+
+import meta
+
