@@ -60,14 +60,9 @@ def irrbin(edges, expression, closed="left"):
                                   [_irrbinintervals(edges, closed)],
                                   [expression])
 
-def frac(expression):
-    return HistogramLayoutBinning([("frac", expression)],
-                                  [["numer", "denom"]],
-                                  [expression])
-
 def cut(expression):
     return HistogramLayoutBinning([("cut", expression)],
-                                  [["pass", "fail"]],
+                                  [["fail", "pass"]],
                                   [expression])
 
 class HistogramLayout(object):
@@ -77,25 +72,26 @@ class HistogramLayout(object):
         self.expressions = expressions
         self.columns = columns
 
-    def _newcolumn(self, specification, column):
-        if column in self.columns:
-            raise ValueError("attempting to attach {0} twice".format(repr(column)))
-        return HistogramLayout(specification, self.indexes, self.expressions, self.columns + [column])
+    def _newcolumn(self, specification, columns):
+        for column in columns:
+            if column in self.columns:
+                raise ValueError("attempting to attach {0} twice".format(repr(column)))
+        return HistogramLayout(specification, self.indexes, self.expressions, self.columns + columns)
 
     def sumw2(self):
-        return self._newcolumn(self.specification + [("sumw2", "")], "sumw2")
+        return self._newcolumn(self.specification + [("sumw2", "")], ["sumw2"])
 
-    def sumwx(self, expression):
-        return self._newcolumn(self.specification + [("sumwx", expression)], "sumwx({0})".format(expression))
-
-    def sumwx2(self, expression):
-        return self._newcolumn(self.specification + [("sumwx2", expression)], "sumwx2({0})".format(expression))
+    def prof(self, expression):
+        return self._newcolumn(self.specification + [("sumwx", expression), ("sumwx2", expression)], ["sumwx({0})".format(expression), "sumwx2({0})".format(expression)])
 
     def min(self, expression):
-        return self._newcolumn(self.specification + [("min", expression)], "min({0})".format(expression))
+        return self._newcolumn(self.specification + [("min", expression)], ["min({0})".format(expression)])
 
     def max(self, expression):
-        return self._newcolumn(self.specification + [("max", expression)], "max({0})".format(expression))
+        return self._newcolumn(self.specification + [("max", expression)], ["max({0})".format(expression)])
+
+    def minmax(self, expression):
+        return self._newcolumn(self.specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
 
     def toDF(self):
         out = pandas.DataFrame(
@@ -119,14 +115,9 @@ class HistogramLayoutBinning(HistogramLayout):
                                       self.indexes + [_irrbinintervals(edges, closed)],
                                       self.expressions + [expression])
 
-    def frac(self, expression):
-        return HistogramLayoutBinning(self.specification + [("frac", expression)],
-                                      self.indexes + [["numer", "denom"]],
-                                      self.expressions + [expression])
-
     def cut(self, expression):
         return HistogramLayoutBinning(self.specification + [("cut", expression)],
-                                      self.indexes + [["pass", "fail"]],
+                                      self.indexes + [["fail", "pass"]],
                                       self.expressions + [expression])
 
 def _replace(node, **replacements):
@@ -204,9 +195,6 @@ def _makefill(specification):
             numedges = len(spec[1])
             stridemap[i] = stride
             stride *= numedges + 1
-        elif spec[0] == "frac":
-            stridemap[i] = stride
-            stride *= 2
         elif spec[0] == "cut":
             stridemap[i] = stride
             stride *= 2
@@ -282,11 +270,13 @@ elif {QUANTITY} {GT} {EDGE}:
            SKIP=(edgei + 1)*stridemap[i]).strip())
             statements.extend(ast.parse("\n".join(chain)[2:]).body)
 
-        elif spec[0] == "frac":
-            raise NotImplementedError
-
         elif spec[0] == "cut":
-            raise NotImplementedError
+            statements.extend(ast.parse("""
+if {QUANTITY}:
+    {INDEX} += {SKIP}
+""".format(QUANTITY=quantity,
+           INDEX=indexsym,
+           SKIP=stridemap[i])).body)
 
         elif spec[0] == "sumw2":
             statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*weight".format(INDEX=indexsym, COLUMN=column)).body)
