@@ -72,27 +72,36 @@ class HistogramLayout(object):
         self.expressions = expressions
         self.columns = columns
 
-    def _newcolumn(self, specification, columns):
-        for column in columns:
-            if column in self.columns:
+    def _newcolumn(self, specification, newcolumns):
+        columns = list(self.columns)
+        for column in newcolumns:
+            if column in columns:
                 raise ValueError("attempting to attach {0} twice".format(repr(column)))
-        return HistogramLayout(specification, self.indexes, self.expressions, self.columns + columns)
+            if column == "sumw2":
+                columns[0] = "sumw"
+            columns.append(column)
+        return HistogramLayout(specification, self.indexes, self.expressions, columns)
 
-    def sumw2(self):
+    def weighted(self):
         return self._newcolumn(self.specification + [("sumw2", "")], ["sumw2"])
 
-    def prof(self, expression):
-        return self._newcolumn(self.specification + [("sumwx", expression), ("sumwx2", expression)], ["sumwx({0})".format(expression), "sumwx2({0})".format(expression)])
+    def profile(self, expression):
+        return self._newcolumn(self.specification + [("sum", expression), ("sum2", expression)], ["sum({0})".format(expression), "sum2({0})".format(expression)])
 
-    # def minmax(self, expression):
-    #     return self._newcolumn(self.specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
+    def min(self, expression):
+        return self._newcolumn(self.specification + [("min", expression)], ["min({0})".format(expression)])
+
+    def max(self, expression):
+        return self._newcolumn(self.specification + [("max", expression)], ["max({0})".format(expression)])
+
+    def minmax(self, expression):
+        return self._newcolumn(self.specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
 
     def fillable(self, method="python", env={}):
         out = pandas.DataFrame(
             index=pandas.MultiIndex.from_product(self.indexes, names=self.expressions),
             columns=self.columns,
-            # data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self.columns))
-            data=dict((x, 0.0) for x in self.columns))
+            data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self.columns))
 
         if method == "python":
             fill = _makefill(self.specification, env)
@@ -105,7 +114,7 @@ class HistogramLayout(object):
 
 class HistogramLayoutBinning(HistogramLayout):
     def __init__(self, specification, indexes, expressions):
-        super(HistogramLayoutBinning, self).__init__(specification, indexes, expressions, ["sumw"])
+        super(HistogramLayoutBinning, self).__init__(specification, indexes, expressions, ["count"])
 
     def bin(self, numbins, low, high, expression, closed="left"):
         return HistogramLayoutBinning(self.specification + [("bin", numbins, low, high, closed, expression)],
@@ -186,6 +195,8 @@ def _makefill(specification, env):
         newspecification.append(spec + (ast.parse(spec[-1]).body,))
         expressions.append(newspecification[-1][-1])
 
+    weighted = ("sumw2", "") in specification
+
     stridemap = {}
     stride = 1
     for i, spec in reversed(list(enumerate(specification))):
@@ -200,7 +211,7 @@ def _makefill(specification, env):
         elif spec[0] == "cut":
             stridemap[i] = stride
             stride *= 2
-        elif spec[0] == "sumw2" or spec[0] == "sumwx" or spec[0] == "sumwx2":   # or spec[0] == "min" or spec[0] == "max":
+        elif spec[0] == "sumw2" or spec[0] == "sum" or spec[0] == "sum2" or spec[0] == "min" or spec[0] == "max":
             pass
         else:
             raise AssertionError(spec[0])
@@ -210,7 +221,7 @@ def _makefill(specification, env):
     _symbols(expressions, inputs, symbols)
 
     statements = []
-    module = ast.parse("def fill(self{0}, weight=1.0): REPLACEME".format("".join(", " + x for x in inputs)))
+    module = ast.parse("def fill(self{0}{1}): REPLACEME".format("".join(", " + x for x in inputs), ", weight=1.0" if weighted else ""))
     module.body[0].body = statements
 
     floorsym = _newsymbol(symbols)
@@ -284,28 +295,32 @@ if {QUANTITY}:
             statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*weight".format(INDEX=indexsym, COLUMN=column)).body)
             column += 1
 
-        elif spec[0] == "sumwx":
-            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*{QUANTITY}".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+        elif spec[0] == "sum":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += {WEIGHT}{QUANTITY}".format(INDEX=indexsym, COLUMN=column, WEIGHT="weight*" if weighted else "", QUANTITY=quantity)).body)
             column += 1
 
-        elif spec[0] == "sumwx2":
-            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*{QUANTITY}*{QUANTITY}".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+        elif spec[0] == "sum2":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += {WEIGHT}{QUANTITY}*{QUANTITY}".format(INDEX=indexsym, COLUMN=column, WEIGHT="weight*" if weighted else "", QUANTITY=quantity)).body)
             column += 1
 
-        # elif spec[0] == "min":
-        #     statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = min(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
-        #     column += 1
+        elif spec[0] == "min":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = min(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+            column += 1
 
-        # elif spec[0] == "max":
-        #     statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = max(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
-        #     column += 1
+        elif spec[0] == "max":
+            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = max(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+            column += 1
 
         else:
             raise AssertionError(spec[0])
 
-    statements.extend(ast.parse("self.values[{INDEX}, 0] += weight".format(INDEX=indexsym)).body)
-    
+    if weighted:
+        statements.extend(ast.parse("self.values[{INDEX}, 0] += weight".format(INDEX=indexsym)).body)
+    else:
+        statements.extend(ast.parse("self.values[{INDEX}, 0] += 1".format(INDEX=indexsym)).body)
+
     globs = {floorsym: math.floor, ceilsym: math.ceil}
     globs.update(env)
     exec(compile(module, "<generated by pandhist>", "exec"), globs)
     return globs["fill"]
+    
