@@ -28,6 +28,9 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import ast
+import types
+
 import numpy
 import pandas
 
@@ -47,12 +50,12 @@ def _binintervals(numbins, low, high, closed):
     return _irrbinintervals(edges, closed)
 
 def bin(numbins, low, high, expression, closed="left"):
-    return HistogramLayoutBinning([("bin", numbins, low, high, expression, closed)],
+    return HistogramLayoutBinning([("bin", numbins, low, high, closed, expression)],
                                   [_binintervals(numbins, low, high, closed)],
                                   [expression])
 
 def irrbin(edges, expression, closed="left"):
-    return HistogramLayoutBinning([("irrbin", edges, expression, closed)],
+    return HistogramLayoutBinning([("irrbin", edges, closed, expression)],
                                   [_irrbinintervals(edges, closed)],
                                   [expression])
 
@@ -79,7 +82,7 @@ class HistogramLayout(object):
         return HistogramLayout(specification, self.indexes, self.expressions, self.columns + [column])
 
     def sumw2(self):
-        return self._newcolumn(self.specification + [("sumw2",)], "sumw2")
+        return self._newcolumn(self.specification + [("sumw2", "")], "sumw2")
 
     def sumwx(self, expression):
         return self._newcolumn(self.specification + [("sumwx", expression)], "sumwx({0})".format(expression))
@@ -98,8 +101,7 @@ class HistogramLayout(object):
             index=pandas.MultiIndex.from_product(self.indexes, names=self.expressions),
             columns=self.columns,
             data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self.columns))
-        out.specification = specification
-        out.__class__ = Histogram
+        out.__dict__["fill"] = types.MethodType(_makefill(self.specification), out, out.__class__)
         return out
 
 class HistogramLayoutBinning(HistogramLayout):
@@ -107,12 +109,12 @@ class HistogramLayoutBinning(HistogramLayout):
         super(HistogramLayoutBinning, self).__init__(specification, indexes, expressions, ["sumw"])
 
     def bin(self, numbins, low, high, expression, closed="left"):
-        return HistogramLayoutBinning(self.specification + [("bin", numbins, low, high, expression, closed)],
+        return HistogramLayoutBinning(self.specification + [("bin", numbins, low, high, closed, expression)],
                                       self.indexes + [_binintervals(numbins, low, high, closed)],
                                       self.expressions + [expression])
 
     def irrbin(self, edges, expression, closed="left"):
-        return HistogramLayoutBinning(self.specification + [("irrbin", edges, expression, closed)],
+        return HistogramLayoutBinning(self.specification + [("irrbin", edges, closed, expression)],
                                       self.indexes + [_irrbinintervals(edges, closed)],
                                       self.expressions + [expression])
 
@@ -126,5 +128,72 @@ class HistogramLayoutBinning(HistogramLayout):
                                       self.indexes + [["pass", "fail"]],
                                       self.expressions + [expression])
 
-class Histogram(pandas.DataFrame):
-    pass
+def _symbols(node, inputs, symbols):
+    if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+        if node.id not in symbols:
+            inputs.add(node.id)
+        symbols.add(node.id)
+    elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+        symbols.add(node.id)
+    elif isinstance(node, ast.AST):
+        for n in node._fields:
+            _symbols(getattr(node, n), inputs, symbols)
+    elif isinstance(node, dict):
+        for x in node.values():
+            _symbols(x, inputs, symbols)
+    elif isinstance(node, list):
+        for x in node:
+            _symbols(x, inputs, symbols)
+
+def _newsymbol(symbols):
+    trial = None
+    while trial is None or trial in symbols:
+        trial = "_{0}".format(_newsymbol.n)
+        _newsymbol.n += 1
+    symbols.add(trial)
+    return trial
+        
+_newsymbol.n = 1
+
+def _replace(node, **replacements):
+    if isinstance(node, ast.Name) and node.id in replacements:
+        return replacements[node.id]
+    elif isinstance(node, ast.AST):
+        for n in node._fields:
+            setattr(node, n, _replace(getattr(node, n), **replacements))
+        return node
+    elif isinstance(node, dict):
+        return dict((n, _replace(x, **replacements)) for n, x in node.items())
+    elif isinstance(node, list):
+        return [_replace(x, **replacements) for x in node]
+    else:
+        return node
+
+def _statements(code, **replacements):
+    return _replace(ast.parse(code).body, **replacements)
+
+def _expression(code, **replacements):
+    return _replace(ast.parse(code).body[0].value, **replacements)
+
+def _makestatements(index, specification, statements):
+    statements.extend(_statements("print 'hello'"))
+    return index
+
+def _makefill(specification):
+    expressions = []
+    newspecification = []
+    for spec in specification:
+        newspecification.append(spec + (ast.parse(spec[-1]).body,))
+        expressions.append(newspecification[-1])
+
+    inputs = set()
+    symbols = set()
+    _symbols(expressions, inputs, symbols)
+
+    module = ast.parse("def fill(**vars): REPLACEME")
+    module.body[0].body = []
+    _makestatements(0, specification, module.body[0].body)
+
+    globs = {}
+    exec(compile(module, "<generated by pandhist>", "exec"), globs)
+    return globs["fill"]
