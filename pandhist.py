@@ -84,14 +84,15 @@ class HistogramLayout(object):
     def prof(self, expression):
         return self._newcolumn(self.specification + [("sumwx", expression), ("sumwx2", expression)], ["sumwx({0})".format(expression), "sumwx2({0})".format(expression)])
 
-    def minmax(self, expression):
-        return self._newcolumn(self.specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
+    # def minmax(self, expression):
+    #     return self._newcolumn(self.specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
 
     def fillable(self, method="python", env={}):
         out = pandas.DataFrame(
             index=pandas.MultiIndex.from_product(self.indexes, names=self.expressions),
             columns=self.columns,
-            data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self.columns))
+            # data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self.columns))
+            data=dict((x, 0.0) for x in self.columns))
 
         if method == "python":
             fill = _makefill(self.specification, env)
@@ -199,7 +200,7 @@ def _makefill(specification, env):
         elif spec[0] == "cut":
             stridemap[i] = stride
             stride *= 2
-        elif spec[0] == "sumw2" or spec[0] == "sumwx" or spec[0] == "sumwx2" or spec[0] == "min" or spec[0] == "max":
+        elif spec[0] == "sumw2" or spec[0] == "sumwx" or spec[0] == "sumwx2":   # or spec[0] == "min" or spec[0] == "max":
             pass
         else:
             raise AssertionError(spec[0])
@@ -291,13 +292,13 @@ if {QUANTITY}:
             statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] += weight*{QUANTITY}*{QUANTITY}".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
             column += 1
 
-        elif spec[0] == "min":
-            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = min(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
-            column += 1
+        # elif spec[0] == "min":
+        #     statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = min(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+        #     column += 1
 
-        elif spec[0] == "max":
-            statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = max(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
-            column += 1
+        # elif spec[0] == "max":
+        #     statements.extend(ast.parse("self.values[{INDEX}, {COLUMN}] = max(self.values[{INDEX}, {COLUMN}], {QUANTITY})".format(INDEX=indexsym, COLUMN=column, QUANTITY=quantity)).body)
+        #     column += 1
 
         else:
             raise AssertionError(spec[0])
