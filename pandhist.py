@@ -268,7 +268,19 @@ elif {QUANTITY} {GT} {LOW}:
            )).body)
 
         elif spec[0] == "irrbin":
-            raise NotImplementedError
+            edges = map(float, spec[1])
+            closed = spec[2]
+            chain = []
+            for edgei, edge in reversed(list(enumerate(edges))):
+                chain.append("""
+elif {QUANTITY} {GT} {EDGE}:
+    {INDEX} += {SKIP}
+""".format(QUANTITY=quantity,
+           GT=">=" if closed == "left" else ">",
+           EDGE=edge,
+           INDEX=indexsym,
+           SKIP=(edgei + 1)*stridemap[i]).strip())
+            statements.extend(ast.parse("\n".join(chain)[2:]).body)
 
         elif spec[0] == "frac":
             raise NotImplementedError
