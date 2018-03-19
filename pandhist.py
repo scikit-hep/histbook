@@ -369,55 +369,81 @@ def concat(*previously_concatted, **new_to_concat):
     return pandas.concat(histograms)
 
 def steps(x, y=None):
-    return _PlotLayoutSteps(x, y, False)
+    return _PlotLayout("steps", False, x, y, [])
+
+def lines(x, y=None):
+    raise NotImplementedError
+
+def points(x, y=None):
+    raise NotImplementedError
 
 class _PlotLayout(object):
-    def _aggregate(self, df, level, only, exclude):
+    def __init__(self, rendering, errors, x, y, splits):
+        self._rendering = rendering
+        self._errors = errors
+        self._x = x
+        self._y = y
+        self._splits = splits
+
+    def errors(self):
+        return _PlotLayout(self._rendering, True, self._x, self._y, self._splits)
+
+    def split(self, rendering, quantity):
+        return _PlotLayout(self._rendering, True, self._x, self._y, self._splits + [(rendering, quantity)])
+
+    def overlay(self, quantity):
+        return self.split("overlay", quantity)
+
+    def stack(self, quantity):
+        return self.split("stack", quantity)
+
+    def row(self, quantity):
+        return self.split("row", quantity)
+
+    def column(self, quantity):
+        return self.split("column", quantity)
+
+    def plot(self, df):
+        level = [self._x] + [q for r, q in self._splits]
+
         summable = df[[x for x in df.columns if not x.startswith("min") and not x.startswith("max")]]
         minable = df[[x for x in df.columns if x.startswith("min")]]
         maxable = df[[x for x in df.columns if x.startswith("max")]]
-        # FIXME: do some filtering here
         summable = summable.sum(level=level)
         minable = minable.min(level=level)
         maxable = maxable.max(level=level)
-        return pandas.concat([summable, minable, maxable], 1)
 
-    def _stepify(self, df, x):
-        ascolumn = df.reset_index(level=x)
-        ascolumn[x] = ascolumn[x].apply(lambda x: x.left)
-        return ascolumn[1:]
+        plottable = pandas.concat([summable, minable, maxable], 1)
 
-class _PlotLayoutSteps(_PlotLayout):
-    def __init__(self, x, y, errors):
-        self._x = x
-        self._y = y
-        self._errors = errors
+        # FIXME: handle self._y
+        colnames = level + ["count" if "count" in plottable.columns else "sumw"]
 
-    def plot(self, df, only={}, exclude=()):
-        df = self._stepify(self._aggregate(df, self._x, only, exclude), self._x)
-        count = "count" if "count" in df.columns else "sumw"
-        xcolumn = df[self._x]
-        countcolumn = df[count]
-        return {
-            "$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-            "data": {"values": [{self._x: x, count: c} for x, c in zip(xcolumn, countcolumn)]},
-            "mark": {
-                "type": "line",
-                "interpolate": "step-before"
-            },
-            "encoding": {
-                "x": {"field": self._x, "type": "quantitative"},
-                "y": {"field": count, "type": "quantitative"}
-                }
-            }
+        if self._rendering == "steps":
+            noindex = plottable.reset_index(level=level)
+            noindex[self._x] = noindex[self._x].apply(lambda x: x.left)
+            noindex = noindex[1:]
 
+            array = noindex[colnames].values.tolist()
+            mark = {"type": "line", "interpolate": "step-before"}
+            encoding = {"x": {"field": self._x, "type": "quantitative"},
+                        "y": {"field": colnames[-1], "type": "quantitative"}}
+            for r, q in self._splits:
+                if r == "overlay":
+                    encoding["color"] = {"field": q, "type": "nominal"}
 
+        else:
+            raise NotImplementedError
 
+        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                "data": {"values": [dict(zip(colnames, row)) for row in array]},
+                "mark": mark,
+                "encoding": encoding}
 
-# import vegascope
-# c = vegascope.LocalCanvas()
+import vegascope
+c = vegascope.LocalCanvas()
 
-# h1 = bin(10, -5, 5, "x").fillable()
-# h1.fill(2)
-# print h1
-# c(steps("x").plot(h1))
+h1 = cut("y").bin(10, -5, 5, "x").fillable()
+h1.fill(False, 1)
+h1.fill(True, 2)
+
+c(steps("x").overlay("y").plot(h1))
