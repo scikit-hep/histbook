@@ -51,60 +51,60 @@ def _binintervals(numbins, low, high, closed):
     return _irrbinintervals(edges, closed)
 
 def bin(numbins, low, high, expression, closed="left"):
-    return HistogramLayoutBinning([("bin", numbins, low, high, closed, expression)],
-                                  [_binintervals(numbins, low, high, closed)],
-                                  [expression])
+    return _HistogramLayoutBinning([("bin", numbins, low, high, closed, expression)],
+                                   [_binintervals(numbins, low, high, closed)],
+                                   [expression])
 
 def irrbin(edges, expression, closed="left"):
-    return HistogramLayoutBinning([("irrbin", edges, closed, expression)],
-                                  [_irrbinintervals(edges, closed)],
-                                  [expression])
+    return _HistogramLayoutBinning([("irrbin", edges, closed, expression)],
+                                   [_irrbinintervals(edges, closed)],
+                                   [expression])
 
 def cut(expression):
-    return HistogramLayoutBinning([("cut", expression)],
-                                  [["fail", "pass"]],
-                                  [expression])
+    return _HistogramLayoutBinning([("cut", expression)],
+                                   [["fail", "pass"]],
+                                   [expression])
 
-class HistogramLayout(object):
+class _HistogramLayout(object):
     def __init__(self, specification, indexes, expressions, columns):
-        self.specification = specification
-        self.indexes = indexes
-        self.expressions = expressions
-        self.columns = columns
+        self._specification = specification
+        self._indexes = indexes
+        self._expressions = expressions
+        self._columns = columns
 
     def _newcolumn(self, specification, newcolumns):
-        columns = list(self.columns)
+        columns = list(self._columns)
         for column in newcolumns:
             if column in columns:
                 raise ValueError("attempting to attach {0} twice".format(repr(column)))
             if column == "sumw2":
                 columns[0] = "sumw"
             columns.append(column)
-        return HistogramLayout(specification, self.indexes, self.expressions, columns)
+        return _HistogramLayout(specification, self._indexes, self._expressions, columns)
 
     def weighted(self):
-        return self._newcolumn(self.specification + [("sumw2", "")], ["sumw2"])
+        return self._newcolumn(self._specification + [("sumw2", "")], ["sumw2"])
 
     def profile(self, expression):
-        return self._newcolumn(self.specification + [("sum", expression), ("sum2", expression)], ["sum({0})".format(expression), "sum2({0})".format(expression)])
+        return self._newcolumn(self._specification + [("sum", expression), ("sum2", expression)], ["sum({0})".format(expression), "sum2({0})".format(expression)])
 
     def min(self, expression):
-        return self._newcolumn(self.specification + [("min", expression)], ["min({0})".format(expression)])
+        return self._newcolumn(self._specification + [("min", expression)], ["min({0})".format(expression)])
 
     def max(self, expression):
-        return self._newcolumn(self.specification + [("max", expression)], ["max({0})".format(expression)])
+        return self._newcolumn(self._specification + [("max", expression)], ["max({0})".format(expression)])
 
     def minmax(self, expression):
-        return self._newcolumn(self.specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
+        return self._newcolumn(self._specification + [("min", expression), ("max", expression)], ["min({0})".format(expression), "max({0})".format(expression)])
 
     def fillable(self, method="python", env={}):
         out = pandas.DataFrame(
-            index=pandas.MultiIndex.from_product(self.indexes, names=self.expressions),
-            columns=self.columns,
-            data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self.columns))
+            index=pandas.MultiIndex.from_product(self._indexes, names=self._expressions),
+            columns=self._columns,
+            data=dict((x, float("inf") if x.startswith("min") else float("-inf") if x.startswith("max") else 0.0) for x in self._columns))
 
         if method == "python":
-            fill = _makefill(self.specification, env)
+            fill = _makefill(self._specification, env)
         else:
             raise NotImplementedError("unrecognized fillable method: {0}".format(method))
 
@@ -112,24 +112,24 @@ class HistogramLayout(object):
         out.__dict__["fillargs"] = fill.__code__.co_varnames[1:fill.__code__.co_argcount]
         return out
 
-class HistogramLayoutBinning(HistogramLayout):
+class _HistogramLayoutBinning(_HistogramLayout):
     def __init__(self, specification, indexes, expressions):
-        super(HistogramLayoutBinning, self).__init__(specification, indexes, expressions, ["count"])
+        super(_HistogramLayoutBinning, self).__init__(specification, indexes, expressions, ["count"])
 
     def bin(self, numbins, low, high, expression, closed="left"):
-        return HistogramLayoutBinning(self.specification + [("bin", numbins, low, high, closed, expression)],
-                                      self.indexes + [_binintervals(numbins, low, high, closed)],
-                                      self.expressions + [expression])
+        return _HistogramLayoutBinning(self._specification + [("bin", numbins, low, high, closed, expression)],
+                                       self._indexes + [_binintervals(numbins, low, high, closed)],
+                                       self._expressions + [expression])
 
     def irrbin(self, edges, expression, closed="left"):
-        return HistogramLayoutBinning(self.specification + [("irrbin", edges, closed, expression)],
-                                      self.indexes + [_irrbinintervals(edges, closed)],
-                                      self.expressions + [expression])
+        return _HistogramLayoutBinning(self._specification + [("irrbin", edges, closed, expression)],
+                                       self._indexes + [_irrbinintervals(edges, closed)],
+                                       self._expressions + [expression])
 
     def cut(self, expression):
-        return HistogramLayoutBinning(self.specification + [("cut", expression)],
-                                      self.indexes + [["fail", "pass"]],
-                                      self.expressions + [expression])
+        return _HistogramLayoutBinning(self._specification + [("cut", expression)],
+                                       self._indexes + [["fail", "pass"]],
+                                       self._expressions + [expression])
 
 def _symbols(node, inputs, symbols):
     if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
@@ -367,3 +367,57 @@ def concat(*previously_concatted, **new_to_concat):
         histograms.append(pandas.concat([x], keys=[n], names=["source"]))
 
     return pandas.concat(histograms)
+
+def steps(x, y=None):
+    return _PlotLayoutSteps(x, y, False)
+
+class _PlotLayout(object):
+    def _aggregate(self, df, level, only, exclude):
+        summable = df[[x for x in df.columns if not x.startswith("min") and not x.startswith("max")]]
+        minable = df[[x for x in df.columns if x.startswith("min")]]
+        maxable = df[[x for x in df.columns if x.startswith("max")]]
+        # FIXME: do some filtering here
+        summable = summable.sum(level=level)
+        minable = minable.min(level=level)
+        maxable = maxable.max(level=level)
+        return pandas.concat([summable, minable, maxable], 1)
+
+    def _stepify(self, df, x):
+        ascolumn = df.reset_index(level=x)
+        ascolumn[x] = ascolumn[x].apply(lambda x: x.left)
+        return ascolumn[1:]
+
+class _PlotLayoutSteps(_PlotLayout):
+    def __init__(self, x, y, errors):
+        self._x = x
+        self._y = y
+        self._errors = errors
+
+    def plot(self, df, only={}, exclude=()):
+        df = self._stepify(self._aggregate(df, self._x, only, exclude), self._x)
+        count = "count" if "count" in df.columns else "sumw"
+        xcolumn = df[self._x]
+        countcolumn = df[count]
+        return {
+            "$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+            "data": {"values": [{self._x: x, count: c} for x, c in zip(xcolumn, countcolumn)]},
+            "mark": {
+                "type": "line",
+                "interpolate": "step-before"
+            },
+            "encoding": {
+                "x": {"field": self._x, "type": "quantitative"},
+                "y": {"field": count, "type": "quantitative"}
+                }
+            }
+
+
+
+
+# import vegascope
+# c = vegascope.LocalCanvas()
+
+# h1 = bin(10, -5, 5, "x").fillable()
+# h1.fill(2)
+# print h1
+# c(steps("x").plot(h1))
