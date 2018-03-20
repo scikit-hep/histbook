@@ -375,10 +375,10 @@ def area(x, y=None):
     return _PlotLayout("area", False, x, y, [])
 
 def lines(x, y=None):
-    raise NotImplementedError
+    return _PlotLayout("lines", False, x, y, [])
 
 def points(x, y=None):
-    raise NotImplementedError
+    return _PlotLayout("points", False, x, y, [])
 
 class _PlotLayoutErrors(object):
     def errors(self):
@@ -462,6 +462,25 @@ class _PlotLayout(object):
                 elif r == "column":
                     encoding["column"] = {"field": q, "type": "nominal"}
 
+        elif self._rendering == "lines":
+            noindex = plottable.reset_index(level=level)
+            noindex[self._x] = noindex[self._x].apply(lambda x: x.mid)
+            noindex.replace({self._x: {float("-inf"): float("nan"), float("inf"): float("nan")}}, inplace=True)
+            noindex.dropna([noindex.columns.tolist().index(self._x)], inplace=True)
+            array = noindex[colnames].values.tolist()
+
+            mark = {"type": "line", "interpolate": "linear"}
+                
+            encoding = {"x": {"field": self._x, "type": "quantitative"},
+                        "y": {"field": colnames[-1], "type": "quantitative"}}
+            for r, q in self._splits:
+                if r == "overlay":
+                    encoding["color"] = {"field": q, "type": "nominal"}
+                elif r == "row":
+                    encoding["row"] = {"field": q, "type": "nominal"}
+                elif r == "column":
+                    encoding["column"] = {"field": q, "type": "nominal"}
+
         else:
             raise NotImplementedError
 
@@ -478,4 +497,4 @@ h1.fill(False, 1)
 h1.fill(True, 2)
 h1.fill(False, 2)
 
-c(steps("x").overlay("y").plot(h1))
+c(lines("x").overlay("y").plot(h1))
