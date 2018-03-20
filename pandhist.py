@@ -368,44 +368,44 @@ def concat(*previously_concatted, **new_to_concat):
 
     return pandas.concat(histograms)
 
-def steps(x, y=None):
-    return _PlotLayout("steps", False, x, y, [])
+def steps(independent, dependent=None):
+    return _PlotLayout("steps", False, independent, dependent, [])
 
-def area(x, y=None):
-    return _PlotLayout("area", False, x, y, [])
+def area(independent, dependent=None):
+    return _PlotLayout("area", False, independent, dependent, [])
 
-def lines(x, y=None):
-    return _PlotLayout("lines", False, x, y, [])
+def lines(independent, dependent=None):
+    return _PlotLayout("lines", False, independent, dependent, [])
 
-def points(x, y=None):
-    return _PlotLayout("points", False, x, y, [])
+def points(independent, dependent=None):
+    return _PlotLayout("points", False, independent, dependent, [])
 
 class _PlotLayoutErrors(object):
     def errors(self):
-        return _PlotLayout(self._rendering, True, self._x, self._y, self._splits)
+        return _PlotLayout(self._rendering, True, self._ind, self._dep, self._splits)
 
 class _PlotLayoutOverlay(object):
     def overlay(self, quantity):
-        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("overlay", quantity)])
+        return _PlotLayout(self._rendering, self._errors, self._ind, self._dep, self._splits + [("overlay", quantity)])
 
 class _PlotLayoutStack(object):
-    def stack(self, quantity):
-        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("stack", quantity)])
+    def stack(self, quantitdep):
+        return _PlotLayout(self._rendering, self._errors, self._ind, self._dep, self._splits + [("stack", quantity)])
 
 class _PlotLayoutRow(object):
     def row(self, quantity):
-        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("row", quantity)])
+        return _PlotLayout(self._rendering, self._errors, self._ind, self._dep, self._splits + [("row", quantity)])
 
 class _PlotLayoutColumn(object):
     def column(self, quantity):
-        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("column", quantity)])
+        return _PlotLayout(self._rendering, self._errors, self._ind, self._dep, self._splits + [("column", quantity)])
 
 class _PlotLayout(object):
-    def __init__(self, rendering, errors, x, y, splits):
+    def __init__(self, rendering, errors, independent, dependent, splits):
         self._rendering = rendering
         self._errors = errors
-        self._x = x
-        self._y = y
+        self._ind = independent
+        self._dep = dependent
         self._splits = splits
 
         renderings = [r for r, q in splits]
@@ -420,37 +420,50 @@ class _PlotLayout(object):
             bases.append(_PlotLayoutRow)
         if "column" not in renderings:
             bases.append(_PlotLayoutColumn)
-        self.__class__ = type("PlotLayout", tuple(bases), {})
+        self.__class__ = type(([self._rendering] + renderings)[-1], tuple(bases), {})
 
     def plot(self, df):
-        level = [self._x] + [q for r, q in self._splits]
+        indnames = [self._ind] + [q for r, q in self._splits]
 
-        summable = df[[x for x in df.columns if not x.startswith("min") and not x.startswith("max")]]
-        minable = df[[x for x in df.columns if x.startswith("min")]]
-        maxable = df[[x for x in df.columns if x.startswith("max")]]
-        summable = summable.sum(level=level)
-        minable = minable.min(level=level)
-        maxable = maxable.max(level=level)
+        if self._dep is None:
+            depnames = ["count" if "count" in df.columns else "sumw"]
+            if self._errors:
+                raise NotImplementedError
+
+        else:
+            raise NotImplementedError
+
+        colnames = indnames + depnames
+
+        summable = df[[n for n in depnames if not n.startswith("min") and not n.startswith("max")]]
+        minable = df[[n for n in depnames if n.startswith("min")]]
+        maxable = df[[n for n in depnames if n.startswith("max")]]
+        summable = summable.sum(level=indnames)
+        minable = minable.min(level=indnames)
+        maxable = maxable.max(level=indnames)
 
         plottable = pandas.concat([summable, minable, maxable], 1)
 
-        # FIXME: handle self._y
-        colnames = level + ["count" if "count" in plottable.columns else "sumw"]
-
         if self._rendering == "steps" or self._rendering == "area":
-            noindex = plottable.reset_index(level=level)
-            noindex[self._x] = noindex[self._x].apply(lambda x: x.left)
-            noindex.replace({self._x: {float("-inf"): float("nan")}}, inplace=True)
-            noindex.dropna([noindex.columns.tolist().index(self._x)], inplace=True)
+            noindex = plottable.reset_index(level=indnames)
+            noindex[self._ind] = noindex[self._ind].apply(lambda x: x.left)
+            noindex.replace({self._ind: {float("-inf"): float("nan")}}, inplace=True)
+            noindex.dropna([noindex.columns.tolist().index(self._ind)], inplace=True)
             array = noindex[colnames].values.tolist()
+            try:
+                sumw_index = colnames.index("sumw")
+            except ValueError:
+                pass
+            else:
+                colnames[sumw_index] = "count"
 
             if self._rendering == "steps":
                 mark = {"type": "line", "interpolate": "step-before"}
             else:
                 mark = {"type": "area", "interpolate": "step-before"}
                 
-            encoding = {"x": {"field": self._x, "type": "quantitative"},
-                        "y": {"field": colnames[-1], "type": "quantitative"}}
+            encoding = {"x": {"field": self._ind, "type": "quantitative", "scale": {"zero": False}},
+                        "y": {"field": colnames[colnames.index("count")], "type": "quantitative"}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
@@ -462,17 +475,26 @@ class _PlotLayout(object):
                 elif r == "column":
                     encoding["column"] = {"field": q, "type": "nominal"}
 
-        elif self._rendering == "lines":
-            noindex = plottable.reset_index(level=level)
-            noindex[self._x] = noindex[self._x].apply(lambda x: x.mid)
-            noindex.replace({self._x: {float("-inf"): float("nan"), float("inf"): float("nan")}}, inplace=True)
-            noindex.dropna([noindex.columns.tolist().index(self._x)], inplace=True)
+        elif self._rendering == "lines" or self._rendering == "points":
+            noindex = plottable.reset_index(level=indnames)
+            noindex[self._ind] = noindex[self._ind].apply(lambda x: x.mid)
+            noindex.replace({self._ind: {float("-inf"): float("nan"), float("inf"): float("nan")}}, inplace=True)
+            noindex.dropna([noindex.columns.tolist().index(self._ind)], inplace=True)
             array = noindex[colnames].values.tolist()
+            try:
+                sumw_index = colnames.index("sumw")
+            except ValueError:
+                pass
+            else:
+                colnames[sumw_index] = "count"
 
-            mark = {"type": "line", "interpolate": "linear"}
+            if self._rendering == "lines":
+                mark = {"type": "line", "interpolate": "linear"}
+            else:
+                mark = {"type": "point", "filled": "true"}
                 
-            encoding = {"x": {"field": self._x, "type": "quantitative"},
-                        "y": {"field": colnames[-1], "type": "quantitative"}}
+            encoding = {"x": {"field": self._ind, "type": "quantitative", "scale": {"zero": False}},
+                        "y": {"field": colnames[colnames.index("count")], "type": "quantitative"}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
@@ -492,9 +514,9 @@ class _PlotLayout(object):
 import vegascope
 c = vegascope.LocalCanvas()
 
-h1 = cut("y").bin(10, -5, 5, "x").fillable()
-h1.fill(False, 1)
-h1.fill(True, 2)
-h1.fill(False, 2)
+h1 = cut("y").bin(10, 20, 30, "x").fillable()
+h1.fill(False, 21)
+h1.fill(True, 22)
+h1.fill(False, 22)
 
-c(lines("x").overlay("y").plot(h1))
+c(lines("x").column("y").plot(h1))
