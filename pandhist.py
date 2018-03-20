@@ -410,15 +410,15 @@ class _PlotLayout(object):
 
         renderings = [r for r, q in splits]
         bases = [_PlotLayout]
-        if rendering != "area" and not errors:
+        if (rendering == "lines" or rendering == "points") and not errors and not "row" in renderings and not "column" in renderings:
             bases.append(_PlotLayoutErrors)
         if "overlay" not in renderings:
             bases.append(_PlotLayoutOverlay)
-        if rendering == "area" and "stack" not in renderings:
+        if (rendering == "area" and "stack") not in renderings:
             bases.append(_PlotLayoutStack)
-        if "row" not in renderings:
+        if "row" not in renderings and not errors:
             bases.append(_PlotLayoutRow)
-        if "column" not in renderings:
+        if "column" not in renderings and not errors:
             bases.append(_PlotLayoutColumn)
         self.__class__ = type(([self._rendering] + renderings)[-1], tuple(bases), {})
 
@@ -426,14 +426,13 @@ class _PlotLayout(object):
         indnames = [self._ind] + [q for r, q in self._splits]
 
         if self._dep is None:
-            depnames = ["count" if "count" in df.columns else "sumw"]
-            if self._errors:
-                raise NotImplementedError
-
+            dep = "count"
+            if "count" in df.columns:
+                depnames = ["count"]
+            else:
+                depnames = ["sumw", "sumw2"]
         else:
             raise NotImplementedError
-
-        colnames = indnames + depnames
 
         summable = df[[n for n in depnames if not n.startswith("min") and not n.startswith("max")]]
         minable = df[[n for n in depnames if n.startswith("min")]]
@@ -444,18 +443,34 @@ class _PlotLayout(object):
 
         plottable = pandas.concat([summable, minable, maxable], 1)
 
+        if self._dep is None:
+            if self._errors:
+                if "sumw2" in plottable.columns:
+                    plottable["error"] = numpy.sqrt(plottable["sumw2"])
+                else:
+                    plottable["error"] = numpy.sqrt(numpy.absolute(plottable["count"]))
+                plottable.replace({"error": {float("nan"): 0.0}}, inplace=True)
+
+        if "sumw" in plottable.columns:
+            plottable.rename(columns={"sumw": "count"}, inplace=True)
+
+        plottable.replace([float("-inf"), float("inf")], float("nan"), inplace=True)
+        plottable.dropna(inplace=True)
+
+        if self._errors:
+            depnames = [dep, "error"]
+        else:
+            depnames = [dep]
+
+        plottable = pandas.DataFrame(index=plottable.index, columns=depnames, data=plottable)
+        colnames = indnames + depnames
+
         if self._rendering == "steps" or self._rendering == "area":
             noindex = plottable.reset_index(level=indnames)
             noindex[self._ind] = noindex[self._ind].apply(lambda x: x.left)
             noindex.replace({self._ind: {float("-inf"): float("nan")}}, inplace=True)
             noindex.dropna([noindex.columns.tolist().index(self._ind)], inplace=True)
             array = noindex[colnames].values.tolist()
-            try:
-                sumw_index = colnames.index("sumw")
-            except ValueError:
-                pass
-            else:
-                colnames[sumw_index] = "count"
 
             if self._rendering == "steps":
                 mark = {"type": "line", "interpolate": "step-before"}
@@ -463,7 +478,7 @@ class _PlotLayout(object):
                 mark = {"type": "area", "interpolate": "step-before"}
                 
             encoding = {"x": {"field": self._ind, "type": "quantitative", "scale": {"zero": False}},
-                        "y": {"field": colnames[colnames.index("count")], "type": "quantitative"}}
+                        "y": {"field": colnames[colnames.index(dep)], "type": "quantitative"}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
@@ -480,13 +495,8 @@ class _PlotLayout(object):
             noindex[self._ind] = noindex[self._ind].apply(lambda x: x.mid)
             noindex.replace({self._ind: {float("-inf"): float("nan"), float("inf"): float("nan")}}, inplace=True)
             noindex.dropna([noindex.columns.tolist().index(self._ind)], inplace=True)
+
             array = noindex[colnames].values.tolist()
-            try:
-                sumw_index = colnames.index("sumw")
-            except ValueError:
-                pass
-            else:
-                colnames[sumw_index] = "count"
 
             if self._rendering == "lines":
                 mark = {"type": "line", "interpolate": "linear"}
@@ -494,7 +504,7 @@ class _PlotLayout(object):
                 mark = {"type": "point", "filled": "true"}
                 
             encoding = {"x": {"field": self._ind, "type": "quantitative", "scale": {"zero": False}},
-                        "y": {"field": colnames[colnames.index("count")], "type": "quantitative"}}
+                        "y": {"field": colnames[colnames.index(dep)], "type": "quantitative"}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
@@ -504,19 +514,41 @@ class _PlotLayout(object):
                     encoding["column"] = {"field": q, "type": "nominal"}
 
         else:
-            raise NotImplementedError
+            raise AssertionError(self._rendering)
 
-        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                "data": {"values": [dict(zip(colnames, row)) for row in array]},
-                "mark": mark,
-                "encoding": encoding}
+        if self._errors:
+            errencoding = encoding.copy()
+            errencoding["y"] = {"field": "error-down", "type": "quantitative"}
+            errencoding["y2"] = {"field": "error-up", "type": "quantitative"}
+
+            return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                    "data": {"values": [dict(zip(colnames, row)) for row in array]},
+                    "transform": [
+                        {"calculate": "datum." + colnames[colnames.index(dep)] + " - datum.error", "as": "error-down"},
+                        {"calculate": "datum." + colnames[colnames.index(dep)] + " + datum.error", "as": "error-up"}
+                    ],
+                    "layer": [
+                        {"mark": mark, "encoding": encoding},
+                        {"mark": "rule", "encoding": errencoding}
+                    ]}
+        else:
+            return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                    "data": {"values": [dict(zip(colnames, row)) for row in array]},
+                    "mark": mark,
+                    "encoding": encoding}
 
 import vegascope
 c = vegascope.LocalCanvas()
 
-h1 = cut("y").bin(10, 20, 30, "x").fillable()
-h1.fill(False, 21)
-h1.fill(True, 22)
-h1.fill(False, 22)
+h1 = bin(10, -5, 5, "x").fillable()
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
+h1.fill(0)
 
-c(lines("x").column("y").plot(h1))
+c(points("x").errors().plot(h1))
