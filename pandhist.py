@@ -485,8 +485,6 @@ class _PlotLayout(object):
         plottable = pandas.DataFrame(index=plottable.index, columns=depnames, data=plottable)
         colnames = indnames + depnames
 
-        print plottable
-
         if self._rendering == "steps" or self._rendering == "area":
             noindex = plottable.reset_index(level=indnames)
             noindex[self._ind] = noindex[self._ind].apply(lambda x: x.left)
@@ -562,12 +560,12 @@ class _PlotLayout(object):
 import vegascope
 c = vegascope.LocalCanvas()
 
-h1 = bin(10, -5, 5, "x").profile("y").fillable()
-h1.fill(0, 8)
-h1.fill(0, 10)
-h1.fill(1, 8)
-h1.fill(1, 10)
-h1.fill(2, 8)
-h1.fill(2, 10)
+h1 = bin(10, -5, 5, "x").cut("y").profile("z").fillable()
+h1.fill(0, False, 8)
+h1.fill(0, False, 10)
+h1.fill(1, True, 8)
+h1.fill(1, True, 10)
+h1.fill(2, False, 8)
+h1.fill(2, False, 10)
 
-c(points("x", "y").errors().plot(h1))
+c(points("x", "z").overlay("y").errors().plot(h1))
