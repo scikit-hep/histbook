@@ -427,12 +427,24 @@ class _PlotLayout(object):
 
         if self._dep is None:
             dep = "count"
-            if "count" in df.columns:
-                depnames = ["count"]
-            else:
+            if "sumw" in df.columns and "sumw2" in df.columns:
                 depnames = ["sumw", "sumw2"]
+            else:
+                depnames = ["count"]
         else:
-            raise NotImplementedError
+            dep = self._dep
+            depnames = ["sum({0})".format(dep), "sum2({0})".format(dep)]
+            if "sumw" in df.columns and "sumw2" in df.columns:
+                depnames.append("sumw")
+            else:
+                depnames.append("count")
+            if depnames[0] not in df.columns or depnames[1] not in df.columns:
+                if (dep.startswith("max(") and dep.endswith(")") and dep in df.columns) or (dep.startswith("min(") and dep.endswith(")") and dep in df.columns):
+                    if self._errors:
+                        raise ValueError("{0} has no error".format(dep))
+                    depnames = [dep]
+                else:
+                    raise ValueError("missing columns named {0}, {1}".format(*depnames))
 
         summable = df[[n for n in depnames if not n.startswith("min") and not n.startswith("max")]]
         minable = df[[n for n in depnames if n.startswith("min")]]
@@ -450,6 +462,14 @@ class _PlotLayout(object):
                 else:
                     plottable["error"] = numpy.sqrt(numpy.absolute(plottable["count"]))
                 plottable.replace({"error": {float("nan"): 0.0}}, inplace=True)
+        elif depnames[0].startswith("sum("):
+            if "sumw" in plottable.columns:
+                sumw = plottable["sumw"]
+            else:
+                sumw = plottable["count"]
+            plottable[dep] = plottable[depnames[0]] / sumw
+            if self._errors:
+                plottable["error"] = numpy.sqrt((plottable[depnames[1]] / sumw) - (numpy.square(plottable[depnames[0]] / sumw)))
 
         if "sumw" in plottable.columns:
             plottable.rename(columns={"sumw": "count"}, inplace=True)
@@ -464,6 +484,8 @@ class _PlotLayout(object):
 
         plottable = pandas.DataFrame(index=plottable.index, columns=depnames, data=plottable)
         colnames = indnames + depnames
+
+        print plottable
 
         if self._rendering == "steps" or self._rendering == "area":
             noindex = plottable.reset_index(level=indnames)
@@ -540,15 +562,12 @@ class _PlotLayout(object):
 import vegascope
 c = vegascope.LocalCanvas()
 
-h1 = bin(10, -5, 5, "x").fillable()
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
-h1.fill(0)
+h1 = bin(10, -5, 5, "x").profile("y").fillable()
+h1.fill(0, 8)
+h1.fill(0, 10)
+h1.fill(1, 8)
+h1.fill(1, 10)
+h1.fill(2, 8)
+h1.fill(2, 10)
 
-c(points("x").errors().plot(h1))
+c(points("x", "y").errors().plot(h1))
