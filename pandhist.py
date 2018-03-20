@@ -443,6 +443,8 @@ class _PlotLayout(object):
                     if self._errors:
                         raise ValueError("{0} has no error".format(dep))
                     depnames = [dep]
+                elif dep.startswith("minmax(") and dep.endswith(")"):
+                    depnames = ["min({0})".format(dep[7:-1]), "max({0})".format(dep[7:-1])]
                 else:
                     raise ValueError("missing columns named {0}, {1}".format(*depnames))
 
@@ -470,6 +472,8 @@ class _PlotLayout(object):
             plottable[dep] = plottable[depnames[0]] / sumw
             if self._errors:
                 plottable["error"] = numpy.sqrt((plottable[depnames[1]] / sumw) - (numpy.square(plottable[depnames[0]] / sumw)))
+        elif depnames[0].startswith("minmax("):
+            raise NotImplementedError
 
         if "sumw" in plottable.columns:
             plottable.rename(columns={"sumw": "count"}, inplace=True)
@@ -498,13 +502,14 @@ class _PlotLayout(object):
                 mark = {"type": "area", "interpolate": "step-before"}
                 
             encoding = {"x": {"field": self._ind, "type": "quantitative", "scale": {"zero": False}},
-                        "y": {"field": colnames[colnames.index(dep)], "type": "quantitative"}}
+                        "y": {"field": colnames[colnames.index(dep)], "type": "quantitative", "axis": {"title": dep}}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
                 elif r == "stack":
                     encoding["color"] = {"field": q, "type": "nominal"}
                     encoding["y"]["aggregate"] = "sum"
+                    encoding["y"]["axis"]["title"] = "stacked {0}".format(encoding["y"]["axis"]["title"])
                 elif r == "row":
                     encoding["row"] = {"field": q, "type": "nominal"}
                 elif r == "column":
@@ -524,7 +529,7 @@ class _PlotLayout(object):
                 mark = {"type": "point", "filled": "true"}
                 
             encoding = {"x": {"field": self._ind, "type": "quantitative", "scale": {"zero": False}},
-                        "y": {"field": colnames[colnames.index(dep)], "type": "quantitative"}}
+                        "y": {"field": colnames[colnames.index(dep)], "type": "quantitative", "axis": {"title": dep}}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
@@ -568,4 +573,4 @@ h1.fill(1, True, 10)
 h1.fill(2, False, 8)
 h1.fill(2, False, 10)
 
-c(points("x", "z").overlay("y").errors().plot(h1))
+c(points("x").errors().plot(h1))
