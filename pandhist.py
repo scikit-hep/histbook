@@ -371,11 +371,34 @@ def concat(*previously_concatted, **new_to_concat):
 def steps(x, y=None):
     return _PlotLayout("steps", False, x, y, [])
 
+def area(x, y=None):
+    return _PlotLayout("area", False, x, y, [])
+
 def lines(x, y=None):
     raise NotImplementedError
 
 def points(x, y=None):
     raise NotImplementedError
+
+class _PlotLayoutErrors(object):
+    def errors(self):
+        return _PlotLayout(self._rendering, True, self._x, self._y, self._splits)
+
+class _PlotLayoutOverlay(object):
+    def overlay(self, quantity):
+        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("overlay", quantity)])
+
+class _PlotLayoutStack(object):
+    def stack(self, quantity):
+        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("stack", quantity)])
+
+class _PlotLayoutRow(object):
+    def row(self, quantity):
+        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("row", quantity)])
+
+class _PlotLayoutColumn(object):
+    def column(self, quantity):
+        return _PlotLayout(self._rendering, self._errors, self._x, self._y, self._splits + [("column", quantity)])
 
 class _PlotLayout(object):
     def __init__(self, rendering, errors, x, y, splits):
@@ -385,23 +408,19 @@ class _PlotLayout(object):
         self._y = y
         self._splits = splits
 
-    def errors(self):
-        return _PlotLayout(self._rendering, True, self._x, self._y, self._splits)
-
-    def split(self, rendering, quantity):
-        return _PlotLayout(self._rendering, True, self._x, self._y, self._splits + [(rendering, quantity)])
-
-    def overlay(self, quantity):
-        return self.split("overlay", quantity)
-
-    def stack(self, quantity):
-        return self.split("stack", quantity)
-
-    def row(self, quantity):
-        return self.split("row", quantity)
-
-    def column(self, quantity):
-        return self.split("column", quantity)
+        renderings = [r for r, q in splits]
+        bases = [_PlotLayout]
+        if rendering != "area" and not errors:
+            bases.append(_PlotLayoutErrors)
+        if "overlay" not in renderings:
+            bases.append(_PlotLayoutOverlay)
+        if rendering == "area" and "stack" not in renderings:
+            bases.append(_PlotLayoutStack)
+        if "row" not in renderings:
+            bases.append(_PlotLayoutRow)
+        if "column" not in renderings:
+            bases.append(_PlotLayoutColumn)
+        self.__class__ = type("PlotLayout", tuple(bases), {})
 
     def plot(self, df):
         level = [self._x] + [q for r, q in self._splits]
@@ -418,18 +437,30 @@ class _PlotLayout(object):
         # FIXME: handle self._y
         colnames = level + ["count" if "count" in plottable.columns else "sumw"]
 
-        if self._rendering == "steps":
+        if self._rendering == "steps" or self._rendering == "area":
             noindex = plottable.reset_index(level=level)
             noindex[self._x] = noindex[self._x].apply(lambda x: x.left)
-            noindex = noindex[1:]
-
+            noindex.replace({self._x: {float("-inf"): float("nan")}}, inplace=True)
+            noindex.dropna([noindex.columns.tolist().index(self._x)], inplace=True)
             array = noindex[colnames].values.tolist()
-            mark = {"type": "line", "interpolate": "step-before"}
+
+            if self._rendering == "steps":
+                mark = {"type": "line", "interpolate": "step-before"}
+            else:
+                mark = {"type": "area", "interpolate": "step-before"}
+                
             encoding = {"x": {"field": self._x, "type": "quantitative"},
                         "y": {"field": colnames[-1], "type": "quantitative"}}
             for r, q in self._splits:
                 if r == "overlay":
                     encoding["color"] = {"field": q, "type": "nominal"}
+                elif r == "stack":
+                    encoding["color"] = {"field": q, "type": "nominal"}
+                    encoding["y"]["aggregate"] = "sum"
+                elif r == "row":
+                    encoding["row"] = {"field": q, "type": "nominal"}
+                elif r == "column":
+                    encoding["column"] = {"field": q, "type": "nominal"}
 
         else:
             raise NotImplementedError
@@ -445,5 +476,6 @@ c = vegascope.LocalCanvas()
 h1 = cut("y").bin(10, -5, 5, "x").fillable()
 h1.fill(False, 1)
 h1.fill(True, 2)
+h1.fill(False, 2)
 
 c(steps("x").overlay("y").plot(h1))
