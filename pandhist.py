@@ -29,6 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ast
+import copy
 import math
 import types
 
@@ -389,7 +390,7 @@ class _PlotLayoutOverlay(object):
         return _PlotLayout(self._rendering, self._errors, self._ind, self._dep, self._splits + [("overlay", quantity)])
 
 class _PlotLayoutStack(object):
-    def stack(self, quantitdep):
+    def stack(self, quantity):
         return _PlotLayout(self._rendering, self._errors, self._ind, self._dep, self._splits + [("stack", quantity)])
 
 class _PlotLayoutRow(object):
@@ -422,7 +423,7 @@ class _PlotLayout(object):
             bases.append(_PlotLayoutColumn)
         self.__class__ = type(([self._rendering] + renderings)[-1], tuple(bases), {})
 
-    def plot(self, df):
+    def data(self, df):
         indnames = [self._ind] + [q for r, q in self._splits]
 
         if self._dep is None:
@@ -487,7 +488,8 @@ class _PlotLayout(object):
             depnames = [dep]
 
         plottable = pandas.DataFrame(index=plottable.index, columns=depnames, data=plottable)
-        colnames = indnames + depnames
+        plottable["id"] = 0
+        colnames = ["id"] + indnames + depnames
 
         if self._rendering == "steps" or self._rendering == "area":
             noindex = plottable.reset_index(level=indnames)
@@ -548,29 +550,61 @@ class _PlotLayout(object):
 
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                     "data": {"values": [dict(zip(colnames, row)) for row in array]},
-                    "transform": [
-                        {"calculate": "datum." + colnames[colnames.index(dep)] + " - datum.error", "as": "error-down"},
-                        {"calculate": "datum." + colnames[colnames.index(dep)] + " + datum.error", "as": "error-up"}
-                    ],
                     "layer": [
-                        {"mark": mark, "encoding": encoding},
-                        {"mark": "rule", "encoding": errencoding}
+                        {"mark": mark, "encoding": encoding, "transform": [{"filter": {"field": "id", "equal": 0}}]},
+                        {"mark": "rule", "encoding": errencoding, "transform": [
+                            {"filter": {"field": "id", "equal": 0}},
+                            {"calculate": "datum." + colnames[colnames.index(dep)] + " - datum.error", "as": "error-down"},
+                            {"calculate": "datum." + colnames[colnames.index(dep)] + " + datum.error", "as": "error-up"}]}
                     ]}
         else:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                     "data": {"values": [dict(zip(colnames, row)) for row in array]},
-                    "mark": mark,
-                    "encoding": encoding}
+                    "layer": [{
+                        "mark": mark,
+                        "encoding": encoding,
+                        "transform": [{"filter": {"field": "id", "equal": 0}}]}
+                    ]}
 
+def overlay(*graphics):
+    def setid(transform, lastid):
+        transform = copy.deepcopy(transform)
+        transform[0]["filter"]["equal"] = lastid
+        return transform
+
+    out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+           "data": {"values": []},
+           "layer": []}
+    lastid = None
+    for arg in graphics:                        # first level: for varargs
+        if isinstance(arg, dict):
+            arg = [arg]
+        for graphic in arg:                     # second level: for iterators
+            if lastid is None:
+                lastid = 0
+            else:
+                lastid += 1
+
+            out["data"]["values"].extend([dict((n, lastid if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
+            out["layer"].extend([{"mark": layer["mark"], "encoding": layer["encoding"], "transform": setid(layer["transform"], lastid)} for layer in graphic["layer"]])
+
+    return out
+            
 import vegascope
 c = vegascope.LocalCanvas()
 
-h1 = bin(10, -5, 5, "x").cut("y").profile("z").fillable()
-h1.fill(0, False, 8)
-h1.fill(0, False, 10)
-h1.fill(1, True, 8)
-h1.fill(1, True, 10)
-h1.fill(2, False, 8)
-h1.fill(2, False, 10)
+h1 = bin(5, 0, 5, "x").fillable()
+h1.fill(1)
+h1.fill(2)
+h1.fill(3)
+h1.fill(1)
+h1.fill(2)
+h1.fill(3)
+h1.fill(1)
+h1.fill(2)
+h1.fill(3)
+h1.fill(1)
+h1.fill(2)
+h1.fill(3)
 
-c(points("x").errors().plot(h1))
+c(overlay(steps("x").data(h1), points("x").errors().data(h1)))
