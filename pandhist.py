@@ -627,4 +627,6 @@ h1.fill(1)
 h1.fill(2)
 h1.fill(3)
 
+c(steps("x").data(h1))
+
 c(overlay(steps("x").data(h1), points("x").errors().data(h1)))
