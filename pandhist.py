@@ -567,29 +567,49 @@ class _PlotLayout(object):
                     ]}
 
 def overlay(*graphics):
-    def setid(transform, lastid):
-        transform = copy.deepcopy(transform)
-        transform[0]["filter"]["equal"] = lastid
-        return transform
-
     out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
            "data": {"values": []},
            "layer": []}
-    lastid = None
+    usedids = set()
+    lastid = 0
+
     for arg in graphics:                        # first level: for varargs
         if isinstance(arg, dict):
             arg = [arg]
         for graphic in arg:                     # second level: for iterators
-            if lastid is None:
-                lastid = 0
-            else:
-                lastid += 1
+            if "hconcat" in graphic or "vconcat" in graphic:
+                raise ValueError("cannot overlay concated graphics")
 
-            out["data"]["values"].extend([dict((n, lastid if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
-            out["layer"].extend([{"mark": layer["mark"], "encoding": layer["encoding"], "transform": setid(layer["transform"], lastid)} for layer in graphic["layer"]])
+            translate = {}
+            for datum in graphic["data"]["values"]:
+                if datum["id"] in usedids:
+                    while lastid in usedids:
+                        lastid += 1
+                    translate[datum["id"]] = lastid
+                
+            def dataid(x):
+                return translate.get(x, x)
+            
+            def transformid(transform):
+                transform = copy.deepcopy(transform)
+                transform[0]["filter"]["equal"] = translate.get(transform[0]["filter"]["equal"], transform[0]["filter"]["equal"])
+                return transform
+
+            # FIXME: this is hyper-specialized to the graphics produced by _PlotLayout
+            out["data"]["values"].extend([dict((n, dataid(x) if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
+            out["layer"].extend([{"mark": layer["mark"], "encoding": layer["encoding"], "transform": transformid(layer["transform"])} for layer in graphic["layer"]])
+
+            for x in translate:
+                usedids.add(x)
 
     return out
-            
+
+def hconcat(*graphics):
+    raise NotImplementedError
+
+def vconcat(*graphics):
+    raise NotImplementedError
+
 import vegascope
 c = vegascope.LocalCanvas()
 
