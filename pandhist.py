@@ -666,7 +666,7 @@ def vconcat(*graphics):
 
     def error(graphic):
         if "vconcat" in graphic:
-            raise ValueError("cannot put an vconcat in an vconcat")
+            raise ValueError("cannot put a vconcat in a vconcat")
 
     def merge(out, graphic, dataid, transformid):
         def recurse(node):
@@ -693,6 +693,30 @@ def vconcat(*graphics):
 
     return _compose(init, error, merge, graphics)
 
+def concat(numcolumns, *graphics):
+    if not numcolumns > 0:
+        raise ValueError("at least one column required")
+
+    rows = []
+    row = []
+    for arg in graphics:                        # first level: for varargs
+        if isinstance(arg, dict):
+            arg = [arg]
+        for graphic in arg:                     # second level: for iterators
+            if "hconcat" in graphic or "vconcat" in graphic:
+                raise ValueError("cannot put an hconcat or a vconcat in a concat")
+
+            if len(row) < numcolumns:
+                row.append(graphic)
+            else:
+                rows.append(row)
+                row = [graphic]
+
+    if len(row) != 0:
+        rows.append(row)
+
+    return vconcat([hconcat(row) for row in rows])
+    
 import vegascope
 c = vegascope.LocalCanvas()
 
@@ -736,3 +760,5 @@ c(vconcat(overlay(steps("x").data(h1), points("x").errors().data(h2)), points("x
 c(hconcat(vconcat(steps("x").data(h1), points("x").errors().data(h2)), vconcat(points("x").errors().data(h2), steps("x").data(h1))))
 
 c(hconcat(vconcat(steps("x").data(h1), points("x").errors().data(h2)), vconcat(overlay(steps("x").data(h1), points("x").errors().data(h2)), steps("x").data(h1))))
+
+c(concat(2, steps("x").data(h1), points("x").errors().data(h2), overlay(steps("x").data(h1), points("x").errors().data(h2)), steps("x").data(h1)))
