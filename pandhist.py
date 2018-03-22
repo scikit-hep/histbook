@@ -569,28 +569,27 @@ class _PlotLayout(object):
                         "transform": [{"filter": {"field": "id", "equal": 0}}]}
                     ]}
 
-def overlay(*graphics):
-    out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-           "data": {"values": []},
-           "layer": []}
-    usedids = set()
+def _compose(init, error, merge, graphics):
+    out = init()
+    used = set()
     lastid = 0
 
     for arg in graphics:                        # first level: for varargs
         if isinstance(arg, dict):
             arg = [arg]
         for graphic in arg:                     # second level: for iterators
-            if "hconcat" in graphic or "vconcat" in graphic:
-                raise ValueError("cannot overlay concated graphics")
+            error(graphic)
 
-            translate = {}
             observed = set()
             for datum in graphic["data"]["values"]:
-                if datum["id"] in usedids:
-                    while lastid in usedids:
-                        lastid += 1
-                    translate[datum["id"]] = lastid
                 observed.add(datum["id"])
+
+            translate = {}
+            for x in observed:
+                if x in used:
+                    while lastid in used or lastid in observed or lastid in translate.values():
+                        lastid += 1
+                    translate[x] = lastid
 
             def dataid(x):
                 return translate.get(x, x)
@@ -600,19 +599,99 @@ def overlay(*graphics):
                 transform[0]["filter"]["equal"] = translate.get(transform[0]["filter"]["equal"], transform[0]["filter"]["equal"])
                 return transform
 
-            # FIXME: this is hyper-specialized to the graphics produced by _PlotLayout
-            out["data"]["values"].extend([dict((n, dataid(x) if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
-            out["layer"].extend([{"mark": layer["mark"], "encoding": layer["encoding"], "transform": transformid(layer["transform"])} for layer in graphic["layer"]])
+            merge(out, graphic, dataid, transformid)
 
-            usedids.update(observed)
+            for x in observed:
+                used.add(translate.get(x, x))
 
     return out
 
+def overlay(*graphics):
+    def init():
+        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                "data": {"values": []},
+                "layer": []}
+
+    def error(graphic):
+        if "hconcat" in graphic or "vconcat" in graphic:
+            raise ValueError("cannot overlay concated graphics")
+
+    def merge(out, graphic, dataid, transformid):
+        # FIXME: this is hyper-specialized to the graphics produced by _PlotLayout
+        out["data"]["values"].extend([dict((n, dataid(x) if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
+        out["layer"].extend([{"mark": layer["mark"], "encoding": layer["encoding"], "transform": transformid(layer["transform"])} for layer in graphic["layer"]])
+
+    return _compose(init, error, merge, graphics)
+
 def hconcat(*graphics):
-    raise NotImplementedError
+    def init():
+        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                "data": {"values": []},
+                "hconcat": []}
+
+    def error(graphic):
+        if "hconcat" in graphic:
+            raise ValueError("cannot put an hconcat in an hconcat")
+
+    def merge(out, graphic, dataid, transformid):
+        def recurse(node):
+            if isinstance(node, dict):
+                if "layer" in node:
+                    return {"layer": recurse(node["layer"])}
+                elif "hconcat" in node:
+                    return {"hconcat": recurse(node["hconcat"])}
+                elif "vconcat" in node:
+                    return {"vconcat": recurse(node["vconcat"])}
+                else:
+                    out = dict((n, recurse(x)) for n, x in node.items())
+                    if "transform" in out:
+                        out["transform"] = transformid(out["transform"])
+                    return out
+            elif isinstance(node, list):
+                return [recurse(x) for x in node]
+            else:
+                return node
+
+        # FIXME: this is hyper-specialized to the graphics produced by _PlotLayout
+        out["data"]["values"].extend([dict((n, dataid(x) if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
+        out["hconcat"].append(recurse(graphic))
+
+    return _compose(init, error, merge, graphics)
 
 def vconcat(*graphics):
-    raise NotImplementedError
+    def init():
+        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                "data": {"values": []},
+                "vconcat": []}
+
+    def error(graphic):
+        if "vconcat" in graphic:
+            raise ValueError("cannot put an vconcat in an vconcat")
+
+    def merge(out, graphic, dataid, transformid):
+        def recurse(node):
+            if isinstance(node, dict):
+                if "layer" in node:
+                    return {"layer": recurse(node["layer"])}
+                elif "hconcat" in node:
+                    return {"hconcat": recurse(node["hconcat"])}
+                elif "vconcat" in node:
+                    return {"vconcat": recurse(node["vconcat"])}
+                else:
+                    out = dict((n, recurse(x)) for n, x in node.items())
+                    if "transform" in out:
+                        out["transform"] = transformid(out["transform"])
+                    return out
+            elif isinstance(node, list):
+                return [recurse(x) for x in node]
+            else:
+                return node
+
+        # FIXME: this is hyper-specialized to the graphics produced by _PlotLayout
+        out["data"]["values"].extend([dict((n, dataid(x) if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
+        out["vconcat"].append(recurse(graphic))
+
+    return _compose(init, error, merge, graphics)
 
 import vegascope
 c = vegascope.LocalCanvas()
@@ -645,3 +724,15 @@ h2.fill(4)
 h2.fill(4)
 
 c(overlay(steps("x").data(h1), points("x").errors().data(h2)))
+
+c(hconcat(steps("x").data(h1), points("x").errors().data(h2)))
+
+c(hconcat(steps("x").data(h1), overlay(steps("x").data(h1), points("x").errors().data(h2))))
+
+c(vconcat(steps("x").data(h1), points("x").errors().data(h2)))
+
+c(vconcat(overlay(steps("x").data(h1), points("x").errors().data(h2)), points("x").errors().data(h2)))
+
+c(hconcat(vconcat(steps("x").data(h1), points("x").errors().data(h2)), vconcat(points("x").errors().data(h2), steps("x").data(h1))))
+
+c(hconcat(vconcat(steps("x").data(h1), points("x").errors().data(h2)), vconcat(overlay(steps("x").data(h1), points("x").errors().data(h2)), steps("x").data(h1))))
