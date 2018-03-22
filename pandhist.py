@@ -488,8 +488,7 @@ class _PlotLayout(object):
             depnames = [dep]
 
         plottable = pandas.DataFrame(index=plottable.index, columns=depnames, data=plottable)
-        plottable["id"] = 0
-        colnames = ["id"] + indnames + depnames
+        colnames = indnames + depnames
 
         if self._rendering == "steps" or self._rendering == "area":
             noindex = plottable.reset_index(level=indnames)
@@ -543,13 +542,17 @@ class _PlotLayout(object):
         else:
             raise AssertionError(self._rendering)
 
+        data = {"values": [dict(zip(colnames, row)) for row in array]}
+        for x in data["values"]:
+            x["id"] = 0
+
         if self._errors:
             errencoding = encoding.copy()
             errencoding["y"] = {"field": "error-down", "type": "quantitative"}
             errencoding["y2"] = {"field": "error-up", "type": "quantitative"}
 
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                    "data": {"values": [dict(zip(colnames, row)) for row in array]},
+                    "data": data,
                     "layer": [
                         {"mark": mark, "encoding": encoding, "transform": [{"filter": {"field": "id", "equal": 0}}]},
                         {"mark": "rule", "encoding": errencoding, "transform": [
@@ -559,7 +562,7 @@ class _PlotLayout(object):
                     ]}
         else:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                    "data": {"values": [dict(zip(colnames, row)) for row in array]},
+                    "data": data,
                     "layer": [{
                         "mark": mark,
                         "encoding": encoding,
@@ -581,12 +584,14 @@ def overlay(*graphics):
                 raise ValueError("cannot overlay concated graphics")
 
             translate = {}
+            observed = set()
             for datum in graphic["data"]["values"]:
                 if datum["id"] in usedids:
                     while lastid in usedids:
                         lastid += 1
                     translate[datum["id"]] = lastid
-                
+                observed.add(datum["id"])
+
             def dataid(x):
                 return translate.get(x, x)
             
@@ -599,8 +604,7 @@ def overlay(*graphics):
             out["data"]["values"].extend([dict((n, dataid(x) if n == "id" else x) for n, x in datum.items()) for datum in graphic["data"]["values"]])
             out["layer"].extend([{"mark": layer["mark"], "encoding": layer["encoding"], "transform": transformid(layer["transform"])} for layer in graphic["layer"]])
 
-            for x in translate:
-                usedids.add(x)
+            usedids.update(observed)
 
     return out
 
@@ -627,6 +631,17 @@ h1.fill(1)
 h1.fill(2)
 h1.fill(3)
 
-c(steps("x").data(h1))
+h2 = bin(5, 0, 5, "x").fillable()
+h2.fill(0)
+h2.fill(0)
+h2.fill(0)
+h2.fill(0)
+h2.fill(1)
+h2.fill(2)
+h2.fill(3)
+h2.fill(4)
+h2.fill(4)
+h2.fill(4)
+h2.fill(4)
 
-c(overlay(steps("x").data(h1), points("x").errors().data(h1)))
+c(overlay(steps("x").data(h1), points("x").errors().data(h2)))
