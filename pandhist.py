@@ -716,49 +716,11 @@ def concat(numcolumns, *graphics):
         rows.append(row)
 
     return vconcat([hconcat(row) for row in rows])
-    
-import vegascope
-c = vegascope.LocalCanvas()
 
-h1 = bin(5, 0, 5, "x").fillable()
-h1.fill(1)
-h1.fill(2)
-h1.fill(3)
-h1.fill(1)
-h1.fill(2)
-h1.fill(3)
-h1.fill(1)
-h1.fill(2)
-h1.fill(3)
-h1.fill(1)
-h1.fill(2)
-h1.fill(3)
+del ast
+del copy
+del math
+del types
 
-h2 = bin(5, 0, 5, "x").fillable()
-h2.fill(0)
-h2.fill(0)
-h2.fill(0)
-h2.fill(0)
-h2.fill(1)
-h2.fill(2)
-h2.fill(3)
-h2.fill(4)
-h2.fill(4)
-h2.fill(4)
-h2.fill(4)
-
-c(overlay(steps("x").data(h1), points("x").errors().data(h2)))
-
-c(hconcat(steps("x").data(h1), points("x").errors().data(h2)))
-
-c(hconcat(steps("x").data(h1), overlay(steps("x").data(h1), points("x").errors().data(h2))))
-
-c(vconcat(steps("x").data(h1), points("x").errors().data(h2)))
-
-c(vconcat(overlay(steps("x").data(h1), points("x").errors().data(h2)), points("x").errors().data(h2)))
-
-c(hconcat(vconcat(steps("x").data(h1), points("x").errors().data(h2)), vconcat(points("x").errors().data(h2), steps("x").data(h1))))
-
-c(hconcat(vconcat(steps("x").data(h1), points("x").errors().data(h2)), vconcat(overlay(steps("x").data(h1), points("x").errors().data(h2)), steps("x").data(h1))))
-
-c(concat(2, steps("x").data(h1), points("x").errors().data(h2), overlay(steps("x").data(h1), points("x").errors().data(h2)), steps("x").data(h1)))
+del numpy
+del pandas
