@@ -261,7 +261,7 @@ class Expr(object):
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
                 content = recurse(node.operand)
                 if isinstance(content, UnaryOp) and content.fcn == "-":
-                    return content
+                    return content.args[0]
                 else:
                     return UnaryOp("-", content)
 
@@ -271,7 +271,7 @@ class Expr(object):
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Invert):
                 content = recurse(node.operand)
                 if isinstance(content, UnaryOp) and content.fcn == "~":
-                    return content
+                    return content.args[0]
                 else:
                     return UnaryOp("~", content)
 
@@ -294,19 +294,21 @@ class Expr(object):
 
                 left = recurse(node.left)
                 right = recurse(node.right)
-                if commute:
-                    left, right = sorted([left, right])
 
                 if isinstance(left, Const) and isinstance(right, Const):
                     return Const(calculate[fcn](left.value, right.value))
                 elif isinstance(left, BinOp) and left.fcn == fcn and isinstance(right, BinOp) and right.fcn == fcn:
-                    return BinOp(fcn, left.args + right.args)
+                    out = BinOp(fcn, *(left.args + right.args))
                 elif isinstance(left, BinOp) and left.fcn == fcn:
-                    return BinOp(fcn, left.args + (right,))
+                    out = BinOp(fcn, *(left.args + (right,)))
                 elif isinstance(right, BinOp) and right.fcn == fcn:
-                    return BinOp(fcn, (left,) + right.args)
+                    out = BinOp(fcn, *((left,) + right.args))
                 else:
-                    return BinOp(fcn, (left, right))
+                    out = BinOp(fcn, *(left, right))
+
+                if commute:
+                    out.args = tuple(sorted(out.args))
+                return out
 
             elif isinstance(node, ast.Call):
                 if node.func.id in Expr.recognized.values():

@@ -68,8 +68,25 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("x not in {1, 2, 3}").expr, Relation("not in", Name("x"), Const({1, 2, 3})))
 
     def test_interval(self):
-        self.assertEqual(Expr.parse("0 <= x < 3").expr, Interval(Const(0), Const(3), Name("x"), lowclosed=True))
-        self.assertEqual(Expr.parse("0 < x <= 3").expr, Interval(Const(0), Const(3), Name("x"), lowclosed=False))
-        self.assertEqual(Expr.parse("3 > x >= 0").expr, Interval(Const(0), Const(3), Name("x"), lowclosed=True))
-        self.assertEqual(Expr.parse("3 >= x > 0").expr, Interval(Const(0), Const(3), Name("x"), lowclosed=False))
+        self.assertEqual(Expr.parse("0 <= x < 3").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=True))
+        self.assertEqual(Expr.parse("0 < x <= 3").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=False))
+        self.assertEqual(Expr.parse("3 > x >= 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=True))
+        self.assertEqual(Expr.parse("3 >= x > 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=False))
 
+    def test_unary(self):
+        self.assertEqual(Expr.parse("+x").expr, Name("x"))
+        self.assertEqual(Expr.parse("-x").expr, UnaryOp("-", Name("x")))
+        self.assertEqual(Expr.parse("~x").expr, UnaryOp("~", Name("x")))
+        self.assertEqual(Expr.parse("++x").expr, Name("x"))
+        self.assertEqual(Expr.parse("--x").expr, Name("x"))
+        self.assertEqual(Expr.parse("~~x").expr, Name("x"))
+        self.assertEqual(Expr.parse("+++x").expr, Name("x"))
+        self.assertEqual(Expr.parse("---x").expr, UnaryOp("-", Name("x")))
+        self.assertEqual(Expr.parse("~~~x").expr, UnaryOp("~", Name("x")))
+
+    def test_binary(self):
+        self.assertEqual(Expr.parse("x + y").expr, BinOp("+", Name("x"), Name("y")))
+        self.assertEqual(Expr.parse("y + x").expr, BinOp("+", Name("x"), Name("y")))
+        self.assertEqual(Expr.parse("x + y + z").expr, BinOp("+", Name("x"), Name("y"), Name("z")))
+        self.assertEqual(Expr.parse("x + z + y").expr, BinOp("+", Name("x"), Name("y"), Name("z")))
+        self.assertEqual(Expr.parse("z + x + y").expr, BinOp("+", Name("x"), Name("y"), Name("z")))
