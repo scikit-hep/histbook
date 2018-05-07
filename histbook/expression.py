@@ -52,8 +52,19 @@ class Expr(object):
     def __repr__(self):
         return "{0}({1})".format(self.__class__.__name__, ", ".join(self._reprargs()))
 
+    # assumes __eq__ and __lt__ have been defined
+
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __ge__(self, other):
+        return not self.__lt__(other)
+
+    def __gt__(self, other):
+        return not self.__lt__(other) and not self.__eq__(other)
+
+    def __le__(self, other):
+        return self.__lt__(other) or self.__eq__(other)
 
     recognized = {
         math.sqrt: "sqrt",
@@ -84,9 +95,22 @@ class Expr(object):
 
         def not_(expr):
             if isinstance(expr, Relation):
-                return Relation(inverse[expr.cmp], expr.arg, expr.const)
+                if expr.cmp == "==":
+                    return Relation("!=", expr.left, expr.right)
+                elif expr.cmp == "<":
+                    return Relation("<=", expr.right, expr.left)
+                elif expr.cmp == "<=":
+                    return Relation("<", expr.right, expr.left)
+                elif expr.cmp == "in":
+                    return Relation("not in", expr.right, expr.left)
+                elif expr.cmp == "not in":
+                    return Relation("in", expr.right, expr.left)
+                else:
+                    raise AssertionError(expr)
+
             elif isinstance(expr, And):
                 return Or(*[not_(x) for x in expr.args])
+
             elif isinstance(expr, Or):
                 notlogical = [not_(x) for x in expr.args if not isinstance(x, And)]
                 logical    = [not_(x) for x in expr.args if     isinstance(x, And)]
@@ -119,11 +143,13 @@ class Expr(object):
                 others += x.args
             return Or(*others)
 
+        globs = globals()
+
         def resolve(node):
             if isinstance(node, ast.Attribute):
                 return getattr(resolve(node.value), node.attr)
             elif isinstance(node, ast.Name):
-                return globals()[node.id]
+                return globs[node.id]
             else:
                 raise ExpressionError("not a function name: {0}".format(meta.dump_python_source(node).strip()))
 
@@ -146,30 +172,52 @@ class Expr(object):
                     raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(meta.dump_python_source(node).strip()))
 
             elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-                return Name(node.id)
+                if node.id == "None" or (node.id in globs and globs[node.id] is None):
+                    return Const(None)
+                elif node.id == "True" or (node.id in globs and globs[node.id] is True):
+                    return Const(True)
+                elif node.id == "False" or (node.id in globs and globs[node.id] is False):
+                    return Const(False)
+                else:
+                    if node.id not in names:
+                        names.append(node.id)
+                    return Name(node.id)
 
-            elif relations and isinstance(node, ast.Compare) and len(ops) == 1:
-                if   isinstance(node.ops[0], ast.Eq):    cmp = "=="
-                elif isinstance(node.ops[0], ast.NotEq): cmp = "!="
-                elif isinstance(node.ops[0], ast.Lt):    cmp = "<"
-                elif isinstance(node.ops[0], ast.LtE):   cmp = "<="
-                elif isinstance(node.ops[0], ast.Gt):    cmp = ">"
-                elif isinstance(node.ops[0], ast.GtE):   cmp = ">="
-                elif isinstance(node.ops[0], ast.In):    cmp = "in"
-                elif isinstance(node.ops[0], ast.NotIn): cmp = "not in"
+            elif isinstance(node, getattr(ast, "NameConstant", tuple)):  # node will never be tuple
+                if node.value is None:
+                    return Const(None)
+                elif node.value is True:
+                    return Const(True)
+                elif node.value is False:
+                    return Const(False)
+                else:
+                    raise AssertionError(node)
+
+            elif relations and isinstance(node, ast.Compare) and len(node.ops) == 1:
+                if   isinstance(node.ops[0], ast.Eq):    cmp, swap = "==",     None
+                elif isinstance(node.ops[0], ast.NotEq): cmp, swap = "!=",     None
+                elif isinstance(node.ops[0], ast.Lt):    cmp, swap = "<",      False
+                elif isinstance(node.ops[0], ast.LtE):   cmp, swap = "<=",     False
+                elif isinstance(node.ops[0], ast.Gt):    cmp, swap = "<",      True
+                elif isinstance(node.ops[0], ast.GtE):   cmp, swap = "<=",     True
+                elif isinstance(node.ops[0], ast.In):    cmp, swap = "in",     False
+                elif isinstance(node.ops[0], ast.NotIn): cmp, swap = "not in", False
                 else:
                     raise ExpressionError("only comparision relations supported: '==', '!=', '<', '<=', '>', '>=', 'in', and 'not in': {0}".format(meta.dump_python_source(node).strip()))
-
+                
                 left = recurse(node.left)
                 right = recurse(node.comparators[0])
-                if not isinstance(left, Const) and isinstance(right, Const):
-                    return Relation(cmp, left, right)
-                elif isinstance(left, Const) and not isinstance(right, Const):
-                    return Relation(inverse[cmp], right, left)
-                else:
-                    raise ExpressionError("comparisons must relate an unknown expression to a known constant: {0}".format(meta.dump_python_source(node).strip()))
+                if swap is True:
+                    left, right = right, left
+                elif swap is None:
+                    left, right = sorted([left, right])
 
-            elif intervals and isinstance(node, ast.Compare) and len(ops) == 2:
+                if (cmp == "in" or cmp == "not in") and not (isinstance(right, Const) and isinstance(right.value, set)):
+                    raise ExpressionError("comparisons 'in' and 'not in' can only be used with a set: {0}".format(meta.dump_python_source(node).strip()))
+
+                return Relation(cmp, left, right)
+
+            elif intervals and isinstance(node, ast.Compare) and len(node.ops) == 2:
                 if isinstance(node.ops[0], ast.LtE) and isinstance(node.ops[1], ast.Lt):
                     low = recurse(node.left)
                     high = recurse(node.comparators[1])
@@ -231,21 +279,23 @@ class Expr(object):
                 raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(meta.dump_python_source(node).strip()))
 
             elif isinstance(node, ast.BinOp):
-                if   isinstance(node.op, ast.Add):      fcn = "+"
-                elif isinstance(node.op, ast.Sub):      fcn = "-"
-                elif isinstance(node.op, ast.Mult):     fcn = "*"
-                elif isinstance(node.op, ast.Div):      fcn = "/"
-                elif isinstance(node.op, ast.FloorDiv): fcn = "//"
-                elif isinstance(node.op, ast.Mod):      fcn = "%"
-                elif isinstance(node.op, ast.Pow):      fcn = "**"
-                elif isinstance(node.op, ast.BitOr):    fcn = "|"
-                elif isinstance(node.op, ast.BitAnd):   fcn = "&"
-                elif isinstance(node.op, ast.BitXor):   fcn = "^"
+                if   isinstance(node.op, ast.Add):      fcn, commute = "+",  True
+                elif isinstance(node.op, ast.Sub):      fcn, commute = "-",  False
+                elif isinstance(node.op, ast.Mult):     fcn, commute = "*",  True
+                elif isinstance(node.op, ast.Div):      fcn, commute = "/",  False
+                elif isinstance(node.op, ast.FloorDiv): fcn, commute = "//", False
+                elif isinstance(node.op, ast.Mod):      fcn, commute = "%",  False
+                elif isinstance(node.op, ast.Pow):      fcn, commute = "**", False
+                elif isinstance(node.op, ast.BitOr):    fcn, commute = "|",  True
+                elif isinstance(node.op, ast.BitAnd):   fcn, commute = "&",  True
+                elif isinstance(node.op, ast.BitXor):   fcn, commute = "^",  True
                 else:
                     raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(meta.dump_python_source(node).strip()))
 
                 left = recurse(node.left)
                 right = recurse(node.right)
+                if commute:
+                    left, right = sorted([left, right])
 
                 if isinstance(left, Const) and isinstance(right, Const):
                     return Const(calculate[fcn](left.value, right.value))
@@ -283,7 +333,11 @@ class Expr(object):
 
         raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
 
+# the details of the canonical order are not important; we just need a way to ignore order sometimes
+
 class Const(Expr):
+    _order = 0
+
     def __init__(self, value):
         self.value = value
 
@@ -303,7 +357,18 @@ class Const(Expr):
     def __eq__(self, other):
         return isinstance(other, Const) and self.value == other.value
 
+    def __lt__(self, other):
+        if self._order == other._order:
+            if type(self.value) == type(other.value):
+                return self.value < other.value
+            else:
+                return type(self.value) < type(other.value)
+        else:
+            return self._order < other._order
+
 class Name(Expr):
+    _order = 1
+
     def __init__(self, value):
         self.value = value
 
@@ -319,7 +384,15 @@ class Name(Expr):
     def __eq__(self, other):
         return isinstance(other, Name) and self.value == other.value
 
+    def __lt__(self, other):
+        if self._order == other._order:
+            return self.value < other.value
+        else:
+            return self._order < other._order
+
 class Call(Expr):
+    _order = 2
+
     def __init__(self, fcn, *args):
         self.fcn = fcn
         self.args = args
@@ -336,6 +409,12 @@ class Call(Expr):
     def __eq__(self, other):
         return isinstance(other, Call) and self.fcn == other.fcn and self.args == other.args
 
+    def __lt__(self, other):
+        if self._order == other._order:
+            return (self.fcn, self.args) < (other.fcn, other.args)
+        else:
+            return self._order < other._order
+
 class UnaryOp(Call):
     def __init__(self, fcn, arg):
         super(UnaryOp, self).__init__(fcn, arg)
@@ -351,24 +430,34 @@ class BinOp(Call):
         return (" " + self.fcn + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
 
 class Relation(Expr):
-    def __init__(self, cmp, arg, const):
+    _order = 4
+
+    def __init__(self, cmp, left, right):
         self.cmp = cmp
-        self.arg = arg
-        self.const = const
+        self.left = left
+        self.right = right
 
     def _reprargs(self):
-        return (repr(self.cmp), repr(self.arg), repr(self.const))
+        return (repr(self.cmp), repr(self.left), repr(self.right))
 
     def __str__(self):
-        return "{0} {1} {2}".format(str(self.arg), self.cmp, str(self.const))
+        return "{0} {1} {2}".format(str(self.left), self.cmp, str(self.right))
 
     def __hash__(self):
-        return hash((Relation, self.cmp, self.arg, self.const))
+        return hash((Relation, self.cmp, self.left, self.right))
 
     def __eq__(self, other):
-        return isinstance(other, Relation) and self.cmp == other.cmp and self.arg == other.arg and self.const == other.const
+        return isinstance(other, Relation) and self.cmp == other.cmp and self.left == other.left and self.right == other.right
+
+    def __lt__(self, other):
+        if self._order == other._order:
+            return (self.cmp, self.left, self.right) < (other.cmp, other.left, other.right)
+        else:
+            return self._order < other._order
 
 class Interval(Expr):
+    _order = 5
+
     def __init__(self, arg, low, high, lowclosed=True):
         self.arg = arg
         self.low = low
@@ -393,7 +482,15 @@ class Interval(Expr):
     def __eq__(self, other):
         return isinstance(other, Interval) and self.arg == other.arg and self.low == other.low and self.high == other.high and self.lowclosed == other.lowclosed
 
+    def __lt__(self, other):
+        if self._order == other._order:
+            return (self.arg, self.low, self.high, self.lowclosed) < (other.arg, other.low, other.high, other.lowclosed)
+        else:
+            return self._order < other._order
+
 class Logical(Expr):
+    _order = 6
+
     def __init__(self, *args):
         self.args = args
 
@@ -405,6 +502,12 @@ class Logical(Expr):
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.args == other.args
+
+    def __lt__(self, other):
+        if self._order == other._order:
+            return (self.__class__.__name__, self.args) < (other.__class__.__name__, self.args)
+        else:
+            return self._order < other._order
 
 class And(Logical):
     def __str__(self):
