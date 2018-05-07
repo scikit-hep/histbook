@@ -32,6 +32,6 @@ In addition, post-aggregation analysis can be performed:
 
 histbook is written in Python, using Numpy record arrays for storage. They are [Numba-aware](http://numba.pydata.org/), meaning that they can be used in JIT-compiled Python functions for speed. Plots are presented in [Vega-Lite](https://vega.github.io/vega-lite/), a JSON grammar for visualization that render inline in [Jupyter notebooks](http://jupyter.org/) or anywhere through [VegaScope](https://github.com/diana-hep/vegascope). Projections of a filled histogram book can also be converted to [PyROOT](https://root.cern.ch/pyroot) histograms for ROOT.
 
-## Disclaimer
+## Disclaimer/timeline
 
-By the way, none of the above exists as of this writing (May 7, 2018); it's a scope of work. Now I need to make all of the above true.
+By the way, none of the above exists as of this writing (May 7, 2018); it's a scope of work. Now I need to make all of the above true. (Should be doable in less than 3 weeks: end of May.)
