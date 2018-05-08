@@ -518,11 +518,21 @@ class FieldAlgebraAddLike(FieldAlgebra):
                         y.const = op.calcval(op.negateval(x.const), y.const)
                         break
                 else:
-                    terms.append(x)
+                    terms.append(op.subop(op.negateval(x.const), x.pos, x.neg))
+
+        posterms, negterms = [], []
+        for x in terms:
+            if op.isnegval(x.const):
+                x.const = op.negateval(x.const)
+                negterms.append(x)
+            else:
+                posterms.append(x)
 
         if op.commutative:
-            terms.sort()
-        return op(const, tuple(terms), ())
+            posterms.sort()
+            negterms.sort()
+
+        return op(const, tuple(posterms), tuple(negterms))
         
     @classmethod
     def distribute(op, left, right):
@@ -581,6 +591,10 @@ class PlusMinus(FieldAlgebraBinOp, FieldAlgebraAddLike):
     @staticmethod
     def negateval(value):
         return -value
+
+    @staticmethod
+    def isnegval(value):
+        return value < 0
 
     @staticmethod
     def calcval(left, right):
