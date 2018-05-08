@@ -224,3 +224,17 @@ class TestExpression(unittest.TestCase):
 
     def test_binop(self):
         pass
+
+    def test_logicalnot(self):
+        self.assertEqual(Expr.parse("not x == 0").expr, Relation("!=", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x != 0").expr, Relation("==", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x < 0").expr, Relation("<=", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x <= 0").expr, Relation("<", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x > 0").expr, Relation("<=", Name("x"), Const(0)))
+        self.assertEqual(Expr.parse("not x >= 0").expr, Relation("<", Name("x"), Const(0)))
+        self.assertEqual(Expr.parse("not x in {}").expr, Relation("not in", Name("x"), Const(set())))
+        self.assertEqual(Expr.parse("not x not in {}").expr, Relation("in", Name("x"), Const(set())))
+
+    def test_logicaland(self):
+        print
+        print repr(Expr.parse("x and y").expr)

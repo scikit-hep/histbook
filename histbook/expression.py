@@ -29,6 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ast
+import functools
 import itertools
 import math
 
@@ -72,16 +73,7 @@ class Expr(object):
         }
 
     @staticmethod
-    def parse(expression):
-        inverse = {"==": "!=",
-                   "!=": "==",
-                   "<":  ">=",
-                   "<=": ">",
-                   ">":  "<=",
-                   ">=": "<",
-                   "in": "not in",
-                   "not in": "in"}
-
+    def parse(expression, env=globals()):
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
                      "*": lambda x, y: x * y,
@@ -93,63 +85,61 @@ class Expr(object):
                      "&": lambda x, y: x & y,
                      "^": lambda x, y: x ^ y}
 
-        def not_(expr):
-            if isinstance(expr, Relation):
-                if expr.cmp == "==":
-                    return Relation("!=", expr.left, expr.right)
-                elif expr.cmp == "<":
-                    return Relation("<=", expr.right, expr.left)
-                elif expr.cmp == "<=":
-                    return Relation("<", expr.right, expr.left)
-                elif expr.cmp == "in":
-                    return Relation("not in", expr.right, expr.left)
-                elif expr.cmp == "not in":
-                    return Relation("in", expr.right, expr.left)
-                else:
-                    raise AssertionError(expr)
+        # def not_(expr):
+        #     if isinstance(expr, Relation):
+        #         if expr.cmp == "==":
+        #             return Relation("!=", expr.left, expr.right)
+        #         elif expr.cmp == "<":
+        #             return Relation("<=", expr.right, expr.left)
+        #         elif expr.cmp == "<=":
+        #             return Relation("<", expr.right, expr.left)
+        #         elif expr.cmp == "in":
+        #             return Relation("not in", expr.right, expr.left)
+        #         elif expr.cmp == "not in":
+        #             return Relation("in", expr.right, expr.left)
+        #         else:
+        #             raise AssertionError(expr)
 
-            elif isinstance(expr, And):
-                return Or(*[not_(x) for x in expr.args])
+        #     elif isinstance(expr, And):
+        #         return Or(*[not_(x) for x in expr.args])
 
-            elif isinstance(expr, Or):
-                notlogical = [not_(x) for x in expr.args if not isinstance(x, And)]
-                logical    = [not_(x) for x in expr.args if     isinstance(x, And)]
-                if len(logical) == 0:
-                    return And(*notlogical)
-                else:
-                    return Or(*[And(*([x] + notlogical)) for x in logical])
-            else:
-                raise AssertionError(expr)
+        #     elif isinstance(expr, Or):
+        #         notlogical = [not_(x) for x in expr.args if not isinstance(x, And)]
+        #         logical    = [not_(x) for x in expr.args if     isinstance(x, And)]
+        #         if len(logical) == 0:
+        #             return And(*notlogical)
+        #         else:
+        #             return Or(*[And(*([x] + notlogical)) for x in logical])
+        #     else:
+        #         raise AssertionError(expr)
 
-        def and_(*exprs):
-            ands       = [x for x in exprs if isinstance(x, And)]
-            ors        = [x for x in exprs if isinstance(x, Or)]
-            notlogical = [x for x in exprs if not isinstance(x, (And, Or))]
-            for x in ands:
-                notlogical += x.args
-            ors += [Or(*notlogical)]
-            out = Or(*[And(*args) for args in itertools.product([x.args for x in ors])])
-            if len(out.args) == 0:
-                raise AssertionError(out)
-            elif len(out.args) == 1:
-                return out.args[0]
-            else:
-                return out
+        # def and_(*exprs):
+        #     ands       = [x for x in exprs if isinstance(x, And)]
+        #     ors        = [x for x in exprs if isinstance(x, Or)]
+        #     notlogical = [x for x in exprs if not isinstance(x, (And, Or))]
+        #     for x in ands:
+        #         notlogical += x.args
+        #     ors += [Or(*notlogical)]
+        #     out = Or(*[And(*args) for args in itertools.product([x.args for x in ors])])
+        #     if len(out.args) == 0:
+        #         raise AssertionError(out)
+        #     elif len(out.args) == 1:
+        #         return out.args[0]
+        #     else:
+        #         return out
 
-        def or_(*exprs):
-            ors    = [x for x in exprs if isinstance(x, Or)]
-            others = [x for x in exprs if not isinstance(x, Or)]
-            for x in ors:
-                others += x.args
-            return Or(*others)
-
-        globs = globals()
+        # def or_(*exprs):
+        #     ors    = [x for x in exprs if isinstance(x, Or)]
+        #     others = [x for x in exprs if not isinstance(x, Or)]
+        #     for x in ors:
+        #         others += x.args
+        #     return Or(*others)
 
         def resolve(node):
             if isinstance(node, ast.Attribute):
                 return getattr(resolve(node.value), node.attr)
             elif isinstance(node, ast.Name):
-                return globs[node.id]
+                return env[node.id]
             else:
                 raise ExpressionError("not a function name: {0}".format(meta.dump_python_source(node).strip()))
 
@@ -172,11 +162,11 @@ class Expr(object):
                     raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(meta.dump_python_source(node).strip()))
 
             elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-                if node.id == "None" or (node.id in globs and globs[node.id] is None):
+                if node.id == "None" or (node.id in env and env[node.id] is None):
                     return Const(None)
-                elif node.id == "True" or (node.id in globs and globs[node.id] is True):
+                elif node.id == "True" or (node.id in env and env[node.id] is True):
                     return Const(True)
-                elif node.id == "False" or (node.id in globs and globs[node.id] is False):
+                elif node.id == "False" or (node.id in env and env[node.id] is False):
                     return Const(False)
                 else:
                     if node.id not in names:
@@ -246,14 +236,23 @@ class Expr(object):
             elif isinstance(node, ast.Compare):
                 raise ExpressionError("comparison operators are only allowed at the top of an expression and only interval ranges are allowed to be chained: {0}".format(meta.dump_python_source(node).strip()))
 
+            # elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            #     return not_(recurse(node.operand, relations=True))
+
+            # elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            #     return and_(*[recurse(x, relations=True) for x in node.values])
+
+            # elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+            #     return or_(*[recurse(x, relations=True) for x in node.values])
+
             elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-                return not_(recurse(node.operand, relations=True))
+                return recurse(node.operand, relations=True).negate()
 
             elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
-                return and_(*[recurse(x, relations=True) for x in node.values])
+                return functools.reduce(LogicalAnd.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values])
 
             elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
-                return or_(*[recurse(x, relations=True) for x in node.values])
+                return functools.reduce(LogicalOr.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values])
 
             elif isinstance(node, ast.BoolOp):
                 raise ExpressionError("logical operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
@@ -651,7 +650,7 @@ class TimesDiv(RingAlgebraBinOp, RingAlgebraMultLike):
 
     @staticmethod
     def negateval(value):
-        return 1.0 / value
+        return 1.0 / value            # only because arithmetic is a field, not a ring
 
     @staticmethod
     def calcval(left, right):
@@ -676,6 +675,92 @@ class PlusMinus(RingAlgebraBinOp, RingAlgebraAddLike):
     @staticmethod
     def calcval(left, right):
         return left + right
+
+# class BitAnd(RingAlgebraMultLike):
+#     commutative = True
+#     identity = numpy.uint64(-1)
+
+#     @staticmethod
+#     def negateval(value):
+#         raise AssertionError(value)   # bitwise arithmetic really is a ring
+
+#     @staticmethod
+#     def calcval(left, right):
+#         return numpy.uint64(left) & numpy.uint64(right)
+
+# class BitOr(RingAlgebraAddLike):
+#     subop = BitAnd
+#     commutative = True
+#     identity = numpy.uint64(0)
+
+#     @staticmethod
+#     def negateval(value):
+#         return ~numpy.uint64(value)
+
+#     @staticmethod
+#     def isnegval(value):
+#         return False
+
+#     @staticmethod
+#     def calcval(left, right):
+#         return numpy.uint64(left) | numpy.uint64(right)
+
+class Logical(object):
+    commutative = True
+
+    def _reprargs(self):
+        return tuple(repr(x) for x in self.args)
+
+    def __hash__(self):
+        return hash((self.__class__, self.args))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.args == other.args
+
+    def __lt__(self, other):
+        if self._order == other._order:
+            return self.args < self.args
+        else:
+            return self._order < other._order
+
+    @classmethod
+    def normalform(cls, arg):
+        if isinstance(arg, Name):
+            return LogicalOr(LogicalAnd(Predicate(arg.value)))
+        elif isinstance(arg, Predicate):
+            return LogicalOr(LogicalAnd(arg))
+        elif isinstance(arg, Relation):
+            return LogicalOr(LogicalAnd(arg))
+        elif isinstance(arg, LogicalAnd):
+            return LogicalOr(arg)
+        elif isinstance(arg, LogicalOr):
+            return arg
+        else:
+            raise AssertionError(arg)
+
+    @classmethod
+    def negate(op, arg):
+        logicalor = op.normalform(arg)
+        upsidedown = [[relation.negate() for relation in logicaland.args] for logicaland in logicalor.args]
+        return LogicalOr(*(LogicalAnd(*x) for x in itertools.product(*upsidedown)))
+
+class LogicalAnd(Logical, RingAlgebraMultLike):
+    def __init__(self, *args):
+        self.args = tuple(sorted(set(args)))
+
+    @classmethod
+    def combine(op, left, right):
+        left, right = op.normalform(left), op.normalform(right)
+        return LogicalOr(*(LogicalAnd(*(x.args + y.args)) for x, y in itertools.product(left.args, right.args)))
+
+class LogicalOr(Logical, RingAlgebraAddLike):
+    def __init__(self, *args):
+        self.args = tuple(sorted(set(args)))
+
+    @classmethod
+    def combine(op, left, right):
+        left, right = op.normalform(left), op.normalform(right)
+        return LogicalOr(*(left.args + right.args))
 
 class Relation(Expr):
     _order = 4
@@ -703,8 +788,48 @@ class Relation(Expr):
         else:
             return self._order < other._order
 
-class Interval(Expr):
+    def negate(self):
+        if self.cmp == "==":
+            return Relation("!=", self.left, self.right)
+        elif self.cmp == "!=":
+            return Relation("==", self.left, self.right)
+        elif self.cmp == "<":
+            return Relation("<=", self.right, self.left)
+        elif self.cmp == "<=":
+            return Relation("<", self.right, self.left)
+        elif self.cmp == "in":
+            return Relation("not in", self.left, self.right)
+        elif self.cmp == "not in":
+            return Relation("in", self.left, self.right)
+        else:
+            raise AssertionError(self.cmp)
+
+class Predicate(Expr):
     _order = 5
+
+    def __init__(self, name):
+        self.name = name
+
+    def _reprargs(self):
+        return (repr(self.name),)
+
+    def __str__(self):
+        return self.name
+
+    def __hash__(self):
+        return hash((Predicate, self.name))
+
+    def __eq__(self, other):
+        return isinstance(other, Predicate) and self.name == other.name
+
+    def __lt__(self, other):
+        if self._order == other._order:
+            return self.name < other.name
+        else:
+            return self._order < other._order
+
+class Interval(Expr):
+    _order = 6
 
     def __init__(self, arg, low, high, lowclosed=True):
         self.arg = arg
@@ -736,31 +861,31 @@ class Interval(Expr):
         else:
             return self._order < other._order
 
-class Logical(Expr):
-    _order = 6
+# class Logical(Expr):
+#     _order = 6
 
-    def __init__(self, *args):
-        self.args = args
+#     def __init__(self, *args):
+#         self.args = args
 
-    def _reprargs(self):
-        return tuple(repr(x) for x in self.args)
+#     def _reprargs(self):
+#         return tuple(repr(x) for x in self.args)
 
-    def __hash__(self):
-        return hash((self.__class__,) + self.args)
+#     def __hash__(self):
+#         return hash((self.__class__,) + self.args)
 
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.args == other.args
+#     def __eq__(self, other):
+#         return isinstance(other, self.__class__) and self.args == other.args
 
-    def __lt__(self, other):
-        if self._order == other._order:
-            return (self.__class__.__name__, self.args) < (other.__class__.__name__, self.args)
-        else:
-            return self._order < other._order
+#     def __lt__(self, other):
+#         if self._order == other._order:
+#             return (self.__class__.__name__, self.args) < (other.__class__.__name__, self.args)
+#         else:
+#             return self._order < other._order
 
-class And(Logical):
-    def __str__(self):
-        return " and ".format(str(x) for x in self.args)
+# class And(Logical):
+#     def __str__(self):
+#         return " and ".format(str(x) for x in self.args)
 
-class Or(Logical):
-    def __str__(self):
-        return " or ".format("(" + str(x) + ")" if isinstance(x, And) else str(x) for x in self.args)
+# class Or(Logical):
+#     def __str__(self):
+#         return " or ".format("(" + str(x) + ")" if isinstance(x, And) else str(x) for x in self.args)
