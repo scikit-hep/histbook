@@ -263,7 +263,7 @@ class Expr(object):
                 if isinstance(content, Const):
                     return Const(-content.value)
                 else:
-                    return PlusMinus.negate(content)
+                    return PlusMinus.negate(content).simplify()
 
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
                 return recurse(node.operand)
@@ -273,7 +273,7 @@ class Expr(object):
                 if isinstance(content, Const):
                     return Const(~content.value)
                 else:
-                    return BitAnd.negate(content)
+                    return BitAnd.negate(content).simplify()
 
             elif isinstance(node, ast.UnaryOp):
                 raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(meta.dump_python_source(node).strip()))
@@ -299,11 +299,11 @@ class Expr(object):
                     return Const(calculate[fcn](left.value, right.value))
 
                 if fcn == "+":
-                    return PlusMinus.combine(left, right)
+                    return PlusMinus.combine(left, right).simplify()
                 elif fcn == "-":
-                    return PlusMinus.combine(left, PlusMinus.negate(right))
+                    return PlusMinus.combine(left, PlusMinus.negate(right)).simplify()
                 elif fcn == "*":
-                    return PlusMinus.distribute(left, right)
+                    return PlusMinus.distribute(left, right).simplify()
                 elif fcn == "/":
                     # PlusMinus is implemented as a RingAlgebra, but it's really a Field
                     right = PlusMinus.normalform(right)
@@ -318,7 +318,7 @@ class Expr(object):
                     else:
                         negation = TimesDiv.negate(right)   # additive terms in the denominator
 
-                    return PlusMinus.distribute(left, negation)
+                    return PlusMinus.distribute(left, negation).simplify()
 
                 else:
                     return BinOp(fcn, left, right)
@@ -595,15 +595,12 @@ class RingAlgebraAddLike(RingAlgebra):
             if len(out.pos) == 1:
                 out = out.pos[0]
             else:
-                out = out.neg[0]
+                out = self.subop(self.negateval(out.neg[0].const), out.neg[0].pos, out.neg[0].neg)
 
             if len(out.pos) == len(out.neg) == 0:
                 return Const(out.const)
-            elif out.const == out.identity and len(out.pos) + len(out.neg) == 1:
-                if len(out.pos) == 1:
-                    return out.pos[0]
-                else:
-                    return out.neg[0]
+            elif out.const == out.identity and len(out.pos) == 1 and len(out.neg) == 0:
+                return out.pos[0]
 
         return out
 
