@@ -305,7 +305,19 @@ class Expr(object):
                 elif fcn == "*":
                     return PlusMinus.distribute(left, right)
                 elif fcn == "/":
-                    return PlusMinus.distribute(left, TimesDiv.negate(right))
+                    # PlusMinus is implemented as a RingAlgebra, but it's really a Field
+                    right = PlusMinus.normalform(right)
+
+                    if right.const == PlusMinus.identity and len(right.pos) == 1 and len(right.neg) == 0:
+                        negation = TimesDiv.negate(right.pos[0])
+                    elif right.const == PlusMinus.identity and len(right.pos) == 0 and len(right.neg) == 1:
+                        negation = TimesDiv.negate(right.neg[0])
+                        negation.const = PlusMinus.negateval(negation.const)
+                    else:
+                        negation = TimesDiv(right)   # additive terms in the denominator
+
+                    return PlusMinus.distribute(left, negation)
+
                 else:
                     return BinOp(fcn, left, right)
 
@@ -420,7 +432,7 @@ class BinOp(Call):
     def __str__(self):
         return (" " + self.fcn + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
 
-class FieldAlgebra(Call):
+class RingAlgebra(Call):
     _order = 3
 
     def __init__(self, const, pos, neg):
@@ -467,7 +479,7 @@ class FieldAlgebra(Call):
 
         return op.collect(op(op.calcval(left.const, right.const), pos, neg))
 
-class FieldAlgebraMultLike(FieldAlgebra):
+class RingAlgebraMultLike(RingAlgebra):
     @classmethod
     def normalform(op, arg):
         if isinstance(arg, op):
@@ -480,7 +492,7 @@ class FieldAlgebraMultLike(FieldAlgebra):
     def similar(self, other):
         return isinstance(other, self.__class__) and self.pos == other.pos and self.neg == other.neg
 
-class FieldAlgebraAddLike(FieldAlgebra):
+class RingAlgebraAddLike(RingAlgebra):
     @classmethod
     def normalform(op, arg):
         if isinstance(arg, op):
@@ -551,7 +563,7 @@ class FieldAlgebraAddLike(FieldAlgebra):
 
         return op.collect(op(op.identity, tuple(pos), tuple(neg)))
 
-class FieldAlgebraBinOp(object):
+class RingAlgebraBinOp(object):
     def __str__(self):
         out = []
         if self.const != self.identity or len(self.pos) == 0:
@@ -565,7 +577,7 @@ class FieldAlgebraBinOp(object):
             out.append(str(x))
         return "".join(out)
 
-class TimesDiv(FieldAlgebraBinOp, FieldAlgebraMultLike):
+class TimesDiv(RingAlgebraBinOp, RingAlgebraMultLike):
     posop = "*"
     negop = "/"
 
@@ -580,7 +592,7 @@ class TimesDiv(FieldAlgebraBinOp, FieldAlgebraMultLike):
     def calcval(left, right):
         return left * right
 
-class PlusMinus(FieldAlgebraBinOp, FieldAlgebraAddLike):
+class PlusMinus(RingAlgebraBinOp, RingAlgebraAddLike):
     posop = " + "
     negop = " - "
 

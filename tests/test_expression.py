@@ -73,12 +73,6 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("3 > x >= 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=True))
         self.assertEqual(Expr.parse("3 >= x > 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=False))
 
-    def test_plusmult_field(self):
-        expr = "(y + z) * 3"
-        print
-        print repr(Expr.parse(expr).expr)
-        print str(Expr.parse(expr).expr)
-
     def test_unary_plusminus(self):
         self.assertEqual(Expr.parse("+x").expr, Name("x"))
         self.assertEqual(Expr.parse("-x").expr, PlusMinus(0, (), (TimesDiv(1, (Name("x"),), ()),)))
@@ -140,11 +134,22 @@ class TestExpression(unittest.TestCase):
 
     def test_timesdiv(self):
         self.assertEqual(Expr.parse("x * y").expr, PlusMinus(0, (TimesDiv(1, (Name("x"), Name("y")), ()),), ()))
+        self.assertEqual(Expr.parse("y * x").expr, PlusMinus(0, (TimesDiv(1, (Name("x"), Name("y")), ()),), ()))
+        self.assertEqual(Expr.parse("3 * x").expr, PlusMinus(0, (TimesDiv(3, (Name("x"),), ()),), ()))
+        self.assertEqual(Expr.parse("x * 3").expr, PlusMinus(0, (TimesDiv(3, (Name("x"),), ()),), ()))
+        self.assertEqual(Expr.parse("(x * y) * z").expr, PlusMinus(0, (TimesDiv(1, (Name("x"), Name("y"), Name("z")), ()),), ()))
+        self.assertEqual(Expr.parse("x * (y * z)").expr, PlusMinus(0, (TimesDiv(1, (Name("x"), Name("y"), Name("z")), ()),), ()))
+        self.assertEqual(Expr.parse("(x * 3) * y").expr, PlusMinus(0, (TimesDiv(3, (Name("x"), Name("y")), ()),), ()))
+        self.assertEqual(Expr.parse("x * (3 * y)").expr, PlusMinus(0, (TimesDiv(3, (Name("x"), Name("y")), ()),), ()))
 
-
-
-
-
+        self.assertEqual(Expr.parse("x / y").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), (Name("y"),)),), ()))
+        self.assertEqual(Expr.parse("y / x").expr, PlusMinus(0, (TimesDiv(1, (Name("y"),), (Name("x"),)),), ()))
+        self.assertEqual(Expr.parse("3 / x").expr, PlusMinus(0, (TimesDiv(3, (), (Name("x"),)),), ()))
+        self.assertEqual(Expr.parse("x / 3").expr, PlusMinus(0, (TimesDiv(1.0/3.0, (Name("x"),), ()),), ()))
+        self.assertEqual(Expr.parse("(x / y) / z").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), (Name("y"), Name("z"))),), ()))
+        self.assertEqual(Expr.parse("x / (y / z)").expr, PlusMinus(0, (TimesDiv(1, (Name("x"), Name("z")), (Name("y"),)),), ()))
+        self.assertEqual(Expr.parse("(x / 3) / y").expr, PlusMinus(0, (TimesDiv(1.0/3.0, (Name("x"),), (Name("y"),)),), ()))
+        self.assertEqual(Expr.parse("x / (3 / y)").expr, PlusMinus(0, (TimesDiv(1.0/3.0, (Name("x"), Name("y")), ()),), ()))
 
     def test_distributive(self):
         pass
