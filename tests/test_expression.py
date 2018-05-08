@@ -203,5 +203,24 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("(x + 3)**1").expr, PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()))
         self.assertEqual(Expr.parse("(x + 3)**2").expr, TimesDiv(1, (PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()), PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ())), ()))
 
+        self.assertEqual(Expr.parse("x**-1").expr, TimesDiv(1, (), (Name("x"),)))
+        self.assertEqual(Expr.parse("x**-2").expr, TimesDiv(1, (), (Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("x**-3").expr, TimesDiv(1, (), (Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("x**-4").expr, TimesDiv(1, (), (Name("x"), Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(-x)**-1").expr, TimesDiv(-1, (), (Name("x"),)))
+        self.assertEqual(Expr.parse("(-x)**-2").expr, TimesDiv(1, (), (Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(-x)**-3").expr, TimesDiv(-1, (), (Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(-x)**-4").expr, TimesDiv(1, (), (Name("x"), Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(2*x)**-1").expr, TimesDiv(1.0/2.0, (), (Name("x"),)))
+        self.assertEqual(Expr.parse("(2*x)**-2").expr, TimesDiv(1.0/4.0, (), (Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(2*x)**-3").expr, TimesDiv(1.0/8.0, (), (Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(2*x)**-4").expr, TimesDiv(1.0/16.0, (), (Name("x"), Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(-2*x)**-1").expr, TimesDiv(-1.0/2.0, (), (Name("x"),)))
+        self.assertEqual(Expr.parse("(-2*x)**-2").expr, TimesDiv(1.0/4.0, (), (Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(-2*x)**-3").expr, TimesDiv(-1.0/8.0, (), (Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(-2*x)**-4").expr, TimesDiv(1.0/16.0, (), (Name("x"), Name("x"), Name("x"), Name("x"))))
+        self.assertEqual(Expr.parse("(x + 3)**-1").expr, TimesDiv(1, (), (PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()),)))
+        self.assertEqual(Expr.parse("(x + 3)**-2").expr, TimesDiv(1, (), (PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()), PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()))))
+
     def test_binop(self):
         pass
