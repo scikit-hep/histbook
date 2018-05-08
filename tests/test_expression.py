@@ -73,20 +73,103 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("3 > x >= 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=True))
         self.assertEqual(Expr.parse("3 >= x > 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=False))
 
-    def test_unary(self):
-        self.assertEqual(Expr.parse("+x").expr, Name("x"))
-        self.assertEqual(Expr.parse("-x").expr, UnaryOp("-", Name("x")))
-        self.assertEqual(Expr.parse("~x").expr, UnaryOp("~", Name("x")))
-        self.assertEqual(Expr.parse("++x").expr, Name("x"))
-        self.assertEqual(Expr.parse("--x").expr, Name("x"))
-        self.assertEqual(Expr.parse("~~x").expr, Name("x"))
-        self.assertEqual(Expr.parse("+++x").expr, Name("x"))
-        self.assertEqual(Expr.parse("---x").expr, UnaryOp("-", Name("x")))
-        self.assertEqual(Expr.parse("~~~x").expr, UnaryOp("~", Name("x")))
+    def test_plusmult_field(self):
+        expr = "(y + z) * 3"
+        print
+        print repr(Expr.parse(expr).expr)
+        print str(Expr.parse(expr).expr)
 
-    def test_binary(self):
-        self.assertEqual(Expr.parse("x + y").expr, BinOp("+", Name("x"), Name("y")))
-        self.assertEqual(Expr.parse("y + x").expr, BinOp("+", Name("x"), Name("y")))
-        self.assertEqual(Expr.parse("x + y + z").expr, BinOp("+", Name("x"), Name("y"), Name("z")))
-        self.assertEqual(Expr.parse("x + z + y").expr, BinOp("+", Name("x"), Name("y"), Name("z")))
-        self.assertEqual(Expr.parse("z + x + y").expr, BinOp("+", Name("x"), Name("y"), Name("z")))
+    def test_unary_plusminus(self):
+        self.assertEqual(Expr.parse("+x").expr, Name("x"))
+        self.assertEqual(Expr.parse("-x").expr, PlusMinus(0, (), (TimesDiv(1, (Name("x"),), ()),)))
+        self.assertEqual(Expr.parse("++x").expr, Name("x"))
+        self.assertEqual(Expr.parse("--x").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), ()),), ()))
+        self.assertEqual(Expr.parse("+++x").expr, Name("x"))
+        self.assertEqual(Expr.parse("---x").expr, PlusMinus(0, (), (TimesDiv(1, (Name("x"),), ()),)))
+        self.assertEqual(Expr.parse("-2").expr, Const(-2))
+        self.assertEqual(Expr.parse("-(2 + 2)").expr, Const(-4))
+
+    def test_plusminus(self):
+        self.assertEqual(Expr.parse("x + y").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), ()), TimesDiv(1, (Name("y"),), ())), ()))
+        self.assertEqual(Expr.parse("y + x").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), ()), TimesDiv(1, (Name("y"),), ())), ()))
+        self.assertEqual(Expr.parse("x + 3").expr, PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()))
+        self.assertEqual(Expr.parse("3 + x").expr, PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()))
+        # self.assertEqual(Expr.parse("(x + y) + z").expr, 
+        # self.assertEqual(Expr.parse("(z + y) + x").expr, 
+        # self.assertEqual(Expr.parse("x + (y + z)").expr, 
+        # self.assertEqual(Expr.parse("(x + y) + 3").expr, 
+        # self.assertEqual(Expr.parse("(3 + y) + x").expr, 
+        # self.assertEqual(Expr.parse("3 + (y + x)").expr, 
+        # self.assertEqual(Expr.parse("x + (y + 3)").expr, 
+        # self.assertEqual(Expr.parse("(x + y) + (z + 3)").expr, 
+        # self.assertEqual(Expr.parse("-(x + y) + z").expr, 
+        # self.assertEqual(Expr.parse("-(z + y) + x").expr, 
+        # self.assertEqual(Expr.parse("x + -(y + z)").expr, 
+        # self.assertEqual(Expr.parse("-(x + y) + 3").expr, 
+        # self.assertEqual(Expr.parse("-(3 + y) + x").expr, 
+        # self.assertEqual(Expr.parse("3 + -(y + x)").expr, 
+        # self.assertEqual(Expr.parse("x + -(y + 3)").expr, 
+        # self.assertEqual(Expr.parse("-(x + y) + (z + 3)").expr, 
+        # self.assertEqual(Expr.parse("(x + y) + -(z + 3)").expr, 
+
+    # def test_plusminus(self):
+    #     self.assertEqual(Expr.parse("x + y").expr, PlusMinus(Const(0), (Name("x"), Name("y")), ()))
+    #     self.assertEqual(Expr.parse("y + x").expr, PlusMinus(Const(0), (Name("x"), Name("y")), ()))
+    #     self.assertEqual(Expr.parse("x + 3").expr, PlusMinus(Const(3), (Name("x"),), ()))
+    #     self.assertEqual(Expr.parse("3 + x").expr, PlusMinus(Const(3), (Name("x"),), ()))
+    #     self.assertEqual(Expr.parse("(x + y) + z").expr, PlusMinus(Const(0), (Name("x"), Name("y"), Name("z")), ()))
+    #     self.assertEqual(Expr.parse("(z + y) + x").expr, PlusMinus(Const(0), (Name("x"), Name("y"), Name("z")), ()))
+    #     self.assertEqual(Expr.parse("x + (y + z)").expr, PlusMinus(Const(0), (Name("x"), Name("y"), Name("z")), ()))
+    #     self.assertEqual(Expr.parse("(x + y) + 3").expr, PlusMinus(Const(3), (Name("x"), Name("y")), ()))
+    #     self.assertEqual(Expr.parse("(3 + y) + x").expr, PlusMinus(Const(3), (Name("x"), Name("y")), ()))
+    #     self.assertEqual(Expr.parse("3 + (y + x)").expr, PlusMinus(Const(3), (Name("x"), Name("y")), ()))
+    #     self.assertEqual(Expr.parse("x + (y + 3)").expr, PlusMinus(Const(3), (Name("x"), Name("y")), ()))
+    #     self.assertEqual(Expr.parse("(x + y) + (z + 3)").expr, PlusMinus(Const(3), (Name("x"), Name("y"), Name("z")), ()))
+
+    #     self.assertEqual(Expr.parse("-(x + y) + z").expr, PlusMinus(Const(0), (Name("z"),), (Name("x"), Name("y"),)))
+    #     self.assertEqual(Expr.parse("-(z + y) + x").expr, PlusMinus(Const(0), (Name("x"),), (Name("y"), Name("z"),)))
+    #     self.assertEqual(Expr.parse("x + -(y + z)").expr, PlusMinus(Const(0), (Name("x"),), (Name("y"), Name("z"),)))
+    #     self.assertEqual(Expr.parse("-(x + y) + 3").expr, PlusMinus(Const(3), (), (Name("x"), Name("y"),)))
+    #     self.assertEqual(Expr.parse("-(3 + y) + x").expr, PlusMinus(Const(-3), (Name("x"),), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("3 + -(y + x)").expr, PlusMinus(Const(3), (), (Name("x"), Name("y"),)))
+    #     self.assertEqual(Expr.parse("x + -(y + 3)").expr, PlusMinus(Const(-3), (Name("x"),), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("-(x + y) + (z + 3)").expr, PlusMinus(Const(3), (Name("z"),), (Name("x"), Name("y"),)))
+    #     self.assertEqual(Expr.parse("(x + y) + -(z + 3)").expr, PlusMinus(Const(-3), (Name("x"), Name("y"),), (Name("z"),)))
+
+    #     self.assertEqual(Expr.parse("x - y").expr, PlusMinus(Const(0), (Name("x"),), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("y - x").expr, PlusMinus(Const(0), (Name("y"),), (Name("x"),)))
+    #     self.assertEqual(Expr.parse("x - 3").expr, PlusMinus(Const(-3), (Name("x"),), ()))
+    #     self.assertEqual(Expr.parse("3 - x").expr, PlusMinus(Const(3), (), (Name("x"),)))
+    #     self.assertEqual(Expr.parse("(x - y) - z").expr, PlusMinus(Const(0), (Name("x"),), (Name("y"), Name("z"))))
+    #     self.assertEqual(Expr.parse("(z - y) - x").expr, PlusMinus(Const(0), (Name("z"),), (Name("x"), Name("y"))))
+    #     self.assertEqual(Expr.parse("x - (y - z)").expr, PlusMinus(Const(0), (Name("x"), Name("z")), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("(x - y) - 3").expr, PlusMinus(Const(-3), (Name("x"),), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("(3 - y) - x").expr, PlusMinus(Const(3), (), (Name("x"), Name("y"),)))
+    #     self.assertEqual(Expr.parse("3 - (y - x)").expr, PlusMinus(Const(3), (Name("x"),), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("x - (y - 3)").expr, PlusMinus(Const(3), (Name("x"),), (Name("y"),)))
+    #     self.assertEqual(Expr.parse("(x - y) - (z - 3)").expr, PlusMinus(Const(3), (Name("x"),), (Name("y"), Name("z"),)))
+
+    #     self.assertEqual(Expr.parse("-(x - y) - z").expr, PlusMinus(Const(0), (Name("y"),), (Name("x"), Name("z"),)))
+    #     self.assertEqual(Expr.parse("-(z - y) - x").expr, PlusMinus(Const(0), (Name("y"),), (Name("x"), Name("z"),)))
+    #     self.assertEqual(Expr.parse("x - -(y - z)").expr, PlusMinus(Const(0), (Name("x"), Name("y"),), (Name("z"),)))
+    #     self.assertEqual(Expr.parse("-(x - y) - 3").expr, PlusMinus(Const(-3), (Name("y"),), (Name("x"),)))
+    #     self.assertEqual(Expr.parse("-(3 - y) - x").expr, PlusMinus(Const(-3), (Name("y"),), (Name("x"),)))
+    #     self.assertEqual(Expr.parse("3 - -(y - x)").expr, PlusMinus(Const(3), (Name("y"),), (Name("x"),)))
+    #     self.assertEqual(Expr.parse("x - -(y - 3)").expr, PlusMinus(Const(-3), (Name("x"), Name("y"),), ()))
+    #     self.assertEqual(Expr.parse("-(x - y) - (z - 3)").expr, PlusMinus(Const(3), (Name("y"),), (Name("x"), Name("z"),)))
+    #     self.assertEqual(Expr.parse("(x - y) - -(z - 3)").expr, PlusMinus(Const(-3), (Name("x"), Name("z"),), (Name("y"),)))
+
+    # def test_binop(self):
+    #     self.assertEqual(Expr.parse("x * y").expr, BinOp("*", Name("x"), Name("y")))
+    #     self.assertEqual(Expr.parse("y * x").expr, BinOp("*", Name("x"), Name("y")))
+    #     self.assertEqual(Expr.parse("x * 3").expr, BinOp("*", Const(3), Name("x")))
+    #     self.assertEqual(Expr.parse("3 * x").expr, BinOp("*", Const(3), Name("x")))
+    #     self.assertEqual(Expr.parse("x * y * z").expr, BinOp("*", Name("x"), Name("y"), Name("z")))
+    #     self.assertEqual(Expr.parse("z * y * x").expr, BinOp("*", Name("x"), Name("y"), Name("z")))
+    #     self.assertEqual(Expr.parse("x * (y * z)").expr, BinOp("*", Name("x"), Name("y"), Name("z")))
+    #     self.assertEqual(Expr.parse("x * y * 3").expr, BinOp("*", Const(3), Name("x"), Name("y")))
+    #     self.assertEqual(Expr.parse("3 * y * x").expr, BinOp("*", Const(3), Name("x"), Name("y")))
+    #     self.assertEqual(Expr.parse("3 * (y * x)").expr, BinOp("*", Const(3), Name("x"), Name("y")))
+    #     self.assertEqual(Expr.parse("x * (y * 3)").expr, BinOp("*", Const(3), Name("x"), Name("y")))
+    #     self.assertEqual(Expr.parse("(x * y) * (z * 3)").expr, BinOp("*", Const(3), Name("x"), Name("y"), Name("z")))
+

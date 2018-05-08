@@ -260,35 +260,35 @@ class Expr(object):
                 
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
                 content = recurse(node.operand)
-                if isinstance(content, UnaryOp) and content.fcn == "-":
-                    return content.args[0]
+                if isinstance(content, Const):
+                    return Const(-content.value)
                 else:
-                    return UnaryOp("-", content)
+                    return PlusMinus.negate(content)
 
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
                 return recurse(node.operand)
 
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Invert):
                 content = recurse(node.operand)
-                if isinstance(content, UnaryOp) and content.fcn == "~":
-                    return content.args[0]
+                if isinstance(content, Const):
+                    return Const(~content.value)
                 else:
-                    return UnaryOp("~", content)
+                    return BitAnd.negate(content)
 
             elif isinstance(node, ast.UnaryOp):
                 raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(meta.dump_python_source(node).strip()))
 
             elif isinstance(node, ast.BinOp):
-                if   isinstance(node.op, ast.Add):      fcn, commute = "+",  True
-                elif isinstance(node.op, ast.Sub):      fcn, commute = "-",  False
-                elif isinstance(node.op, ast.Mult):     fcn, commute = "*",  True
-                elif isinstance(node.op, ast.Div):      fcn, commute = "/",  False
-                elif isinstance(node.op, ast.FloorDiv): fcn, commute = "//", False
-                elif isinstance(node.op, ast.Mod):      fcn, commute = "%",  False
-                elif isinstance(node.op, ast.Pow):      fcn, commute = "**", False
-                elif isinstance(node.op, ast.BitOr):    fcn, commute = "|",  True
-                elif isinstance(node.op, ast.BitAnd):   fcn, commute = "&",  True
-                elif isinstance(node.op, ast.BitXor):   fcn, commute = "^",  True
+                if   isinstance(node.op, ast.Add):      fcn = "+"
+                elif isinstance(node.op, ast.Sub):      fcn = "-"
+                elif isinstance(node.op, ast.Mult):     fcn = "*"
+                elif isinstance(node.op, ast.Div):      fcn = "/"
+                elif isinstance(node.op, ast.FloorDiv): fcn = "//"
+                elif isinstance(node.op, ast.Mod):      fcn = "%"
+                elif isinstance(node.op, ast.Pow):      fcn = "**"
+                elif isinstance(node.op, ast.BitOr):    fcn = "|"
+                elif isinstance(node.op, ast.BitAnd):   fcn = "&"
+                elif isinstance(node.op, ast.BitXor):   fcn = "^"
                 else:
                     raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(meta.dump_python_source(node).strip()))
 
@@ -297,18 +297,17 @@ class Expr(object):
 
                 if isinstance(left, Const) and isinstance(right, Const):
                     return Const(calculate[fcn](left.value, right.value))
-                elif isinstance(left, BinOp) and left.fcn == fcn and isinstance(right, BinOp) and right.fcn == fcn:
-                    out = BinOp(fcn, *(left.args + right.args))
-                elif isinstance(left, BinOp) and left.fcn == fcn:
-                    out = BinOp(fcn, *(left.args + (right,)))
-                elif isinstance(right, BinOp) and right.fcn == fcn:
-                    out = BinOp(fcn, *((left,) + right.args))
-                else:
-                    out = BinOp(fcn, *(left, right))
 
-                if commute:
-                    out.args = tuple(sorted(out.args))
-                return out
+                if fcn == "+":
+                    return PlusMinus.combine(left, right)
+                elif fcn == "-":
+                    return PlusMinus.combine(left, PlusMinus.negate(right))
+                elif fcn == "*":
+                    return PlusMinus.distribute(left, right)
+                elif fcn == "/":
+                    return PlusMinus.distribute(left, TimesDiv.negate(right))
+                else:
+                    return BinOp(fcn, left, right)
 
             elif isinstance(node, ast.Call):
                 if node.func.id in Expr.recognized.values():
@@ -417,19 +416,175 @@ class Call(Expr):
         else:
             return self._order < other._order
 
-class UnaryOp(Call):
-    def __init__(self, fcn, arg):
-        super(UnaryOp, self).__init__(fcn, arg)
-
-    def __str__(self):
-        if isinstance(self.arg, BinOp):
-            return self.fcn + "(" + str(self.arg) + ")"
-        else:
-            return self.fcn + str(self.arg)
-
 class BinOp(Call):
     def __str__(self):
         return (" " + self.fcn + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
+
+class FieldAlgebra(Call):
+    _order = 3
+
+    def __init__(self, const, pos, neg):
+        self.const = const
+        self.pos = pos
+        self.neg = neg
+
+    def _reprargs(self):
+        return (repr(self.const), repr(self.pos), repr(self.neg))
+
+    def __hash__(self):
+        return hash((self.__class__, self.const, self.pos, self.neg))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.const == other.const and self.pos == other.pos and self.neg == other.neg
+
+    def __lt__(self, other):
+        if self._order == other._order:
+            return (self.const, self.pos, self.neg) < (other.const, other.pos, other.neg)
+        else:
+            return self._order < other._order
+
+    commutative = False
+
+    @classmethod
+    def negate(op, arg):
+        arg = op.normalform(arg)
+        return op(op.negateval(arg.const), arg.neg, arg.pos)
+
+    @classmethod
+    def collect(op, arg):
+        return arg
+
+    @classmethod
+    def combine(op, left, right):
+        left, right = op.normalform(left), op.normalform(right)
+
+        if op.commutative:
+            pos = tuple(sorted(left.pos + right.pos))
+            neg = tuple(sorted(left.neg + right.neg))
+        else:
+            pos = left.pos + right.pos
+            neg = left.neg + right.neg
+
+        return op.collect(op(op.calcval(left.const, right.const), pos, neg))
+
+class FieldAlgebraMultLike(FieldAlgebra):
+    @classmethod
+    def normalform(op, arg):
+        if isinstance(arg, op):
+            return arg
+        elif isinstance(arg, Const):
+            return op(arg.value, (), ())
+        else:
+            return op(op.identity, (arg,), ())
+
+    def similar(self, other):
+        return isinstance(other, self.__class__) and self.pos == other.pos and self.neg == other.neg
+
+class FieldAlgebraAddLike(FieldAlgebra):
+    @classmethod
+    def normalform(op, arg):
+        if isinstance(arg, op):
+            return arg
+        else:
+            arg = op.subop.normalform(arg)
+            return op(op.identity, (arg,), ())
+
+    @classmethod
+    def collect(op, arg):
+        const = arg.const
+        terms = []
+
+        for x in arg.pos:
+            if x.const == op.identity:
+                pass
+            elif len(x.pos) == len(x.neg) == 0:
+                const = op.calcval(const, x.const)
+            else:
+                for y in terms:
+                    if x.similar(y):
+                        y.const = op.calcval(x.const, y.const)
+                        break
+                else:
+                    terms.append(x)
+
+        for x in arg.neg:
+            if x.const == op.identity:
+                pass
+            elif len(x.pos) == len(x.neg) == 0:
+                const = op.calcval(const, op.negateval(x.const))
+            else:
+                for y in terms:
+                    if x.similar(y):
+                        y.const = op.calcval(op.negateval(x.const), y.const)
+                        break
+                else:
+                    terms.append(x)
+
+        if op.commutative:
+            terms.sort()
+        return op(const, tuple(terms), ())
+        
+    @classmethod
+    def distribute(op, left, right):
+        left, right = op.normalform(left), op.normalform(right)
+        pos, neg = [], []
+
+        pos += [op.subop.combine(x, Const(right.const)) for x in left.pos]
+        neg += [op.subop.combine(x, Const(right.const)) for x in left.neg]
+        pos += [op.subop.combine(Const(left.const), y) for y in right.pos]
+        neg += [op.subop.combine(Const(left.const), y) for y in right.neg]
+
+        pos += [op.subop.combine(x, y) for x, y in itertools.product(left.pos, right.pos)]
+        neg += [op.subop.combine(x, y) for x, y in itertools.product(left.pos, right.neg)]
+        pos += [op.subop.combine(x, y) for x, y in itertools.product(left.neg, right.neg)]
+        neg += [op.subop.combine(x, y) for x, y in itertools.product(left.neg, right.pos)]
+
+        return op.collect(op(op.identity, tuple(pos), tuple(neg)))
+
+class FieldAlgebraBinOp(object):
+    def __str__(self):
+        out = []
+        if self.const != self.identity or len(self.pos) == 0:
+            out.append(repr(self.const))
+        for x in self.pos:
+            if len(out) > 0:
+                out.append(self.posop)
+            out.append(str(x))
+        for x in self.neg:
+            out.append(self.negop)
+            out.append(str(x))
+        return "".join(out)
+
+class TimesDiv(FieldAlgebraBinOp, FieldAlgebraMultLike):
+    posop = "*"
+    negop = "/"
+
+    commutative = True
+    identity = 1
+
+    @staticmethod
+    def negateval(value):
+        return 1.0 / value
+
+    @staticmethod
+    def calcval(left, right):
+        return left * right
+
+class PlusMinus(FieldAlgebraBinOp, FieldAlgebraAddLike):
+    posop = " + "
+    negop = " - "
+
+    subop = TimesDiv
+    commutative = True
+    identity = 0
+
+    @staticmethod
+    def negateval(value):
+        return -value
+
+    @staticmethod
+    def calcval(left, right):
+        return left + right
 
 class Relation(Expr):
     _order = 4
