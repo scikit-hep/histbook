@@ -320,6 +320,18 @@ class Expr(object):
 
                     return PlusMinus.distribute(left, negation).simplify()
 
+                elif fcn == "**" and isinstance(right, Const) and right.value == round(right.value) and 1 <= right.value < 5:
+                    n = int(right.value)
+                    left = PlusMinus.normalform(left)
+                    if left.const == PlusMinus.identity and len(left.pos) == 1 and len(left.neg) == 0:
+                        return PlusMinus(PlusMinus.identity, (TimesDiv(left.pos[0].const**n, tuple(sorted(left.pos[0].pos * n)), tuple(sorted(left.pos[0].neg * n))),), ()).simplify()
+                    elif left.const == PlusMinus.identity and len(left.pos) == 0 and len(left.neg) == 1 and n % 2 == 0:
+                        return PlusMinus(PlusMinus.identity, (TimesDiv(left.neg[0].const**n, tuple(sorted(left.neg[0].pos * n)), tuple(sorted(left.neg[0].neg * n))),), ()).simplify()
+                    elif left.const == PlusMinus.identity and len(left.pos) == 0 and len(left.neg) == 1:
+                        return PlusMinus(PlusMinus.identity, (), (TimesDiv(left.neg[0].const**n, tuple(sorted(left.neg[0].pos * n)), tuple(sorted(left.neg[0].neg * n))),)).simplify()
+                    else:
+                        return PlusMinus(PlusMinus.identity, (TimesDiv(TimesDiv.identity, tuple((left,) * n), ()),), ()).simplify()
+
                 else:
                     return BinOp(fcn, left, right)
 
