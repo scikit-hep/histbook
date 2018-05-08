@@ -314,7 +314,7 @@ class Expr(object):
                         negation = TimesDiv.negate(right.neg[0])
                         negation.const = PlusMinus.negateval(negation.const)
                     else:
-                        negation = TimesDiv(right)   # additive terms in the denominator
+                        negation = TimesDiv.negate(right)   # additive terms in the denominator
 
                     return PlusMinus.distribute(left, negation)
 
@@ -491,7 +491,7 @@ class RingAlgebraMultLike(RingAlgebra):
 
     def similar(self, other):
         return isinstance(other, self.__class__) and self.pos == other.pos and self.neg == other.neg
-
+        
 class RingAlgebraAddLike(RingAlgebra):
     @classmethod
     def normalform(op, arg):
@@ -506,7 +506,19 @@ class RingAlgebraAddLike(RingAlgebra):
         const = arg.const
         terms = []
 
+        def cancel(x):
+            pos, neg = list(x.pos), []
+            for y in x.neg:
+                try:
+                    i = x.pos.index(y)
+                except ValueError:
+                    neg.append(y)
+                else:
+                    del pos[i]
+            return op.subop(x.const, tuple(pos), tuple(neg))
+
         for x in arg.pos:
+            x = cancel(x)
             if x.const == op.identity:
                 pass
             elif len(x.pos) == len(x.neg) == 0:
@@ -520,6 +532,7 @@ class RingAlgebraAddLike(RingAlgebra):
                     terms.append(x)
 
         for x in arg.neg:
+            x = cancel(x)
             if x.const == op.identity:
                 pass
             elif len(x.pos) == len(x.neg) == 0:
@@ -534,7 +547,9 @@ class RingAlgebraAddLike(RingAlgebra):
 
         posterms, negterms = [], []
         for x in terms:
-            if op.isnegval(x.const):
+            if x.const == op.identity:
+                pass
+            elif op.isnegval(x.const):
                 x.const = op.negateval(x.const)
                 negterms.append(x)
             else:

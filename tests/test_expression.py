@@ -152,27 +152,31 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("x / (3 / y)").expr, PlusMinus(0, (TimesDiv(1.0/3.0, (Name("x"), Name("y")), ()),), ()))
 
     def test_distributive(self):
+        self.assertEqual(Expr.parse("a * (x + y)").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("x")), ()), TimesDiv(1, (Name("a"), Name("y")), ())), ()))
+        self.assertEqual(Expr.parse("(x + y) * a").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("x")), ()), TimesDiv(1, (Name("a"), Name("y")), ())), ()))
+        self.assertEqual(Expr.parse("a * (x + 3)").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("x")), ()), TimesDiv(3, (Name("a"),), ())), ()))
+        self.assertEqual(Expr.parse("(x + 3) * a").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("x")), ()), TimesDiv(3, (Name("a"),), ())), ()))
+
+        self.assertEqual(Expr.parse("a * (x + y) + a*x + a*y").expr, PlusMinus(0, (TimesDiv(2, (Name("a"), Name("x")), ()), TimesDiv(2, (Name("a"), Name("y")), ())), ()))
+        self.assertEqual(Expr.parse("a * (x + y) - 2*a*x").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("y")), ()),), (TimesDiv(1, (Name("a"), Name("x")), ()),)))
+
+        # simplifies (because it stays within the ring)
+        self.assertEqual(Expr.parse("(x + y) / a").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), (Name("a"),)), TimesDiv(1, (Name("y"),), (Name("a"),))), ()))
+        self.assertEqual(Expr.parse("(x + 3) / a").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), (Name("a"),)), TimesDiv(3, (), (Name("a"),))), ()))
+
+        # does not simplify (because division of a sum puts it into the field)
+        self.assertEqual(Expr.parse("a / (x + y)").expr, PlusMinus(0, (TimesDiv(1, (Name("a"),), (PlusMinus(0, (TimesDiv(1, (Name("x"),), ()), TimesDiv(1, (Name("y"),), ())), ()),)),), ()))
+        self.assertEqual(Expr.parse("a / (x + 3)").expr, PlusMinus(0, (TimesDiv(1, (Name("a"),), (PlusMinus(3, (TimesDiv(1, (Name("x"),), ()),), ()),)),), ()))
+
+        self.assertEqual(Expr.parse("(2 - 2 - x) / a").expr, PlusMinus(0, (), (TimesDiv(1, (Name("x"),), (Name("a"),)),)))
+        self.assertEqual(Expr.parse("a / (2 - 2 - x)").expr, PlusMinus(0, (), (TimesDiv(1, (Name("a"),), (Name("x"),)),)))
+
+    def test_cancellation(self):
+        self.assertEqual(Expr.parse("x - x").expr, PlusMinus(0, (), ()))
+        self.assertEqual(Expr.parse("x + x - 2*x").expr, PlusMinus(0, (), ()))
+        self.assertEqual(Expr.parse("a * (x + y) - a*x - a*y").expr, PlusMinus(0, (), ()))
+        self.assertEqual(Expr.parse("a * (x + y) - a*x").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("y")), ()),), ()))
+        self.assertEqual(Expr.parse("a * (x + y)/y - a*x/y").expr, PlusMinus(0, (TimesDiv(1, (Name("a"),), ()),), ()))
+
+    def test_binop(self):
         pass
-
-
-        # q = Expr.parse("x - y").expr
-        # print("")
-        # print("")
-        # print(repr(str(q)))
-        # print(repr(q))
-        # print("")
-
-    # def test_binop(self):
-    #     self.assertEqual(Expr.parse("x * y").expr, BinOp("*", Name("x"), Name("y")))
-    #     self.assertEqual(Expr.parse("y * x").expr, BinOp("*", Name("x"), Name("y")))
-    #     self.assertEqual(Expr.parse("x * 3").expr, BinOp("*", Const(3), Name("x")))
-    #     self.assertEqual(Expr.parse("3 * x").expr, BinOp("*", Const(3), Name("x")))
-    #     self.assertEqual(Expr.parse("x * y * z").expr, BinOp("*", Name("x"), Name("y"), Name("z")))
-    #     self.assertEqual(Expr.parse("z * y * x").expr, BinOp("*", Name("x"), Name("y"), Name("z")))
-    #     self.assertEqual(Expr.parse("x * (y * z)").expr, BinOp("*", Name("x"), Name("y"), Name("z")))
-    #     self.assertEqual(Expr.parse("x * y * 3").expr, BinOp("*", Const(3), Name("x"), Name("y")))
-    #     self.assertEqual(Expr.parse("3 * y * x").expr, BinOp("*", Const(3), Name("x"), Name("y")))
-    #     self.assertEqual(Expr.parse("3 * (y * x)").expr, BinOp("*", Const(3), Name("x"), Name("y")))
-    #     self.assertEqual(Expr.parse("x * (y * 3)").expr, BinOp("*", Const(3), Name("x"), Name("y")))
-    #     self.assertEqual(Expr.parse("(x * y) * (z * 3)").expr, BinOp("*", Const(3), Name("x"), Name("y"), Name("z")))
-
