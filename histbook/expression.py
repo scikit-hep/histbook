@@ -308,7 +308,9 @@ class Expr(object):
                     # PlusMinus is implemented as a RingAlgebra, but it's really a Field
                     right = PlusMinus.normalform(right)
 
-                    if right.const == PlusMinus.identity and len(right.pos) == 1 and len(right.neg) == 0:
+                    if len(right.pos) == len(right.neg) == 0:
+                        negation = TimesDiv(TimesDiv.negateval(right.const), (), ())
+                    elif right.const == PlusMinus.identity and len(right.pos) == 1 and len(right.neg) == 0:
                         negation = TimesDiv.negate(right.pos[0])
                     elif right.const == PlusMinus.identity and len(right.pos) == 0 and len(right.neg) == 1:
                         negation = TimesDiv.negate(right.neg[0])
@@ -499,7 +501,12 @@ class RingAlgebraAddLike(RingAlgebra):
             return arg
         else:
             arg = op.subop.normalform(arg)
-            return op(op.identity, (arg,), ())
+            if len(arg.pos) == len(arg.neg) == 0:
+                return op(arg.const, (), ())
+            elif op.isnegval(arg.const):
+                return op(op.identity, (), (op.subop(op.negateval(arg.const), arg.pos, arg.neg),))
+            else:
+                return op(op.identity, (arg,), ())
 
     @classmethod
     def collect(op, arg):
@@ -577,6 +584,28 @@ class RingAlgebraAddLike(RingAlgebra):
         neg += [op.subop.combine(x, y) for x, y in itertools.product(left.neg, right.pos)]
 
         return op.collect(op(op.identity, tuple(pos), tuple(neg)))
+
+    def simplify(self):
+        out = self.__class__(self.const, self.pos, self.neg)
+
+        if len(out.pos) == len(out.neg) == 0:
+            return Const(out.const)
+
+        elif out.const == out.identity and len(out.pos) + len(out.neg) == 1:
+            if len(out.pos) == 1:
+                out = out.pos[0]
+            else:
+                out = out.neg[0]
+
+            if len(out.pos) == len(out.neg) == 0:
+                return Const(out.const)
+            elif out.const == out.identity and len(out.pos) + len(out.neg) == 1:
+                if len(out.pos) == 1:
+                    return out.pos[0]
+                else:
+                    return out.neg[0]
+
+        return out
 
 class RingAlgebraBinOp(object):
     def __str__(self):

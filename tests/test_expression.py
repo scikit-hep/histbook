@@ -178,5 +178,10 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("a * (x + y) - a*x").expr, PlusMinus(0, (TimesDiv(1, (Name("a"), Name("y")), ()),), ()))
         self.assertEqual(Expr.parse("a * (x + y)/y - a*x/y").expr, PlusMinus(0, (TimesDiv(1, (Name("a"),), ()),), ()))
 
+        self.assertEqual(Expr.parse("(x + x*x)/x - x").expr, PlusMinus(1, (), ()))
+        self.assertEqual(Expr.parse("(x + x*x)/x - 1").expr, PlusMinus(0, (TimesDiv(1, (Name("x"),), ()),), ()))
+        self.assertEqual(Expr.parse("x - (x + x*x)/x").expr, PlusMinus(-1, (), ()))
+        self.assertEqual(Expr.parse("1 - (x + x*x)/x").expr, PlusMinus(0, (), (TimesDiv(1, (Name("x"),), ()),)))
+
     def test_binop(self):
         pass
