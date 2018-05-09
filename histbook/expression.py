@@ -68,12 +68,101 @@ class Expr(object):
         return self.__lt__(other) or self.__eq__(other)
 
     recognized = {
+        abs: "abs",
+        max: "max",
+        min: "min",
+
+        math.acos: "acos",
+        math.acosh: "acosh",
+        math.asin: "asin",
+        math.asinh: "asinh",
+        math.atan2: "atan2",
+        math.atan: "atan",
+        math.atanh: "atanh",
+        math.ceil: "ceil",
+        math.copysign: "copysign",
+        math.cos: "cos",
+        math.cosh: "cosh",
+        math.degrees: "rad2deg",
+        math.erfc: "erfc",
+        math.erf: "erf",
+        math.exp: "exp",
+        math.expm1: "expm1",
+        math.factorial: "factorial",
+        math.floor: "floor",
+        math.fmod: "fmod",
+        math.gamma: "gamma",
+        math.hypot: "hypot",
+        math.isinf: "isinf",
+        math.isnan: "isnan",
+        math.lgamma: "lgamma",
+        math.log10: "log10",
+        math.log1p: "log1p",
+        math.log: "log",
+        math.pow: "pow",
+        math.radians: "deg2rad",
+        math.sinh: "sinh",
+        math.sin: "sin",
         math.sqrt: "sqrt",
+        math.tanh: "tanh",
+        math.tan: "tan",
+        math.trunc: "trunc",
+
+        numpy.absolute: "abs",
+        numpy.arccos: "acos",
+        numpy.arccosh: "acosh",
+        numpy.arcsin: "asin",
+        numpy.arcsinh: "asinh",
+        numpy.arctan2: "atan2",
+        numpy.arctan: "atan",
+        numpy.arctanh: "atanh",
+        numpy.ceil: "ceil",
+        numpy.conjugate: "conjugate",
+        numpy.copysign: "copysign",
+        numpy.cos: "cos",
+        numpy.cosh: "cosh",
+        numpy.deg2rad: "deg2rad",
+        numpy.degrees: "rad2deg",
+        numpy.exp2: "exp2",
+        numpy.exp: "exp",
+        numpy.expm1: "expm1",
+        numpy.floor: "floor",
+        numpy.fmod: "fmod",
+        numpy.heaviside: "heaviside",
+        numpy.hypot: "hypot",
+        numpy.isfinite: "isfinite",
+        numpy.isinf: "isinf",
+        numpy.isnan: "isnan",
+        numpy.left_shift: "left_shift",
+        numpy.log10: "log10",
+        numpy.log1p: "log1p",
+        numpy.log2: "log2",
+        numpy.logaddexp2: "logaddexp2",
+        numpy.logaddexp: "logaddexp",
+        numpy.log: "log",
+        numpy.maximum: "max",
+        numpy.minimum: "min",
+        numpy.power: "pow",
+        numpy.rad2deg: "rad2deg",
+        numpy.radians: "deg2rad",
+        numpy.right_shift: "right_shift",
+        numpy.rint: "rint",
+        numpy.sign: "sign",
+        numpy.sinh: "sinh",
+        numpy.sin: "sin",
         numpy.sqrt: "sqrt",
+        numpy.tanh: "tanh",
+        numpy.tan: "tan",
+        numpy.trunc: "trunc",
         }
 
     @staticmethod
-    def parse(expression, env=globals()):
+    def parse(expression, env=None):
+        if env is None:
+            env = dict(globals())
+            env["pi"] = math.pi
+            env["e"] = math.e
+        
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
                      "*": lambda x, y: x * y,
@@ -118,6 +207,10 @@ class Expr(object):
                     return Const(True)
                 elif node.id == "False" or (node.id in env and env[node.id] is False):
                     return Const(False)
+                elif node.id in env and env[node.id] == math.pi:
+                    return Const(math.pi)
+                elif node.id in env and env[node.id] == math.e:
+                    return Const(math.e)
                 else:
                     if node.id not in names:
                         names.append(node.id)
