@@ -191,13 +191,13 @@ class Expr(object):
                 if isinstance(content, Name):
                     return Predicate(content.value, positive=False)
                 else:
-                    return Logical.negate(content)
+                    return Logical.negate(content).simplify()
 
             elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
-                return functools.reduce(LogicalAnd.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values])
+                return functools.reduce(LogicalAnd.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values]).simplify()
 
             elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
-                return functools.reduce(LogicalOr.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values])
+                return functools.reduce(LogicalOr.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values]).simplify()
 
             elif isinstance(node, ast.BoolOp):
                 raise ExpressionError("logical operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
@@ -698,6 +698,16 @@ class LogicalAnd(Logical, RingAlgebraMultLike):
         left, right = op.normalform(left), op.normalform(right)
         return LogicalOr(*(LogicalAnd(*(x.args + y.args)) for x, y in itertools.product(left.args, right.args)))
 
+    def simplify(self):
+        if len(self.args) == 0 or all(x == Const(True) for x in self.args):
+            return Const(True)
+        elif any(x == Const(False) for x in self.args):
+            return Const(False)
+        elif len(self.args) == 1:
+            return self.args[0]
+        else:
+            return self
+
 class LogicalOr(Logical, RingAlgebraAddLike):
     def __init__(self, *args):
         self.args = tuple(sorted(set(args)))
@@ -706,6 +716,16 @@ class LogicalOr(Logical, RingAlgebraAddLike):
     def combine(op, left, right):
         left, right = op.normalform(left), op.normalform(right)
         return LogicalOr(*(left.args + right.args))
+
+    def simplify(self):
+        if len(self.args) == 0 or all(x == Const(False) for x in self.args):
+            return Const(False)
+        elif any(x == Const(True) for x in self.args):
+            return Const(True)
+        elif len(self.args) == 1:
+            return self.args[0].simplify()
+        else:
+            return self
 
 class Relation(Expr):
     _order = 4

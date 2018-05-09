@@ -226,19 +226,19 @@ class TestExpression(unittest.TestCase):
         pass
 
     def test_logicalnot(self):
-        self.assertEqual(Expr.parse("not x == 0").expr, LogicalOr(LogicalAnd(Relation("!=", Const(0), Name("x")))))
-        self.assertEqual(Expr.parse("not x != 0").expr, LogicalOr(LogicalAnd(Relation("==", Const(0), Name("x")))))
-        self.assertEqual(Expr.parse("not x < 0").expr, LogicalOr(LogicalAnd(Relation("<=", Const(0), Name("x")))))
-        self.assertEqual(Expr.parse("not x <= 0").expr, LogicalOr(LogicalAnd(Relation("<", Const(0), Name("x")))))
-        self.assertEqual(Expr.parse("not x > 0").expr, LogicalOr(LogicalAnd(Relation("<=", Name("x"), Const(0)))))
-        self.assertEqual(Expr.parse("not x >= 0").expr, LogicalOr(LogicalAnd(Relation("<", Name("x"), Const(0)))))
-        self.assertEqual(Expr.parse("not x in {}").expr, LogicalOr(LogicalAnd(Relation("not in", Name("x"), Const(set())))))
-        self.assertEqual(Expr.parse("not x not in {}").expr, LogicalOr(LogicalAnd(Relation("in", Name("x"), Const(set())))))
+        self.assertEqual(Expr.parse("not x == 0").expr, Relation("!=", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x != 0").expr, Relation("==", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x < 0").expr, Relation("<=", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x <= 0").expr, Relation("<", Const(0), Name("x")))
+        self.assertEqual(Expr.parse("not x > 0").expr, Relation("<=", Name("x"), Const(0)))
+        self.assertEqual(Expr.parse("not x >= 0").expr, Relation("<", Name("x"), Const(0)))
+        self.assertEqual(Expr.parse("not x in {}").expr, Relation("not in", Name("x"), Const(set())))
+        self.assertEqual(Expr.parse("not x not in {}").expr, Relation("in", Name("x"), Const(set())))
 
         self.assertEqual(Expr.parse("not p").expr, Predicate("p", positive=False))
 
     def test_logicals(self):
-        self.assertEqual(Expr.parse("a and b").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("b"))))
+        self.assertEqual(Expr.parse("a and b").expr, LogicalAnd(Predicate("a"), Predicate("b")))
         self.assertEqual(Expr.parse("a or b").expr, LogicalOr(LogicalAnd(Predicate("a")), LogicalAnd(Predicate("b"))))
         self.assertEqual(Expr.parse("(a and b) or (c and d)").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("b")), LogicalAnd(Predicate("c"), Predicate("d"))))
         self.assertEqual(Expr.parse("(a or b) and (c or d)").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("c")), LogicalAnd(Predicate("a"), Predicate("d")), LogicalAnd(Predicate("b"), Predicate("c")), LogicalAnd(Predicate("b"), Predicate("d"))))
@@ -248,7 +248,7 @@ class TestExpression(unittest.TestCase):
 
     def test_logical_negations(self):
         self.assertEqual(Expr.parse("not (a and b)").expr, LogicalOr(LogicalAnd(Predicate("a", False)), LogicalAnd(Predicate("b", False))))
-        self.assertEqual(Expr.parse("not (a or b)").expr, LogicalOr(LogicalAnd(Predicate("a", False), Predicate("b", False))))
+        self.assertEqual(Expr.parse("not (a or b)").expr, LogicalAnd(Predicate("a", False), Predicate("b", False)))
         self.assertEqual(Expr.parse("not (x == 123 and x == 999)").expr, LogicalOr(LogicalAnd(Relation("!=", Const(123), Name("x"))), LogicalAnd(Relation("!=", Const(999), Name("x")))))
-        self.assertEqual(Expr.parse("not (x == 123 or x == 999)").expr, LogicalOr(LogicalAnd(Relation("!=", Const(123), Name("x")), Relation("!=", Const(999), Name("x")))))
+        self.assertEqual(Expr.parse("not (x == 123 or x == 999)").expr, LogicalAnd(Relation("!=", Const(123), Name("x")), Relation("!=", Const(999), Name("x"))))
 
