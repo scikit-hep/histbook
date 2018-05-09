@@ -38,17 +38,6 @@ import numpy
 
 class ExpressionError(Exception): pass
 
-class Dim(object):
-    def __init__(self, names, expr):
-        self.names = names
-        self.expr = expr
-
-    def __repr__(self):
-        return "Dim({0}, {1})".format(repr(self.names), repr(self.expr))
-
-    def __str__(self):
-        return repr(self)
-
 class Expr(object):
     def __repr__(self):
         return "{0}({1})".format(self.__class__.__name__, ", ".join(self._reprargs()))
@@ -93,7 +82,6 @@ class Expr(object):
             else:
                 raise ExpressionError("not a function name: {0}".format(meta.dump_python_source(node).strip()))
 
-        names = []
         def recurse(node, relations=False):
             if isinstance(node, ast.Num):
                 return Const(node.n)
@@ -123,8 +111,6 @@ class Expr(object):
                 elif node.id in env and env[node.id] == math.e:
                     return Const(math.e)
                 else:
-                    if node.id not in names:
-                        names.append(node.id)
                     return Name(node.id)
 
             elif isinstance(node, getattr(ast, "NameConstant", tuple)):  # node will never be tuple
@@ -161,38 +147,11 @@ class Expr(object):
 
                 return Relation(cmp, left, right)
 
-            # elif intervals and isinstance(node, ast.Compare) and len(node.ops) == 2:
-            #     if isinstance(node.ops[0], ast.LtE) and isinstance(node.ops[1], ast.Lt):
-            #         low = recurse(node.left)
-            #         high = recurse(node.comparators[1])
-            #         lowclosed = True
-            #     elif isinstance(node.ops[0], ast.Lt) and isinstance(node.ops[1], ast.LtE):
-            #         low = recurse(node.left)
-            #         high = recurse(node.comparators[1])
-            #         lowclosed = False
-            #     elif isinstance(node.ops[0], ast.Gt) and isinstance(node.ops[1], ast.GtE):
-            #         low = recurse(node.comparators[1])
-            #         high = recurse(node.left)
-            #         lowclosed = True
-            #     elif isinstance(node.ops[0], ast.GtE) and isinstance(node.ops[1], ast.Gt):
-            #         low = recurse(node.comparators[1])
-            #         high = recurse(node.left)
-            #         lowclosed = False
-            #     else:
-            #         low = None
-
-            #     if low is not None:
-            #         arg = recurse(node.comparators[0])
-            #         if isinstance(low, Const) and isinstance(high, Const) and not isinstance(arg, Const):
-            #             return Interval(arg, low, high, lowclosed=lowclosed)
-
-                
-
-
-
+            elif relations and isinstance(node, ast.Compare) and len(node.ops) > 1:
+                raise NotImplementedError
 
             elif isinstance(node, ast.Compare):
-                raise ExpressionError("comparison operators are only allowed at the top of an expression and only interval ranges are allowed to be chained: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("comparison operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
 
             elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
                 content = recurse(node.operand, relations=True)
@@ -320,13 +279,13 @@ class Expr(object):
         if callable(expression):
             fcn = meta.decompiler.decompile_func(expression)
             if isinstance(fcn, ast.FunctionDef) and len(fcn.body) == 1 and isinstance(fcn.body[0], ast.Return):
-                return Dim(names, recurse(fcn.body[0].value, relations=True))
+                return recurse(fcn.body[0].value, relations=True)
             elif isinstance(fcn, ast.Lambda):
-                return Dim(names, recurse(fcn.body.value, relations=True))
+                return recurse(fcn.body.value, relations=True)
         else:
             mod = ast.parse(expression)
             if len(mod.body) == 1 and isinstance(mod.body[0], ast.Expr):
-                return Dim(names, recurse(mod.body[0].value, relations=True))
+                return recurse(mod.body[0].value, relations=True)
 
         raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
 
