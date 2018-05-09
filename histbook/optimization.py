@@ -32,6 +32,70 @@ import functools
 
 # from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
 
+class CallGraphNode(object):
+    def __init__(self, goal):
+        self.goal = goal
+        self.requires = set()
+        self.requiredby = set()
+        self.numrequiredby = 0
+
+    def __repr__(self):
+        return "<CallGraphNode for {0}>".format(repr(str(self.goal)))
+
+    def __hash__(self):
+        return hash((CallGraphNode, self.goal))
+
+    def __eq__(self, other):
+        return isinstance(other, CallGraphNode) and self.goal == other.goal
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def grow(self, table):
+        if self not in table:
+            table[self] = self
+
+        if isinstance(self.goal, (Const, Name, Predicate)):
+            pass
+
+        elif isinstance(self.goal, Call):
+            for arg in self.goal.args:
+                if not isinstance(arg, Const):
+                    node = CallGraphNode(arg)
+                    if node not in table:
+                        table[node] = node
+                    else:
+                        node = table[node]
+                    self.requires.add(node)
+                    node.requiredby.add(self)
+                    node.grow(table)
+
+        else:
+            raise AssertionError(repr(self.goal))
+
+        self.numrequiredby += 1
+
+    def sources(self, table):
+        if isinstance(self.goal, Const):
+            return set()
+
+        elif isinstance(self.goal, (Name, Predicate)):
+            return set([self])
+
+        elif isinstance(self.goal, Call):
+            out = set()
+            for arg in self.goal.args:
+                if not isinstance(arg, Const):
+                    node = table[CallGraphNode(arg)]
+                    out.update(node.sources(table))
+            return out
+
+        else:
+            raise NotImplementedError
+
+    def rename(self, names):
+        return self.goal.rename(names)
+
 def totree(expr):
     def linear(fcn, args):
         if len(args) == 1:
@@ -125,67 +189,10 @@ def totree(expr):
     else:
         raise AssertionError(expr)
 
-class CallGraphNode(object):
+class CallGraphGoal(CallGraphNode):
     def __init__(self, goal):
-        self.goal = goal
-        self.requires = set()
-        self.requiredby = set()
-        self.numrequiredby = 0
-
-    def __repr__(self):
-        return "<CallGraphNode for {0}>".format(repr(str(self.goal)))
-
-    def __hash__(self):
-        return hash((CallGraphNode, self.goal))
-
-    def __eq__(self, other):
-        return isinstance(other, CallGraphNode) and self.goal == other.goal
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def grow(self, table):
-        if self not in table:
-            table[self] = self
-
-        if isinstance(self.goal, (Const, Name, Predicate)):
-            pass
-
-        elif isinstance(self.goal, Call):
-            for arg in self.goal.args:
-                node = CallGraphNode(arg)
-                if node not in table:
-                    table[node] = node
-                else:
-                    node = table[node]
-                self.requires.add(node)
-                node.requiredby.add(self)
-                node.grow(table)
-
-        else:
-            raise AssertionError(repr(self.goal))
-
-        self.numrequiredby += 1
-
-    def sources(self, table):
-        if isinstance(self.goal, Const):
-            return set()
-
-        elif isinstance(self.goal, (Name, Predicate)):
-            return set([self])
-
-        elif isinstance(self.goal, Call):
-            out = set()
-            for arg in self.goal.args:
-                node = table[CallGraphNode(arg)]
-                out.update(node.sources(table))
-            return out
-
-        else:
-            raise NotImplementedError
-
-    def rename(self, names):
-        return self.goal.rename(names)
+        super(CallGraphGoal, self).__init__(totree(goal))
+        self.original = goal
 
 def sources(goals, table):
     return functools.reduce(set.union, (x.sources(table) for x in goals))
@@ -196,13 +203,43 @@ def walkdown(sources):
         if node not in seen:
             seen.add(node)
             yield node
-            for num, x in sorted((x.numrequiredby, x) for x in node.requiredby):
+
+            pairs = [(x.numrequiredby, x) for x in node.requiredby]
+            pairs.sort(reverse=True)
+            for num, x in pairs:
                 if all(y in seen for y in x.requires):
                     for y in recurse(x):
                         yield y
     for source in sources:
         for x in recurse(source):
             yield x
+
+# def walkdown(sources):
+#     seen = set()
+#     whenready = []
+#     def recurse(node):
+#         if node not in seen:
+#             seen.add(node)
+#             whenready.append(node)
+
+#         notready = []
+#         for trial in whenready:
+#             if all(x in seen for x in trial.requires):
+#                 yield trial
+#             else:
+#                 notready.append(trial)
+#         del whenready[:]
+#         whenready.extend(notready)
+
+#         pairs = [(x.numrequiredby, x) for x in node.requiredby]
+#         pairs.sort(reverse=True)
+#         for num, x in pairs:
+#             for y in recurse(x):
+#                 yield y
+
+#     for source in sources:
+#         for x in recurse(source):
+#             yield x
 
 class Instruction(object): pass
 
@@ -237,7 +274,7 @@ class Delete(Instruction):
     def __repr__(self):
         return "Delete({0})".format(repr(self.name))
 
-def instructions(sources, goals):
+def instructions(sources):
     live = {}
     names = {}
     namenum = [0]
@@ -265,8 +302,8 @@ def instructions(sources, goals):
         else:
             raise NotImplementedError
 
-        if node in goals:
-            yield Export(name, node.goal)
+        if isinstance(node, CallGraphGoal):
+            yield Export(name, node.original)
 
         dead = []
         for n, x in live.items():
@@ -291,11 +328,11 @@ def show(goals):
     for node in order:
         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
 
-goals = [CallGraphNode(totree(Expr.parse("x + 1"))),
-         CallGraphNode(totree(Expr.parse("x**2"))),
-         CallGraphNode(totree(Expr.parse("sqrt(y)"))),
-         CallGraphNode(totree(Expr.parse("x * y * x"))),
-         CallGraphNode(totree(Expr.parse("1/(x + 1)")))]
+goals = [CallGraphGoal(Expr.parse("x + 1")),
+         CallGraphGoal(Expr.parse("x**2")),
+         CallGraphGoal(Expr.parse("sqrt(y)")),
+         CallGraphGoal(Expr.parse("x * y * x")),
+         CallGraphGoal(Expr.parse("1/(x + 1)"))]
 
 table = {}
 for x in goals:
@@ -303,5 +340,8 @@ for x in goals:
 
 show(goals)
 
-for x in instructions(sources(goals, table), goals):
+for x in walkdown(sources(goals, table)):
+    print x
+
+for x in instructions(sources(goals, table)):
     print x
