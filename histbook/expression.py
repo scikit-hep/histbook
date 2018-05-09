@@ -423,6 +423,9 @@ class Const(Expr):
         else:
             return hash(self.__class__) < hash(other.__class__)
 
+    def rename(self, names):
+        return self
+
 class Name(Expr):
     def __init__(self, value):
         self.value = value
@@ -444,6 +447,10 @@ class Name(Expr):
             return self.value < other.value
         else:
             return hash(self.__class__) < hash(other.__class__)
+
+    def rename(self, names):
+        assert self in names
+        return names[self]
 
 class Call(Expr):
     def __init__(self, fcn, *args):
@@ -467,6 +474,12 @@ class Call(Expr):
             return (self.fcn, self.args) < (other.fcn, other.args)
         else:
             return hash(self.__class__) < hash(other.__class__)
+
+    def rename(self, names):
+        if self in names:
+            return names[self]
+        else:
+            return self.__class__(self.fcn, *(x.rename(names) for x in self.args))
 
 class BinOp(Call):
     def __init__(self, fcn, left, right, op):
@@ -520,6 +533,12 @@ class RingAlgebra(Expr):
             neg = left.neg + right.neg
 
         return op.collect(op(op.calcval(left.const, right.const), pos, neg))
+
+    def rename(self, names):
+        if self in names:
+            return names[self]
+        else:
+            return self.__class__(self.const, tuple(x.rename(names) for x in self.pos), tuple(x.rename(names) for x in self.neg))
 
 class RingAlgebraMultLike(RingAlgebra):
     @classmethod
@@ -727,6 +746,9 @@ class PlusMinus(RingAlgebraBinOp, RingAlgebraAddLike):
 class Logical(object):
     commutative = True
 
+    def __init__(self, *args):
+        self.args = tuple(sorted(set(args)))
+
     def _reprargs(self):
         return tuple(repr(x) for x in self.args)
 
@@ -763,10 +785,13 @@ class Logical(object):
         upsidedown = [[relation.negate() for relation in logicaland.args] for logicaland in logicalor.args]
         return LogicalOr(*(LogicalAnd(*x) for x in itertools.product(*upsidedown)))
 
-class LogicalAnd(Logical, RingAlgebraMultLike):
-    def __init__(self, *args):
-        self.args = tuple(sorted(set(args)))
+    def rename(self, names):
+        if self in names:
+            return names[self]
+        else:
+            return self.__class__(*(x.rename(names) for x in self.args))
 
+class LogicalAnd(Logical, RingAlgebraMultLike):
     @classmethod
     def combine(op, left, right):
         left, right = op.normalform(left), op.normalform(right)
@@ -783,9 +808,6 @@ class LogicalAnd(Logical, RingAlgebraMultLike):
             return self
 
 class LogicalOr(Logical, RingAlgebraAddLike):
-    def __init__(self, *args):
-        self.args = tuple(sorted(set(args)))
-
     @classmethod
     def combine(op, left, right):
         left, right = op.normalform(left), op.normalform(right)
@@ -842,30 +864,30 @@ class Relation(Expr):
             raise AssertionError(self.cmp)
 
 class Predicate(Expr):
-    def __init__(self, name, positive=True):
-        self.name = name
+    def __init__(self, value, positive=True):
+        self.value = value
         self.positive = positive
 
     def _reprargs(self):
-        return (repr(self.name), repr(self.positive))
+        return (repr(self.value), repr(self.positive))
 
     def __str__(self):
         if self.positive:
-            return self.name
+            return self.value
         else:
-            return "not " + self.name
+            return "not " + self.value
 
     def __hash__(self):
-        return hash((Predicate, self.name, self.positive))
+        return hash((Predicate, self.value, self.positive))
 
     def __eq__(self, other):
-        return isinstance(other, Predicate) and self.name == other.name and self.positive == other.positive
+        return isinstance(other, Predicate) and self.value == other.value and self.positive == other.positive
 
     def __lt__(self, other):
         if hash(self.__class__) == hash(other.__class__):
-            return (self.name, self.positive) < (other.name, other.positive)
+            return (self.value, self.positive) < (other.value, other.positive)
         else:
             return hash(self.__class__) < hash(other.__class__)
 
     def negate(self):
-        return Predicate(self.name, positive=not self.positive)
+        return Predicate(self.value, positive=not self.positive)

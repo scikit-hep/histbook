@@ -28,13 +28,16 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
+import functools
+
+# from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
 
 class CallGraphNode(object):
     def __init__(self, goal):
         self.goal = goal
         self.requires = set()
         self.requiredby = set()
+        self.numrequiredby = 0
 
     def __repr__(self):
         return "<CallGraphNode for {0}>".format(repr(str(self.goal)))
@@ -66,6 +69,121 @@ class CallGraphNode(object):
                 node.requiredby.add(self)
                 node.grow(table)
 
+        else:
+            raise NotImplementedError
+
+        self.numrequiredby += 1
+
+    def sources(self, table):
+        if isinstance(self.goal, Const):
+            return set()
+
+        elif isinstance(self.goal, (Name, Predicate)):
+            return set([self])
+
+        elif isinstance(self.goal, Call):
+            out = set()
+            for arg in self.goal.args:
+                node = table[CallGraphNode(arg)]
+                out.update(node.sources(table))
+            return out
+
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def allsources(goals, table):
+        return functools.reduce(set.union, (x.sources(table) for x in goals))
+
+    def rename(self, names):
+        return self.goal.rename(names)
+
+def walkdown(sources):
+    seen = set()
+    def recurse(node):
+        if node not in seen:
+            seen.add(node)
+            yield node
+            for num, x in sorted((x.numrequiredby, x) for x in node.requiredby):
+                if all(y in seen for y in x.requires):
+                    for y in recurse(x):
+                        yield y
+    for source in sources:
+        for x in recurse(source):
+            yield x
+
+class Instruction(object): pass
+
+class Param(Instruction):
+    def __init__(self, name, extern):
+        self.name = name
+        self.extern = extern
+
+    def __repr__(self):
+        return "Param({0}, {1})".format(repr(self.name), repr(self.extern))
+
+class Assign(Instruction):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+    def __repr__(self):
+        return "Assign({0}, {1})".format(repr(self.name), repr(str(self.expr)))
+
+class Export(Instruction):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+    def __repr__(self):
+        return "Export({0}, {1})".format(repr(self.name), repr(str(self.expr)))
+
+class Delete(Instruction):
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return "Delete({0})".format(repr(self.name))
+
+def instructions(sources, goals):
+    live = {}
+    names = {}
+    namenum = [0]
+    def newname(node):
+        name = "x{0}".format(namenum[0])
+        namenum[0] += 1
+        live[name] = node
+        return name
+
+    nodes = list(walkdown(sources))
+    for i, node in enumerate(nodes):
+        if isinstance(node.goal, Const):
+            pass
+
+        elif isinstance(node.goal, (Name, Predicate)):
+            name = newname(node)
+            yield Param(name, node.goal.value)
+            names[node.goal] = name
+
+        elif isinstance(node.goal, Call):
+            name = newname(node)
+            yield Assign(name, node.goal.rename(names))
+            names[node.goal] = name
+
+        else:
+            raise NotImplementedError
+
+        if node in goals:
+            yield Export(name, node.goal)
+
+        dead = []
+        for n, x in live.items():
+            if not any(x in nodes[j].requires for j in range(i + 1, len(nodes))):
+                dead.append(n)
+        for n in dead:
+            del live[n]
+            yield Delete(n)
+
 def show(goals):
     numbers = {}
     order = []
@@ -79,9 +197,14 @@ def show(goals):
         recurse(goal)
 
     for node in order:
-        print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} for {3}".format(numbers[node], " ".join(repr(numbers[x]) for x in node.requires), " ".join(repr(numbers[x]) for x in node.requiredby), repr(str(node.goal))))
+        print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
 
-goals = [CallGraphNode(Expr.parse("sqrt(sqrt(x))")), CallGraphNode(Expr.parse("exp(sqrt(x))")), CallGraphNode(Expr.parse("sqrt(x)")), CallGraphNode(Expr.parse("x"))]
+goals = [CallGraphNode(Expr.parse("sqrt(sqrt(x))")),
+         CallGraphNode(Expr.parse("sqrt(sqrt(y))")),
+         CallGraphNode(Expr.parse("exp(sqrt(y))")),
+         CallGraphNode(Expr.parse("x")),
+         CallGraphNode(Expr.parse("y")),
+         CallGraphNode(Expr.parse("atan2(sqrt(x), sqrt(y))"))]
 
 table = {}
 for x in goals:
