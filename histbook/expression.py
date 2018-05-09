@@ -246,7 +246,11 @@ class Expr(object):
             #     return or_(*[recurse(x, relations=True) for x in node.values])
 
             elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-                return recurse(node.operand, relations=True).negate()
+                content = recurse(node.operand, relations=True)
+                if isinstance(content, Name):
+                    return Predicate(content.value, positive=False)
+                else:
+                    return Logical.negate(content)
 
             elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
                 return functools.reduce(LogicalAnd.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values])
@@ -807,26 +811,33 @@ class Relation(Expr):
 class Predicate(Expr):
     _order = 5
 
-    def __init__(self, name):
+    def __init__(self, name, positive=True):
         self.name = name
+        self.positive = positive
 
     def _reprargs(self):
-        return (repr(self.name),)
+        return (repr(self.name), repr(self.positive))
 
     def __str__(self):
-        return self.name
+        if self.positive:
+            return self.name
+        else:
+            return "not " + self.name
 
     def __hash__(self):
-        return hash((Predicate, self.name))
+        return hash((Predicate, self.name, self.positive))
 
     def __eq__(self, other):
-        return isinstance(other, Predicate) and self.name == other.name
+        return isinstance(other, Predicate) and self.name == other.name and self.positive == other.positive
 
     def __lt__(self, other):
         if self._order == other._order:
-            return self.name < other.name
+            return (self.name, self.positive) < (other.name, other.positive)
         else:
             return self._order < other._order
+
+    def negate(self):
+        return Predicate(self.name, positive=not self.positive)
 
 class Interval(Expr):
     _order = 6

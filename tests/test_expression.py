@@ -235,6 +235,17 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("not x in {}").expr, Relation("not in", Name("x"), Const(set())))
         self.assertEqual(Expr.parse("not x not in {}").expr, Relation("in", Name("x"), Const(set())))
 
-    def test_logicaland(self):
-        print
-        print repr(Expr.parse("x and y").expr)
+        self.assertEqual(Expr.parse("not p").expr, Predicate("p", positive=False))
+
+    def test_logicals(self):
+        self.assertEqual(Expr.parse("a and b").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("b"))))
+        self.assertEqual(Expr.parse("a or b").expr, LogicalOr(LogicalAnd(Predicate("a")), LogicalAnd(Predicate("b"))))
+        self.assertEqual(Expr.parse("(a and b) or (c and d)").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("b")), LogicalAnd(Predicate("c"), Predicate("d"))))
+        self.assertEqual(Expr.parse("(a or b) and (c or d)").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("c")), LogicalAnd(Predicate("a"), Predicate("d")), LogicalAnd(Predicate("b"), Predicate("c")), LogicalAnd(Predicate("b"), Predicate("d"))))
+        self.assertEqual(Expr.parse("(a or b) and c").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("c")), LogicalAnd(Predicate("b"), Predicate("c"))))
+        self.assertEqual(Expr.parse("c and (a or b)").expr, LogicalOr(LogicalAnd(Predicate("a"), Predicate("c")), LogicalAnd(Predicate("b"), Predicate("c"))))
+        self.assertEqual(Expr.parse("c or (a or b)").expr, LogicalOr(LogicalAnd(Predicate("a")), LogicalAnd(Predicate("b")), LogicalAnd(Predicate("c"))))
+
+    def test_logical_negations(self):
+        self.assertEqual(Expr.parse("not (a and b)").expr, LogicalOr(LogicalAnd(Predicate("a", False)), LogicalAnd(Predicate("b", False))))
+        
