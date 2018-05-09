@@ -476,7 +476,7 @@ class BinOp(Call):
     def __str__(self):
         return (" " + self.op + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
 
-class RingAlgebra(Call):
+class RingAlgebra(Expr):
     def __init__(self, const, pos, neg):
         self.const = const
         self.pos = pos

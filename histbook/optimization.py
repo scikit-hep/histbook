@@ -30,5 +30,61 @@
 
 from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
 
+class CallGraphNode(object):
+    def __init__(self, goal):
+        self.goal = goal
+        self.requires = set()
+        self.requiredby = set()
 
+    def __repr__(self):
+        return "<CallGraphNode for {0}>".format(repr(str(self.goal)))
 
+    def __hash__(self):
+        return hash((CallGraphNode, self.goal))
+
+    def __eq__(self, other):
+        return isinstance(other, CallGraphNode) and self.goal == other.goal
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def grow(self, table):
+        if self not in table:
+            table[self] = self
+
+        if isinstance(self.goal, (Const, Name, Predicate)):
+            pass
+
+        elif isinstance(self.goal, Call):
+            for arg in self.goal.args:
+                node = CallGraphNode(arg)
+                if node not in table:
+                    table[node] = node
+                else:
+                    node = table[node]
+                self.requires.add(node)
+                node.requiredby.add(self)
+                node.grow(table)
+
+def show(goals):
+    numbers = {}
+    order = []
+    def recurse(node):
+        for x in node.requires:
+            recurse(x)
+        if node not in numbers:
+            number = numbers[node] = len(numbers)
+            order.append(node)
+    for goal in goals:
+        recurse(goal)
+
+    for node in order:
+        print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} for {3}".format(numbers[node], " ".join(repr(numbers[x]) for x in node.requires), " ".join(repr(numbers[x]) for x in node.requiredby), repr(str(node.goal))))
+
+goals = [CallGraphNode(Expr.parse("sqrt(sqrt(x))")), CallGraphNode(Expr.parse("exp(sqrt(x))")), CallGraphNode(Expr.parse("sqrt(x)")), CallGraphNode(Expr.parse("x"))]
+
+table = {}
+for x in goals:
+    x.grow(table)
+
+show(goals)
