@@ -67,12 +67,6 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("x not in {}").expr, Relation("not in", Name("x"), Const(set())))
         self.assertEqual(Expr.parse("x not in {1, 2, 3}").expr, Relation("not in", Name("x"), Const({1, 2, 3})))
 
-    def test_interval(self):
-        self.assertEqual(Expr.parse("0 <= x < 3").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=True))
-        self.assertEqual(Expr.parse("0 < x <= 3").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=False))
-        self.assertEqual(Expr.parse("3 > x >= 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=True))
-        self.assertEqual(Expr.parse("3 >= x > 0").expr, Interval(Name("x"), Const(0), Const(3), lowclosed=False))
-
     def test_unary_plusminus(self):
         self.assertEqual(Expr.parse("+x").expr, Name("x"))
         self.assertEqual(Expr.parse("-x").expr, TimesDiv(-1, (Name("x"),), ()))

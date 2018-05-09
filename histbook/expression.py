@@ -67,95 +67,6 @@ class Expr(object):
     def __le__(self, other):
         return self.__lt__(other) or self.__eq__(other)
 
-    recognized = {
-        abs: "abs",
-        max: "max",
-        min: "min",
-
-        math.acos: "acos",
-        math.acosh: "acosh",
-        math.asin: "asin",
-        math.asinh: "asinh",
-        math.atan2: "atan2",
-        math.atan: "atan",
-        math.atanh: "atanh",
-        math.ceil: "ceil",
-        math.copysign: "copysign",
-        math.cos: "cos",
-        math.cosh: "cosh",
-        math.degrees: "rad2deg",
-        math.erfc: "erfc",
-        math.erf: "erf",
-        math.exp: "exp",
-        math.expm1: "expm1",
-        math.factorial: "factorial",
-        math.floor: "floor",
-        math.fmod: "fmod",
-        math.gamma: "gamma",
-        math.hypot: "hypot",
-        math.isinf: "isinf",
-        math.isnan: "isnan",
-        math.lgamma: "lgamma",
-        math.log10: "log10",
-        math.log1p: "log1p",
-        math.log: "log",
-        math.pow: "pow",
-        math.radians: "deg2rad",
-        math.sinh: "sinh",
-        math.sin: "sin",
-        math.sqrt: "sqrt",
-        math.tanh: "tanh",
-        math.tan: "tan",
-        math.trunc: "trunc",
-
-        numpy.absolute: "abs",
-        numpy.arccos: "acos",
-        numpy.arccosh: "acosh",
-        numpy.arcsin: "asin",
-        numpy.arcsinh: "asinh",
-        numpy.arctan2: "atan2",
-        numpy.arctan: "atan",
-        numpy.arctanh: "atanh",
-        numpy.ceil: "ceil",
-        numpy.conjugate: "conjugate",
-        numpy.copysign: "copysign",
-        numpy.cos: "cos",
-        numpy.cosh: "cosh",
-        numpy.deg2rad: "deg2rad",
-        numpy.degrees: "rad2deg",
-        numpy.exp2: "exp2",
-        numpy.exp: "exp",
-        numpy.expm1: "expm1",
-        numpy.floor: "floor",
-        numpy.fmod: "fmod",
-        numpy.heaviside: "heaviside",
-        numpy.hypot: "hypot",
-        numpy.isfinite: "isfinite",
-        numpy.isinf: "isinf",
-        numpy.isnan: "isnan",
-        numpy.left_shift: "left_shift",
-        numpy.log10: "log10",
-        numpy.log1p: "log1p",
-        numpy.log2: "log2",
-        numpy.logaddexp2: "logaddexp2",
-        numpy.logaddexp: "logaddexp",
-        numpy.log: "log",
-        numpy.maximum: "max",
-        numpy.minimum: "min",
-        numpy.power: "pow",
-        numpy.rad2deg: "rad2deg",
-        numpy.radians: "deg2rad",
-        numpy.right_shift: "right_shift",
-        numpy.rint: "rint",
-        numpy.sign: "sign",
-        numpy.sinh: "sinh",
-        numpy.sin: "sin",
-        numpy.sqrt: "sqrt",
-        numpy.tanh: "tanh",
-        numpy.tan: "tan",
-        numpy.trunc: "trunc",
-        }
-
     @staticmethod
     def parse(expression, env=None):
         if env is None:
@@ -183,7 +94,7 @@ class Expr(object):
                 raise ExpressionError("not a function name: {0}".format(meta.dump_python_source(node).strip()))
 
         names = []
-        def recurse(node, relations=False, intervals=False):
+        def recurse(node, relations=False):
             if isinstance(node, ast.Num):
                 return Const(node.n)
 
@@ -250,31 +161,35 @@ class Expr(object):
 
                 return Relation(cmp, left, right)
 
-            elif intervals and isinstance(node, ast.Compare) and len(node.ops) == 2:
-                if isinstance(node.ops[0], ast.LtE) and isinstance(node.ops[1], ast.Lt):
-                    low = recurse(node.left)
-                    high = recurse(node.comparators[1])
-                    lowclosed = True
-                elif isinstance(node.ops[0], ast.Lt) and isinstance(node.ops[1], ast.LtE):
-                    low = recurse(node.left)
-                    high = recurse(node.comparators[1])
-                    lowclosed = False
-                elif isinstance(node.ops[0], ast.Gt) and isinstance(node.ops[1], ast.GtE):
-                    low = recurse(node.comparators[1])
-                    high = recurse(node.left)
-                    lowclosed = True
-                elif isinstance(node.ops[0], ast.GtE) and isinstance(node.ops[1], ast.Gt):
-                    low = recurse(node.comparators[1])
-                    high = recurse(node.left)
-                    lowclosed = False
-                else:
-                    raise ExpressionError("interval comparisons may be A <= x < B, A < x <= B, A > x >= B, A >= x > B, but no other combination: {0}".format(meta.dump_python_source(node).strip()))
+            # elif intervals and isinstance(node, ast.Compare) and len(node.ops) == 2:
+            #     if isinstance(node.ops[0], ast.LtE) and isinstance(node.ops[1], ast.Lt):
+            #         low = recurse(node.left)
+            #         high = recurse(node.comparators[1])
+            #         lowclosed = True
+            #     elif isinstance(node.ops[0], ast.Lt) and isinstance(node.ops[1], ast.LtE):
+            #         low = recurse(node.left)
+            #         high = recurse(node.comparators[1])
+            #         lowclosed = False
+            #     elif isinstance(node.ops[0], ast.Gt) and isinstance(node.ops[1], ast.GtE):
+            #         low = recurse(node.comparators[1])
+            #         high = recurse(node.left)
+            #         lowclosed = True
+            #     elif isinstance(node.ops[0], ast.GtE) and isinstance(node.ops[1], ast.Gt):
+            #         low = recurse(node.comparators[1])
+            #         high = recurse(node.left)
+            #         lowclosed = False
+            #     else:
+            #         low = None
 
-                arg = recurse(node.comparators[0])
-                if isinstance(low, Const) and isinstance(high, Const) and not isinstance(arg, Const):
-                    return Interval(arg, low, high, lowclosed=lowclosed)
-                else:
-                    raise ExpressionError("interval comparisons must have known constants on the low and high edge with an unknown expression in the middle: {0}".format(meta.dump_python_source(node).strip()))
+            #     if low is not None:
+            #         arg = recurse(node.comparators[0])
+            #         if isinstance(low, Const) and isinstance(high, Const) and not isinstance(arg, Const):
+            #             return Interval(arg, low, high, lowclosed=lowclosed)
+
+                
+
+
+
 
             elif isinstance(node, ast.Compare):
                 raise ExpressionError("comparison operators are only allowed at the top of an expression and only interval ranges are allowed to be chained: {0}".format(meta.dump_python_source(node).strip()))
@@ -405,21 +320,122 @@ class Expr(object):
         if callable(expression):
             fcn = meta.decompiler.decompile_func(expression)
             if isinstance(fcn, ast.FunctionDef) and len(fcn.body) == 1 and isinstance(fcn.body[0], ast.Return):
-                return Dim(names, recurse(fcn.body[0].value, relations=True, intervals=True))
+                return Dim(names, recurse(fcn.body[0].value, relations=True))
             elif isinstance(fcn, ast.Lambda):
-                return Dim(names, recurse(fcn.body.value, relations=True, intervals=True))
+                return Dim(names, recurse(fcn.body.value, relations=True))
         else:
             mod = ast.parse(expression)
             if len(mod.body) == 1 and isinstance(mod.body[0], ast.Expr):
-                return Dim(names, recurse(mod.body[0].value, relations=True, intervals=True))
+                return Dim(names, recurse(mod.body[0].value, relations=True))
 
         raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
 
-# the details of the canonical order are not important; we just need a way to ignore order sometimes
+    recognized = {abs: "abs", max: "max", min: "min"}
+
+class _Placeholder(object):
+    count = 0
+    def __init__(self):
+        self.index = _Placeholder.count
+        _Placeholder.count += 1
+    def __repr__(self):
+        return "Placeholder({0})".format(self.index)
+    def __hash__(self):
+        return hash((_Placeholder, self.index))
+    def __eq__(self, other):
+        return isinstance(other, _Placeholder) and self.index == other.index
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+def _recognize(module, pyname, name):
+    if hasattr(module, pyname):
+        Expr.recognized[getattr(module, pyname)] = name
+    else:
+        Expr.recognized[_Placeholder()] = name
+
+_recognize(math, "acos", "acos")
+_recognize(math, "acosh", "acosh")
+_recognize(math, "asin", "asin")
+_recognize(math, "asinh", "asinh")
+_recognize(math, "atan2", "atan2")
+_recognize(math, "atan", "atan")
+_recognize(math, "atanh", "atanh")
+_recognize(math, "ceil", "ceil")
+_recognize(math, "copysign", "copysign")
+_recognize(math, "cos", "cos")
+_recognize(math, "cosh", "cosh")
+_recognize(math, "degrees", "rad2deg")
+_recognize(math, "erfc", "erfc")
+_recognize(math, "erf", "erf")
+_recognize(math, "exp", "exp")
+_recognize(math, "expm1", "expm1")
+_recognize(math, "factorial", "factorial")
+_recognize(math, "floor", "floor")
+_recognize(math, "fmod", "fmod")
+_recognize(math, "gamma", "gamma")
+_recognize(math, "hypot", "hypot")
+_recognize(math, "isinf", "isinf")
+_recognize(math, "isnan", "isnan")
+_recognize(math, "lgamma", "lgamma")
+_recognize(math, "log10", "log10")
+_recognize(math, "log1p", "log1p")
+_recognize(math, "log", "log")
+_recognize(math, "pow", "pow")
+_recognize(math, "radians", "deg2rad")
+_recognize(math, "sinh", "sinh")
+_recognize(math, "sin", "sin")
+_recognize(math, "sqrt", "sqrt")
+_recognize(math, "tanh", "tanh")
+_recognize(math, "tan", "tan")
+_recognize(math, "trunc", "trunc")
+
+_recognize(numpy, "absolute", "abs")
+_recognize(numpy, "arccos", "acos")
+_recognize(numpy, "arccosh", "acosh")
+_recognize(numpy, "arcsin", "asin")
+_recognize(numpy, "arcsinh", "asinh")
+_recognize(numpy, "arctan2", "atan2")
+_recognize(numpy, "arctan", "atan")
+_recognize(numpy, "arctanh", "atanh")
+_recognize(numpy, "ceil", "ceil")
+_recognize(numpy, "conjugate", "conjugate")
+_recognize(numpy, "copysign", "copysign")
+_recognize(numpy, "cos", "cos")
+_recognize(numpy, "cosh", "cosh")
+_recognize(numpy, "deg2rad", "deg2rad")
+_recognize(numpy, "degrees", "rad2deg")
+_recognize(numpy, "exp2", "exp2")
+_recognize(numpy, "exp", "exp")
+_recognize(numpy, "expm1", "expm1")
+_recognize(numpy, "floor", "floor")
+_recognize(numpy, "fmod", "fmod")
+_recognize(numpy, "heaviside", "heaviside")
+_recognize(numpy, "hypot", "hypot")
+_recognize(numpy, "isfinite", "isfinite")
+_recognize(numpy, "isinf", "isinf")
+_recognize(numpy, "isnan", "isnan")
+_recognize(numpy, "left_shift", "left_shift")
+_recognize(numpy, "log10", "log10")
+_recognize(numpy, "log1p", "log1p")
+_recognize(numpy, "log2", "log2")
+_recognize(numpy, "logaddexp2", "logaddexp2")
+_recognize(numpy, "logaddexp", "logaddexp")
+_recognize(numpy, "log", "log")
+_recognize(numpy, "maximum", "max")
+_recognize(numpy, "minimum", "min")
+_recognize(numpy, "power", "pow")
+_recognize(numpy, "rad2deg", "rad2deg")
+_recognize(numpy, "radians", "deg2rad")
+_recognize(numpy, "right_shift", "right_shift")
+_recognize(numpy, "rint", "rint")
+_recognize(numpy, "sign", "sign")
+_recognize(numpy, "sinh", "sinh")
+_recognize(numpy, "sin", "sin")
+_recognize(numpy, "sqrt", "sqrt")
+_recognize(numpy, "tanh", "tanh")
+_recognize(numpy, "tan", "tan")
+_recognize(numpy, "trunc", "trunc")
 
 class Const(Expr):
-    _order = 0
-
     def __init__(self, value):
         self.value = value
 
@@ -440,17 +456,15 @@ class Const(Expr):
         return isinstance(other, Const) and self.value == other.value
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             if type(self.value) == type(other.value):
                 return self.value < other.value
             else:
                 return type(self.value) < type(other.value)
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
 class Name(Expr):
-    _order = 1
-
     def __init__(self, value):
         self.value = value
 
@@ -467,14 +481,12 @@ class Name(Expr):
         return isinstance(other, Name) and self.value == other.value
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             return self.value < other.value
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
 class Call(Expr):
-    _order = 2
-
     def __init__(self, fcn, *args):
         self.fcn = fcn
         self.args = args
@@ -492,10 +504,10 @@ class Call(Expr):
         return isinstance(other, Call) and self.fcn == other.fcn and self.args == other.args
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             return (self.fcn, self.args) < (other.fcn, other.args)
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
 class BinOp(Call):
     def __init__(self, fcn, left, right, op):
@@ -506,8 +518,6 @@ class BinOp(Call):
         return (" " + self.op + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
 
 class RingAlgebra(Call):
-    _order = 3
-
     def __init__(self, const, pos, neg):
         self.const = const
         self.pos = pos
@@ -523,10 +533,10 @@ class RingAlgebra(Call):
         return isinstance(other, self.__class__) and self.const == other.const and self.pos == other.pos and self.neg == other.neg
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             return (self.const, self.pos, self.neg) < (other.const, other.pos, other.neg)
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
     commutative = False
 
@@ -768,10 +778,10 @@ class Logical(object):
         return isinstance(other, self.__class__) and self.args == other.args
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             return self.args < self.args
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
     @classmethod
     def normalform(cls, arg):
@@ -833,8 +843,6 @@ class LogicalOr(Logical, RingAlgebraAddLike):
             return self
 
 class Relation(Expr):
-    _order = 4
-
     def __init__(self, cmp, left, right):
         self.cmp = cmp
         self.left = left
@@ -853,10 +861,10 @@ class Relation(Expr):
         return isinstance(other, Relation) and self.cmp == other.cmp and self.left == other.left and self.right == other.right
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             return (self.cmp, self.left, self.right) < (other.cmp, other.left, other.right)
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
     def negate(self):
         if self.cmp == "==":
@@ -875,8 +883,6 @@ class Relation(Expr):
             raise AssertionError(self.cmp)
 
 class Predicate(Expr):
-    _order = 5
-
     def __init__(self, name, positive=True):
         self.name = name
         self.positive = positive
@@ -897,43 +903,10 @@ class Predicate(Expr):
         return isinstance(other, Predicate) and self.name == other.name and self.positive == other.positive
 
     def __lt__(self, other):
-        if self._order == other._order:
+        if hash(self.__class__) == hash(other.__class__):
             return (self.name, self.positive) < (other.name, other.positive)
         else:
-            return self._order < other._order
+            return hash(self.__class__) < hash(other.__class__)
 
     def negate(self):
         return Predicate(self.name, positive=not self.positive)
-
-class Interval(Expr):
-    _order = 6
-
-    def __init__(self, arg, low, high, lowclosed=True):
-        self.arg = arg
-        self.low = low
-        self.high = high
-        self.lowclosed = lowclosed
-
-    def _reprargs(self):
-        if self.lowclosed:
-            return (repr(self.low), repr(self.high), repr(self.arg))
-        else:
-            return (repr(self.low), repr(self.high), repr(self.arg), "lowclosed=False")
-
-    def __str__(self):
-        if self.lowclosed:
-            return "{0} <= {1} < {2}".format(str(self.low), str(self.arg), str(self.high))
-        else:
-            return "{0} < {1} <= {2}".format(str(self.low), str(self.arg), str(self.high))
-
-    def __hash__(self):
-        return hash((Interval, self.arg, self.low, self.high, self.lowclosed))
-
-    def __eq__(self, other):
-        return isinstance(other, Interval) and self.arg == other.arg and self.low == other.low and self.high == other.high and self.lowclosed == other.lowclosed
-
-    def __lt__(self, other):
-        if self._order == other._order:
-            return (self.arg, self.low, self.high, self.lowclosed) < (other.arg, other.low, other.high, other.lowclosed)
-        else:
-            return self._order < other._order
