@@ -227,12 +227,12 @@ class Expr(object):
                 elif isinstance(node.op, ast.Sub):      fcn = "-"
                 elif isinstance(node.op, ast.Mult):     fcn = "*"
                 elif isinstance(node.op, ast.Div):      fcn = "/"
-                elif isinstance(node.op, ast.FloorDiv): fcn = "//"
-                elif isinstance(node.op, ast.Mod):      fcn = "%"
-                elif isinstance(node.op, ast.Pow):      fcn = "**"
+                elif isinstance(node.op, ast.FloorDiv): op, fcn = "//", "floor_divide"
+                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "remainder"
+                elif isinstance(node.op, ast.Pow):      op, fcn = "**", "power"
                 elif isinstance(node.op, ast.BitOr):    fcn = "|"
                 elif isinstance(node.op, ast.BitAnd):   fcn = "&"
-                elif isinstance(node.op, ast.BitXor):   fcn = "^"
+                elif isinstance(node.op, ast.BitXor):   op, fcn = "^",  "bitwise_xor"
                 else:
                     raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(meta.dump_python_source(node).strip()))
 
@@ -263,8 +263,8 @@ class Expr(object):
                         negation = TimesDiv.negate(right)   # additive terms in the denominator
 
                     return PlusMinus.distribute(left, negation).simplify()
-
-                elif fcn == "**" and isinstance(right, Const) and right.value == round(right.value) and 1 <= right.value < 5:
+                
+                elif fcn == "power" and isinstance(right, Const) and right.value == round(right.value) and 1 <= right.value < 5:
                     n = int(right.value)
                     left = PlusMinus.normalform(left)
                     if left.const == PlusMinus.identity and len(left.pos) == 1 and len(left.neg) == 0:
@@ -276,7 +276,7 @@ class Expr(object):
                     else:
                         return PlusMinus(PlusMinus.identity, (TimesDiv(TimesDiv.identity, tuple((left,) * n), ()),), ()).simplify()
 
-                elif fcn == "**" and isinstance(right, Const) and right.value == round(right.value) and -5 < right.value <= -1:
+                elif fcn == "power" and isinstance(right, Const) and right.value == round(right.value) and -5 < right.value <= -1:
                     n = -int(right.value)
                     left = PlusMinus.normalform(left)
                     if left.const == PlusMinus.identity and len(left.pos) == 1 and len(left.neg) == 0:
@@ -288,8 +288,14 @@ class Expr(object):
                     else:
                         return PlusMinus(PlusMinus.identity, (TimesDiv(TimesDiv.identity, (), tuple((left,) * n)),), ()).simplify()
 
+                elif fcn == "&":
+                    raise NotImplementedError
+
+                elif fcn == "|":
+                    raise NotImplementedError
+
                 else:
-                    return BinOp(fcn, left, right)
+                    return BinOp(fcn, left, right, op)
 
             elif isinstance(node, ast.Call):
                 if node.func.id in Expr.recognized.values():
@@ -298,7 +304,7 @@ class Expr(object):
                     fcn = Expr.recognized.get(resolve(node.func), None)
                 if fcn is None:
                     raise ExpressionError("unhandled function in expression: {0}".format(meta.dump_python_source(node).strip()))
-                return Call(fcn, tuple(recurse(x) for x in node.args))
+                return Call(fcn, *(recurse(x) for x in node.args))
 
             else:
                 ExpressionError("unhandled syntax in expression: {0}".format(meta.dump_python_source(node).strip()))
@@ -399,8 +405,12 @@ class Call(Expr):
             return self._order < other._order
 
 class BinOp(Call):
+    def __init__(self, fcn, left, right, op):
+        super(BinOp, self).__init__(fcn, left, right)
+        self.op = op
+
     def __str__(self):
-        return (" " + self.fcn + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
+        return (" " + self.op + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
 
 class RingAlgebra(Call):
     _order = 3
@@ -620,6 +630,8 @@ class PlusMinus(RingAlgebraBinOp, RingAlgebraAddLike):
     @staticmethod
     def calcval(left, right):
         return left + right
+
+### FIXME: NotImplementedError
 
 # class BitAnd(RingAlgebraMultLike):
 #     commutative = True

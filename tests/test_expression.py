@@ -252,3 +252,5 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(Expr.parse("not (x == 123 and x == 999)").expr, LogicalOr(LogicalAnd(Relation("!=", Const(123), Name("x"))), LogicalAnd(Relation("!=", Const(999), Name("x")))))
         self.assertEqual(Expr.parse("not (x == 123 or x == 999)").expr, LogicalAnd(Relation("!=", Const(123), Name("x")), Relation("!=", Const(999), Name("x"))))
 
+    def test_function(self):
+        self.assertEqual(Expr.parse("sqrt(x)").expr, Call("sqrt", Name("x")))
