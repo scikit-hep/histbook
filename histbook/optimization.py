@@ -30,7 +30,7 @@
 
 import functools
 
-# from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
+from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
 
 class CallGraphNode(object):
     def __init__(self, goal):
@@ -146,45 +146,66 @@ def totree(expr):
         return expr.__class__(expr.fcn, *(totree(x) for x in expr.args))
 
     elif isinstance(expr, Relation):
-        return expr.__class__(expr.cmp, totree(expr.left), totree(expr.right))
+        if expr.cmp == "==":
+            return Call("numpy.equal", totree(expr.left), totree(expr.right))
+
+        elif expr.cmp == "!=":
+            return Call("numpy.not_equal", totree(expr.left), totree(expr.right))
+
+        elif expr.cmp == "<":
+            return Call("numpy.less", totree(expr.left), totree(expr.right))
+
+        elif expr.cmp == "<=":
+            return Call("numpy.less_equal", totree(expr.left), totree(expr.right))
+
+        elif expr.cmp == "in":
+            return Call("numpy.isin", totree(expr.left), totree(expr.right))
+
+        elif expr.cmp == "not in":
+            return Call("numpy.logical_not", Call("numpy.isin", totree(expr.left), totree(expr.right)))
+
+        else:
+            raise AssertionError(repr(expr.cmp))
+
+        return expr.__class__(expr.cmp, )
 
     elif isinstance(expr, PlusMinus):
         out = None
         if len(expr.pos) > 0:
-            out = reduce("add", tuple(totree(x) for x in expr.pos))
+            out = reduce("numpy.add", tuple(totree(x) for x in expr.pos))
 
         if expr.const != expr.identity or out is None:
             if out is None:
                 out = Const(expr.const)
             else:
-                out = Call("add", out, Const(expr.const))
+                out = Call("numpy.add", out, Const(expr.const))
 
         if len(expr.neg) > 0:
-            out = Call("subtract", out, reduce("add", tuple(totree(x) for x in expr.neg)))
+            out = Call("numpy.subtract", out, reduce("numpy.add", tuple(totree(x) for x in expr.neg)))
 
         return out
 
     elif isinstance(expr, TimesDiv):
         out = None
         if len(expr.pos) > 0:
-            out = duplicates("multiply", tuple(totree(x) for x in expr.pos))
+            out = duplicates("numpy.multiply", tuple(totree(x) for x in expr.pos))
 
         if expr.const != expr.identity or out is None:
             if out is None:
                 out = Const(expr.const)
             else:
-                out = Call("multiply", out, Const(expr.const))
+                out = Call("numpy.multiply", out, Const(expr.const))
 
         if len(expr.neg) > 0:
-            out = Call("true_divide", out, duplicates("multiply", tuple(totree(x) for x in expr.neg)))
+            out = Call("numpy.true_divide", out, duplicates("numpy.multiply", tuple(totree(x) for x in expr.neg)))
 
         return out
 
     elif isinstance(expr, LogicalOr):
-        return reduce("logical_or", tuple(totree(x) for x in expr.args))
+        return reduce("numpy.logical_or", tuple(totree(x) for x in expr.args))
 
     elif isinstance(expr, LogicalAnd):
-        return reduce("logical_and", tuple(totree(x) for x in expr.args))
+        return reduce("numpy.logical_and", tuple(totree(x) for x in expr.args))
 
     else:
         raise AssertionError(expr)
@@ -213,33 +234,6 @@ def walkdown(sources):
     for source in sources:
         for x in recurse(source):
             yield x
-
-# def walkdown(sources):
-#     seen = set()
-#     whenready = []
-#     def recurse(node):
-#         if node not in seen:
-#             seen.add(node)
-#             whenready.append(node)
-
-#         notready = []
-#         for trial in whenready:
-#             if all(x in seen for x in trial.requires):
-#                 yield trial
-#             else:
-#                 notready.append(trial)
-#         del whenready[:]
-#         whenready.extend(notready)
-
-#         pairs = [(x.numrequiredby, x) for x in node.requiredby]
-#         pairs.sort(reverse=True)
-#         for num, x in pairs:
-#             for y in recurse(x):
-#                 yield y
-
-#     for source in sources:
-#         for x in recurse(source):
-#             yield x
 
 class Instruction(object): pass
 
@@ -327,21 +321,3 @@ def show(goals):
 
     for node in order:
         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
-
-goals = [CallGraphGoal(Expr.parse("x + 1")),
-         CallGraphGoal(Expr.parse("x**2")),
-         CallGraphGoal(Expr.parse("sqrt(y)")),
-         CallGraphGoal(Expr.parse("x * y * x")),
-         CallGraphGoal(Expr.parse("1/(x + 1)"))]
-
-table = {}
-for x in goals:
-    x.grow(table)
-
-show(goals)
-
-for x in walkdown(sources(goals, table)):
-    print x
-
-for x in instructions(sources(goals, table)):
-    print x
