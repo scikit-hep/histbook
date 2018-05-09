@@ -32,6 +32,99 @@ import functools
 
 # from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
 
+def totree(expr):
+    def linear(fcn, args):
+        if len(args) == 1:
+            return args[0]
+        return Call(fcn, args[0], linear(fcn, args[1:]))
+
+    def duplicates(fcn, args):
+        if len(args) == 1:
+            return args[0]
+
+        uniques = set(args)
+        if len(uniques) == len(args):
+            return reduce(fcn, args)
+        else:
+            newargs = []
+            for x in sorted(uniques):
+                newargs.append(linear(fcn, (x,) * args.count(x)))
+            return reduce(fcn, tuple(newargs))
+
+    def reduce(fcn, args):
+        if len(args) == 1:
+            return args[0]
+
+        left = args[:len(args) // 2]
+        right = args[len(args) // 2:]
+
+        if len(left) == 0:
+            return reduce(fcn, right)
+        if len(right) == 0:
+            return reduce(fcn, left)
+
+        if len(left) == 1:
+            left, = left
+        else:
+            left = reduce(fcn, left)
+
+        if len(right) == 1:
+            right, = right
+        else:
+            right = reduce(fcn, right)
+
+        return Call(fcn, left, right)
+
+    if isinstance(expr, (Const, Name, Predicate)):
+        return expr
+
+    elif isinstance(expr, Call):
+        return expr.__class__(expr.fcn, *(totree(x) for x in expr.args))
+
+    elif isinstance(expr, Relation):
+        return expr.__class__(expr.cmp, totree(expr.left), totree(expr.right))
+
+    elif isinstance(expr, PlusMinus):
+        out = None
+        if len(expr.pos) > 0:
+            out = reduce("add", tuple(totree(x) for x in expr.pos))
+
+        if expr.const != expr.identity or out is None:
+            if out is None:
+                out = Const(expr.const)
+            else:
+                out = Call("add", out, Const(expr.const))
+
+        if len(expr.neg) > 0:
+            out = Call("subtract", out, reduce("add", tuple(totree(x) for x in expr.neg)))
+
+        return out
+
+    elif isinstance(expr, TimesDiv):
+        out = None
+        if len(expr.pos) > 0:
+            out = duplicates("multiply", tuple(totree(x) for x in expr.pos))
+
+        if expr.const != expr.identity or out is None:
+            if out is None:
+                out = Const(expr.const)
+            else:
+                out = Call("multiply", out, Const(expr.const))
+
+        if len(expr.neg) > 0:
+            out = Call("true_divide", out, duplicates("multiply", tuple(totree(x) for x in expr.neg)))
+
+        return out
+
+    elif isinstance(expr, LogicalOr):
+        return reduce("logical_or", tuple(totree(x) for x in expr.args))
+
+    elif isinstance(expr, LogicalAnd):
+        return reduce("logical_and", tuple(totree(x) for x in expr.args))
+
+    else:
+        raise AssertionError(expr)
+
 class CallGraphNode(object):
     def __init__(self, goal):
         self.goal = goal
@@ -70,7 +163,7 @@ class CallGraphNode(object):
                 node.grow(table)
 
         else:
-            raise NotImplementedError
+            raise AssertionError(repr(self.goal))
 
         self.numrequiredby += 1
 
@@ -91,12 +184,11 @@ class CallGraphNode(object):
         else:
             raise NotImplementedError
 
-    @staticmethod
-    def allsources(goals, table):
-        return functools.reduce(set.union, (x.sources(table) for x in goals))
-
     def rename(self, names):
         return self.goal.rename(names)
+
+def sources(goals, table):
+    return functools.reduce(set.union, (x.sources(table) for x in goals))
 
 def walkdown(sources):
     seen = set()
@@ -199,15 +291,17 @@ def show(goals):
     for node in order:
         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
 
-goals = [CallGraphNode(Expr.parse("sqrt(sqrt(x))")),
-         CallGraphNode(Expr.parse("sqrt(sqrt(y))")),
-         CallGraphNode(Expr.parse("exp(sqrt(y))")),
-         CallGraphNode(Expr.parse("x")),
-         CallGraphNode(Expr.parse("y")),
-         CallGraphNode(Expr.parse("atan2(sqrt(x), sqrt(y))"))]
+goals = [CallGraphNode(totree(Expr.parse("x + 1"))),
+         CallGraphNode(totree(Expr.parse("x**2"))),
+         CallGraphNode(totree(Expr.parse("sqrt(y)"))),
+         CallGraphNode(totree(Expr.parse("x * y * x"))),
+         CallGraphNode(totree(Expr.parse("1/(x + 1)")))]
 
 table = {}
 for x in goals:
     x.grow(table)
 
 show(goals)
+
+for x in instructions(sources(goals, table), goals):
+    print x
