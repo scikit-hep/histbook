@@ -56,6 +56,14 @@ class Expr(object):
     def __le__(self, other):
         return self.__lt__(other) or self.__eq__(other)
 
+    def __cmp__(self, other):
+        if self.__eq__(other):
+            return 0
+        elif self.__lt__(other):
+            return -1
+        else:
+            return 1
+
     @staticmethod
     def parse(expression, env=None):
         if env is None:
@@ -301,7 +309,7 @@ class _Placeholder(object):
     def __hash__(self):
         return hash((_Placeholder, self.index))
     def __eq__(self, other):
-        return isinstance(other, _Placeholder) and self.index == other.index
+        return self.__class__ is other.__class__ and self.index == other.index
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -412,16 +420,16 @@ class Const(Expr):
         return hash((Const, value))
 
     def __eq__(self, other):
-        return isinstance(other, Const) and self.value == other.value
+        return self.__class__.__name__ == other.__class__.__name__ and self.value == other.value
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
-            if type(self.value) == type(other.value):
+        if self.__class__.__name__ == other.__class__.__name__:
+            if type(self.value).__name__ == type(other.value).__name__:
                 return self.value < other.value
             else:
-                return type(self.value) < type(other.value)
+                return type(self.value).__name__ < type(other.value).__name__
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     def rename(self, names):
         return self
@@ -440,13 +448,13 @@ class Name(Expr):
         return hash((Name, self.value))
 
     def __eq__(self, other):
-        return isinstance(other, Name) and self.value == other.value
+        return self.__class__.__name__ == other.__class__.__name__ and self.value == other.value
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
+        if self.__class__.__name__ == other.__class__.__name__:
             return self.value < other.value
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     def rename(self, names):
         assert self in names
@@ -467,13 +475,13 @@ class Call(Expr):
         return hash((Call, self.fcn, self.args))
 
     def __eq__(self, other):
-        return isinstance(other, Call) and self.fcn == other.fcn and self.args == other.args
+        return self.__class__.__name__ == other.__class__.__name__ and self.fcn == other.fcn and self.args == other.args
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
+        if self.__class__.__name__ == other.__class__.__name__:
             return (self.fcn, self.args) < (other.fcn, other.args)
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     def rename(self, names):
         if self in names:
@@ -502,13 +510,13 @@ class RingAlgebra(Expr):
         return hash((self.__class__, self.const, self.pos, self.neg))
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.const == other.const and self.pos == other.pos and self.neg == other.neg
+        return self.__class__.__name__ == other.__class__.__name__ and self.const == other.const and self.pos == other.pos and self.neg == other.neg
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
+        if self.__class__.__name__ == other.__class__.__name__:
             return (self.const, self.pos, self.neg) < (other.const, other.pos, other.neg)
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     commutative = False
 
@@ -756,13 +764,13 @@ class Logical(object):
         return hash((self.__class__, self.args))
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.args == other.args
+        return self.__class__.__name__ == other.__class__.__name__ and self.args == other.args
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
-            return self.args < self.args
+        if self.__class__.__name__ == other.__class__.__name__:
+            return self.args < other.args
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     @classmethod
     def normalform(cls, arg):
@@ -839,13 +847,13 @@ class Relation(Expr):
         return hash((Relation, self.cmp, self.left, self.right))
 
     def __eq__(self, other):
-        return isinstance(other, Relation) and self.cmp == other.cmp and self.left == other.left and self.right == other.right
+        return self.__class__.__name__ == other.__class__.__name__ and self.cmp == other.cmp and self.left == other.left and self.right == other.right
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
+        if self.__class__.__name__ == other.__class__.__name__:
             return (self.cmp, self.left, self.right) < (other.cmp, other.left, other.right)
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     def negate(self):
         if self.cmp == "==":
@@ -881,13 +889,13 @@ class Predicate(Expr):
         return hash((Predicate, self.value, self.positive))
 
     def __eq__(self, other):
-        return isinstance(other, Predicate) and self.value == other.value and self.positive == other.positive
+        return self.__class__.__name__ == other.__class__.__name__ and self.value == other.value and self.positive == other.positive
 
     def __lt__(self, other):
-        if hash(self.__class__) == hash(other.__class__):
+        if self.__class__.__name__ == other.__class__.__name__:
             return (self.value, self.positive) < (other.value, other.positive)
         else:
-            return hash(self.__class__) < hash(other.__class__)
+            return self.__class__.__name__ < other.__class__.__name__
 
     def negate(self):
         return Predicate(self.value, positive=not self.positive)

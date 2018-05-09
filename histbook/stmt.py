@@ -30,7 +30,7 @@
 
 import functools
 
-from histbook.expression import Expr, Const, Name, Call, PlusMinus, TimesDiv, LogicalOr, LogicalAnd, Relation, Predicate
+import histbook.expr
 
 class CallGraphNode(object):
     def __init__(self, goal):
@@ -51,16 +51,22 @@ class CallGraphNode(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __lt__(self, other):
+        if self.__class__.__name__ == other.__class__.__name__:
+            return self.goal < other.goal
+        else:
+            return self.__class__.__name__ < other.__class__.__name__
+
     def grow(self, table):
         if self not in table:
             table[self] = self
 
-        if isinstance(self.goal, (Const, Name, Predicate)):
+        if isinstance(self.goal, (histbook.expr.Const, histbook.expr.Name, histbook.expr.Predicate)):
             pass
 
-        elif isinstance(self.goal, Call):
+        elif isinstance(self.goal, histbook.expr.Call):
             for arg in self.goal.args:
-                if not isinstance(arg, Const):
+                if not isinstance(arg, histbook.expr.Const):
                     node = CallGraphNode(arg)
                     if node not in table:
                         table[node] = node
@@ -76,16 +82,16 @@ class CallGraphNode(object):
         self.numrequiredby += 1
 
     def sources(self, table):
-        if isinstance(self.goal, Const):
+        if isinstance(self.goal, histbook.expr.Const):
             return set()
 
-        elif isinstance(self.goal, (Name, Predicate)):
+        elif isinstance(self.goal, (histbook.expr.Name, histbook.expr.Predicate)):
             return set([self])
 
-        elif isinstance(self.goal, Call):
+        elif isinstance(self.goal, histbook.expr.Call):
             out = set()
             for arg in self.goal.args:
-                if not isinstance(arg, Const):
+                if not isinstance(arg, histbook.expr.Const):
                     node = table[CallGraphNode(arg)]
                     out.update(node.sources(table))
             return out
@@ -100,7 +106,7 @@ def totree(expr):
     def linear(fcn, args):
         if len(args) == 1:
             return args[0]
-        return Call(fcn, args[0], linear(fcn, args[1:]))
+        return histbook.expr.Call(fcn, args[0], linear(fcn, args[1:]))
 
     def duplicates(fcn, args):
         if len(args) == 1:
@@ -137,74 +143,74 @@ def totree(expr):
         else:
             right = reduce(fcn, right)
 
-        return Call(fcn, left, right)
+        return histbook.expr.Call(fcn, left, right)
 
-    if isinstance(expr, (Const, Name, Predicate)):
+    if isinstance(expr, (histbook.expr.Const, histbook.expr.Name, histbook.expr.Predicate)):
         return expr
 
-    elif isinstance(expr, Call):
+    elif isinstance(expr, histbook.expr.Call):
         return expr.__class__(expr.fcn, *(totree(x) for x in expr.args))
 
-    elif isinstance(expr, Relation):
+    elif isinstance(expr, histbook.expr.Relation):
         if expr.cmp == "==":
-            return Call("numpy.equal", totree(expr.left), totree(expr.right))
+            return histbook.expr.Call("numpy.equal", totree(expr.left), totree(expr.right))
 
         elif expr.cmp == "!=":
-            return Call("numpy.not_equal", totree(expr.left), totree(expr.right))
+            return histbook.expr.Call("numpy.not_equal", totree(expr.left), totree(expr.right))
 
         elif expr.cmp == "<":
-            return Call("numpy.less", totree(expr.left), totree(expr.right))
+            return histbook.expr.Call("numpy.less", totree(expr.left), totree(expr.right))
 
         elif expr.cmp == "<=":
-            return Call("numpy.less_equal", totree(expr.left), totree(expr.right))
+            return histbook.expr.Call("numpy.less_equal", totree(expr.left), totree(expr.right))
 
         elif expr.cmp == "in":
-            return Call("numpy.isin", totree(expr.left), totree(expr.right))
+            return histbook.expr.Call("numpy.isin", totree(expr.left), totree(expr.right))
 
         elif expr.cmp == "not in":
-            return Call("numpy.logical_not", Call("numpy.isin", totree(expr.left), totree(expr.right)))
+            return histbook.expr.Call("numpy.logical_not", histbook.expr.Call("numpy.isin", totree(expr.left), totree(expr.right)))
 
         else:
             raise AssertionError(repr(expr.cmp))
 
         return expr.__class__(expr.cmp, )
 
-    elif isinstance(expr, PlusMinus):
+    elif isinstance(expr, histbook.expr.PlusMinus):
         out = None
         if len(expr.pos) > 0:
             out = reduce("numpy.add", tuple(totree(x) for x in expr.pos))
 
         if expr.const != expr.identity or out is None:
             if out is None:
-                out = Const(expr.const)
+                out = histbook.expr.Const(expr.const)
             else:
-                out = Call("numpy.add", out, Const(expr.const))
+                out = histbook.expr.Call("numpy.add", out, histbook.expr.Const(expr.const))
 
         if len(expr.neg) > 0:
-            out = Call("numpy.subtract", out, reduce("numpy.add", tuple(totree(x) for x in expr.neg)))
+            out = histbook.expr.Call("numpy.subtract", out, reduce("numpy.add", tuple(totree(x) for x in expr.neg)))
 
         return out
 
-    elif isinstance(expr, TimesDiv):
+    elif isinstance(expr, histbook.expr.TimesDiv):
         out = None
         if len(expr.pos) > 0:
             out = duplicates("numpy.multiply", tuple(totree(x) for x in expr.pos))
 
         if expr.const != expr.identity or out is None:
             if out is None:
-                out = Const(expr.const)
+                out = histbook.expr.Const(expr.const)
             else:
-                out = Call("numpy.multiply", out, Const(expr.const))
+                out = histbook.expr.Call("numpy.multiply", out, histbook.expr.Const(expr.const))
 
         if len(expr.neg) > 0:
-            out = Call("numpy.true_divide", out, duplicates("numpy.multiply", tuple(totree(x) for x in expr.neg)))
+            out = histbook.expr.Call("numpy.true_divide", out, duplicates("numpy.multiply", tuple(totree(x) for x in expr.neg)))
 
         return out
 
-    elif isinstance(expr, LogicalOr):
+    elif isinstance(expr, histbook.expr.LogicalOr):
         return reduce("numpy.logical_or", tuple(totree(x) for x in expr.args))
 
-    elif isinstance(expr, LogicalAnd):
+    elif isinstance(expr, histbook.expr.LogicalAnd):
         return reduce("numpy.logical_and", tuple(totree(x) for x in expr.args))
 
     else:
@@ -280,15 +286,15 @@ def instructions(sources):
 
     nodes = list(walkdown(sources))
     for i, node in enumerate(nodes):
-        if isinstance(node.goal, Const):
+        if isinstance(node.goal, histbook.expr.Const):
             pass
 
-        elif isinstance(node.goal, (Name, Predicate)):
+        elif isinstance(node.goal, (histbook.expr.Name, histbook.expr.Predicate)):
             name = newname(node)
             yield Param(name, node.goal.value)
             names[node.goal] = name
 
-        elif isinstance(node.goal, Call):
+        elif isinstance(node.goal, histbook.expr.Call):
             name = newname(node)
             yield Assign(name, node.goal.rename(names))
             names[node.goal] = name
@@ -321,3 +327,24 @@ def show(goals):
 
     for node in order:
         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
+
+
+
+goals = [CallGraphGoal(histbook.expr.Expr.parse("x + 1 > 0")),
+         CallGraphGoal(histbook.expr.Expr.parse("x**2")),
+         CallGraphGoal(histbook.expr.Expr.parse("sqrt(y)")),
+         CallGraphGoal(histbook.expr.Expr.parse("x * y * x")),
+         CallGraphGoal(histbook.expr.Expr.parse("1/(x + 1)"))]
+
+table = {}
+for x in goals:
+    x.grow(table)
+
+show(goals)
+
+for x in walkdown(sources(goals, table)):
+    print(x)
+
+for x in instructions(sources(goals, table)):
+    print(x)
+

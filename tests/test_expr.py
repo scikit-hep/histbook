@@ -30,9 +30,9 @@
 
 import unittest
 
-from histbook.expression import *
+from histbook.expr import *
 
-class TestExpression(unittest.TestCase):
+class TestExpr(unittest.TestCase):
     def runTest(self):
         pass
 
