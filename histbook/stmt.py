@@ -327,24 +327,3 @@ def show(goals):
 
     for node in order:
         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
-
-
-
-goals = [CallGraphGoal(histbook.expr.Expr.parse("x + 1 > 0")),
-         CallGraphGoal(histbook.expr.Expr.parse("x**2")),
-         CallGraphGoal(histbook.expr.Expr.parse("sqrt(y)")),
-         CallGraphGoal(histbook.expr.Expr.parse("x * y * x")),
-         CallGraphGoal(histbook.expr.Expr.parse("1/(x + 1)"))]
-
-table = {}
-for x in goals:
-    x.grow(table)
-
-show(goals)
-
-for x in walkdown(sources(goals, table)):
-    print(x)
-
-for x in instructions(sources(goals, table)):
-    print(x)
-
