@@ -85,56 +85,6 @@ class Expr(object):
                      "&": lambda x, y: x & y,
                      "^": lambda x, y: x ^ y}
 
-        # def not_(expr):
-        #     if isinstance(expr, Relation):
-        #         if expr.cmp == "==":
-        #             return Relation("!=", expr.left, expr.right)
-        #         elif expr.cmp == "<":
-        #             return Relation("<=", expr.right, expr.left)
-        #         elif expr.cmp == "<=":
-        #             return Relation("<", expr.right, expr.left)
-        #         elif expr.cmp == "in":
-        #             return Relation("not in", expr.right, expr.left)
-        #         elif expr.cmp == "not in":
-        #             return Relation("in", expr.right, expr.left)
-        #         else:
-        #             raise AssertionError(expr)
-
-        #     elif isinstance(expr, And):
-        #         return Or(*[not_(x) for x in expr.args])
-
-        #     elif isinstance(expr, Or):
-        #         notlogical = [not_(x) for x in expr.args if not isinstance(x, And)]
-        #         logical    = [not_(x) for x in expr.args if     isinstance(x, And)]
-        #         if len(logical) == 0:
-        #             return And(*notlogical)
-        #         else:
-        #             return Or(*[And(*([x] + notlogical)) for x in logical])
-        #     else:
-        #         raise AssertionError(expr)
-
-        # def and_(*exprs):
-        #     ands       = [x for x in exprs if isinstance(x, And)]
-        #     ors        = [x for x in exprs if isinstance(x, Or)]
-        #     notlogical = [x for x in exprs if not isinstance(x, (And, Or))]
-        #     for x in ands:
-        #         notlogical += x.args
-        #     ors += [Or(*notlogical)]
-        #     out = Or(*[And(*args) for args in itertools.product([x.args for x in ors])])
-        #     if len(out.args) == 0:
-        #         raise AssertionError(out)
-        #     elif len(out.args) == 1:
-        #         return out.args[0]
-        #     else:
-        #         return out
-
-        # def or_(*exprs):
-        #     ors    = [x for x in exprs if isinstance(x, Or)]
-        #     others = [x for x in exprs if not isinstance(x, Or)]
-        #     for x in ors:
-        #         others += x.args
-        #     return Or(*others)
-
         def resolve(node):
             if isinstance(node, ast.Attribute):
                 return getattr(resolve(node.value), node.attr)
@@ -235,15 +185,6 @@ class Expr(object):
 
             elif isinstance(node, ast.Compare):
                 raise ExpressionError("comparison operators are only allowed at the top of an expression and only interval ranges are allowed to be chained: {0}".format(meta.dump_python_source(node).strip()))
-
-            # elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            #     return not_(recurse(node.operand, relations=True))
-
-            # elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
-            #     return and_(*[recurse(x, relations=True) for x in node.values])
-
-            # elif relations and isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
-            #     return or_(*[recurse(x, relations=True) for x in node.values])
 
             elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
                 content = recurse(node.operand, relations=True)
@@ -871,32 +812,3 @@ class Interval(Expr):
             return (self.arg, self.low, self.high, self.lowclosed) < (other.arg, other.low, other.high, other.lowclosed)
         else:
             return self._order < other._order
-
-# class Logical(Expr):
-#     _order = 6
-
-#     def __init__(self, *args):
-#         self.args = args
-
-#     def _reprargs(self):
-#         return tuple(repr(x) for x in self.args)
-
-#     def __hash__(self):
-#         return hash((self.__class__,) + self.args)
-
-#     def __eq__(self, other):
-#         return isinstance(other, self.__class__) and self.args == other.args
-
-#     def __lt__(self, other):
-#         if self._order == other._order:
-#             return (self.__class__.__name__, self.args) < (other.__class__.__name__, self.args)
-#         else:
-#             return self._order < other._order
-
-# class And(Logical):
-#     def __str__(self):
-#         return " and ".format(str(x) for x in self.args)
-
-# class Or(Logical):
-#     def __str__(self):
-#         return " or ".format("(" + str(x) + ")" if isinstance(x, And) else str(x) for x in self.args)
