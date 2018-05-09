@@ -65,30 +65,35 @@ class Expr(object):
             return 1
 
     @staticmethod
-    def parse(expression, env=None):
-        if env is None:
-            env = dict(globals())
-            env["pi"] = math.pi
-            env["e"] = math.e
+    def parse(expression, defs=None):
+        _defs = defs
+        defs = {"pi": Const(math.pi), "e": Const(math.e)}
+        if _defs is not None:
+            for n, x in _defs.items():
+                if isinstance(x, Expr):
+                    defs[n] = x
+                else:
+                    defs[n] = Const(x)
         
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
                      "*": lambda x, y: x * y,
-                     "/": lambda x, y: x / y,
-                     "//": lambda x, y: x // y,
+                     "/": lambda x, y: float(x) / float(y),
+                     "//": lambda x, y: int(x // y),
                      "%": lambda x, y: x % y,
                      "**": lambda x, y: x ** y,
-                     "|": lambda x, y: x | y,
-                     "&": lambda x, y: x & y,
-                     "^": lambda x, y: x ^ y}
+                     "|": lambda x, y: numpy.uint64(x) | numpy.uint64(y),
+                     "&": lambda x, y: numpy.uint64(x) & numpy.uint64(y),
+                     "^": lambda x, y: numpy.uint64(x) ^ numpy.uint64(y)}
 
+        env = dict(globals())
         def resolve(node):
             if isinstance(node, ast.Attribute):
-                return getattr(resolve(node.value), node.attr)
+                return getattr(resolve(node.value), node.attr, None)
             elif isinstance(node, ast.Name):
-                return env[node.id]
+                return env.get(node.id, None)
             else:
-                raise ExpressionError("not a function name: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("functions must be named, not constructed: {0}".format(meta.dump_python_source(node).strip()))
 
         def recurse(node, relations=False):
             if isinstance(node, ast.Num):
@@ -108,16 +113,14 @@ class Expr(object):
                     raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(meta.dump_python_source(node).strip()))
 
             elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-                if node.id == "None" or (node.id in env and env[node.id] is None):
+                if node.id == "None":
                     return Const(None)
-                elif node.id == "True" or (node.id in env and env[node.id] is True):
+                elif node.id == "True":
                     return Const(True)
-                elif node.id == "False" or (node.id in env and env[node.id] is False):
+                elif node.id == "False":
                     return Const(False)
-                elif node.id in env and env[node.id] == math.pi:
-                    return Const(math.pi)
-                elif node.id in env and env[node.id] == math.e:
-                    return Const(math.e)
+                elif node.id in defs:
+                    return defs[node.id]
                 else:
                     return Name(node.id)
 
@@ -203,11 +206,11 @@ class Expr(object):
                 elif isinstance(node.op, ast.Mult):     fcn = "*"
                 elif isinstance(node.op, ast.Div):      fcn = "/"
                 elif isinstance(node.op, ast.FloorDiv): op, fcn = "//", "floor_divide"
-                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "remainder"
-                elif isinstance(node.op, ast.Pow):      op, fcn = "**", "power"
+                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "mod"
+                elif isinstance(node.op, ast.Pow):      op, fcn = "**", "pow"
                 elif isinstance(node.op, ast.BitOr):    fcn = "|"
                 elif isinstance(node.op, ast.BitAnd):   fcn = "&"
-                elif isinstance(node.op, ast.BitXor):   op, fcn = "^",  "bitwise_xor"
+                elif isinstance(node.op, ast.BitXor):   op, fcn = "^",  "xor"
                 else:
                     raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(meta.dump_python_source(node).strip()))
 
@@ -239,7 +242,7 @@ class Expr(object):
 
                     return PlusMinus.distribute(left, negation).simplify()
                 
-                elif fcn == "power" and isinstance(right, Const) and right.value == round(right.value) and 1 <= right.value < 5:
+                elif fcn == "pow" and isinstance(right, Const) and right.value == round(right.value) and 1 <= right.value < 5:
                     n = int(right.value)
                     left = PlusMinus.normalform(left)
                     if left.const == PlusMinus.identity and len(left.pos) == 1 and len(left.neg) == 0:
@@ -251,7 +254,7 @@ class Expr(object):
                     else:
                         return PlusMinus(PlusMinus.identity, (TimesDiv(TimesDiv.identity, tuple((left,) * n), ()),), ()).simplify()
 
-                elif fcn == "power" and isinstance(right, Const) and right.value == round(right.value) and -5 < right.value <= -1:
+                elif fcn == "pow" and isinstance(right, Const) and right.value == round(right.value) and -5 < right.value <= -1:
                     n = -int(right.value)
                     left = PlusMinus.normalform(left)
                     if left.const == PlusMinus.identity and len(left.pos) == 1 and len(left.neg) == 0:
@@ -273,11 +276,10 @@ class Expr(object):
                     return BinOp(fcn, left, right, op)
 
             elif isinstance(node, ast.Call):
-                if node.func.id in Expr.recognized.values():
+                fcn = Expr.recognized.get(resolve(node.func), None)
+                if fcn is None and node.func.id in Expr.recognized.values():
                     fcn = node.func.id
                 else:
-                    fcn = Expr.recognized.get(resolve(node.func), None)
-                if fcn is None:
                     raise ExpressionError("unhandled function in expression: {0}".format(meta.dump_python_source(node).strip()))
                 return Call(fcn, *(recurse(x) for x in node.args))
 
@@ -363,6 +365,7 @@ _recognize(numpy, "arcsinh", "asinh")
 _recognize(numpy, "arctan2", "atan2")
 _recognize(numpy, "arctan", "atan")
 _recognize(numpy, "arctanh", "atanh")
+_recognize(numpy, "bitwise_xor", "xor")
 _recognize(numpy, "ceil", "ceil")
 _recognize(numpy, "conjugate", "conjugate")
 _recognize(numpy, "copysign", "copysign")
@@ -392,6 +395,7 @@ _recognize(numpy, "minimum", "min")
 _recognize(numpy, "power", "pow")
 _recognize(numpy, "rad2deg", "rad2deg")
 _recognize(numpy, "radians", "deg2rad")
+_recognize(numpy, "remainder", "mod")
 _recognize(numpy, "right_shift", "right_shift")
 _recognize(numpy, "rint", "rint")
 _recognize(numpy, "sign", "sign")
