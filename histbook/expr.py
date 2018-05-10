@@ -32,6 +32,12 @@ import ast
 import functools
 import itertools
 import math
+import sys
+import types
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 import meta
 import numpy
@@ -65,16 +71,40 @@ class Expr(object):
             return 1
 
     @staticmethod
-    def parse(expression, defs=None):
-        _defs = defs
-        defs = {"pi": Const(math.pi), "e": Const(math.e)}
-        if _defs is not None:
-            for n, x in _defs.items():
+    def parse(expression, defs=None, returnlabel=False):
+        _defs = {"pi": Const(math.pi), "e": Const(math.e)}
+        if defs is not None:
+            for n, x in defs.items():
                 if isinstance(x, Expr):
-                    defs[n] = x
+                    _defs[n] = x
                 else:
-                    defs[n] = Const(x)
-        
+                    try:
+                        _defs[n] = Const(pickle.loads(pickle.dumps(x)))
+                    except:
+                        raise ExpressionError("object can't be included in an expression as symbol {0} because it refers to an unserializable object".format(repr(n)))
+
+        pyast = None
+        label = None
+        params = None
+        if isinstance(expression, types.FunctionType):   # more specific than callable(...)
+            fcn = meta.decompiler.decompile_func(expression)
+            if isinstance(fcn, ast.FunctionDef) and len(fcn.body) == 1 and isinstance(fcn.body[0], ast.Return):
+                pyast = fcn.body[0].value
+                label = expression.__name__
+            elif isinstance(fcn, ast.Lambda):
+                pyast = fcn.body.value
+                label = meta.dump_python_source(pyast).strip()
+            params = expression.__code__.co_varnames[expression.__code__.co_argcount]
+
+        elif (sys.version_info[0] < 3 and isinstance(expression, basestring)) or (sys.version_info[0] >= 3 and isinstance(expression, str)):
+            mod = ast.parse(expression)
+            if len(mod.body) == 1 and isinstance(mod.body[0], ast.Expr):
+                pyast = mod.body[0].value
+                label = expression
+                
+        if pyast is None:
+            raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
+
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
                      "*": lambda x, y: x * y,
@@ -119,8 +149,16 @@ class Expr(object):
                     return Const(True)
                 elif node.id == "False":
                     return Const(False)
-                elif node.id in defs:
-                    return defs[node.id]
+                elif node.id in _defs:
+                    return _defs[node.id]
+                elif params is not None and node.id not in params:
+                    if node.id in env:
+                        try:
+                            return Const(pickle.loads(pickle.dumps(env[node.id])))
+                        except:
+                            raise ExpressionError("symbol {0} can't be included in an expression because it refers to an unserializable object in the global scope".format(repr(node.id)))
+                    else:
+                        raise ExpressionError("symbol {0} is not a function parameter and not in the global scope".format(repr(node.id)))
                 else:
                     return Name(node.id)
 
@@ -286,19 +324,11 @@ class Expr(object):
             else:
                 ExpressionError("unhandled syntax in expression: {0}".format(meta.dump_python_source(node).strip()))
 
-        if callable(expression):
-            fcn = meta.decompiler.decompile_func(expression)
-            if isinstance(fcn, ast.FunctionDef) and len(fcn.body) == 1 and isinstance(fcn.body[0], ast.Return):
-                return recurse(fcn.body[0].value, relations=True)
-            elif isinstance(fcn, ast.Lambda):
-                return recurse(fcn.body.value, relations=True)
+        if returnlabel:
+            return recurse(pyast, relations=True), label
         else:
-            mod = ast.parse(expression)
-            if len(mod.body) == 1 and isinstance(mod.body[0], ast.Expr):
-                return recurse(mod.body[0].value, relations=True)
-
-        raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
-
+            return recurse(pyast, relations=True)
+        
     recognized = {abs: "abs", max: "max", min: "min"}
 
 class _Placeholder(object):

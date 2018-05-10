@@ -30,18 +30,582 @@
 
 import histbook.expr
 import histbook.stmt
+import histbook.hist
 
-# goals = [histbook.stmt.CallGraphGoal(histbook.expr.Expr.parse("x + 1 > 0")),
-#          histbook.stmt.CallGraphGoal(histbook.expr.Expr.parse("x**2")),
-#          histbook.stmt.CallGraphGoal(histbook.expr.Expr.parse("sqrt(y)")),
-#          histbook.stmt.CallGraphGoal(histbook.expr.Expr.parse("x * y * x")),
-#          histbook.stmt.CallGraphGoal(histbook.expr.Expr.parse("1/(x + 1)"))]
+class TotalBins(object):
+    def __init__(self, totalbins, variable):
+        self.totalbins = totalbins
+        self.variable = variable
 
-# table = {}
-# for x in goals:
-#     x.grow(table)
+    def __repr__(self):
+        total, unit = self.totalbins * 8, "bytes"
+        if total > 2048:
+            total /= 1024.0
+            unit = "kB"
+            if total > 2048:
+                total /= 1024.0
+                unit = "MB"
+                if total > 2048:
+                    total /= 1024.0
+                    unit = "GB"
+                    if total > 2048:
+                        total /= 1024.0
+                        unit = "TB"
+        return "{0} bins ({1:.4g} {2}){3}".format(self.totalbins, total, unit, "".join(" * num(" + repr(x) + ")" for x in self.variable))
 
-# histbook.stmt.show(goals)
+    def __int__(self):
+        return self.totalbins
 
-# for x in histbook.stmt.instructions(histbook.stmt.sources(goals, table)):
-#     print(x)
+class _Endable(object):
+    @property
+    def totalbins(self):
+        return TotalBins(*self._totalbins())
+
+    def fill(self, **arrays):
+        if not isinstance(self, histbook.hist.Fillable):
+            self.__class__ = type("DynamicFillable", self.__class__.__bases__ + (histbook.hist.Fillable,), {})
+        self.__init__(self)
+        self.fill(**arrays)
+
+class _Profilable(object):
+    def weighted(self, expr, ignorenan=True):
+        return weighted(expr, ignorenan=ignorenan, defs=self._defs, prev=self)
+
+    def prof(self, expr, ignorenan=True):
+        return prof(expr, ignorenan=ignorenan, defs=self._defs, prev=self)
+
+    def binprof(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        return binprof(expr, numbins, low, high, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
+
+    def partitionprof(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        return partitionprof(expr, edges, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
+
+class _Chainable(_Profilable):
+    def bin(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        return bin(expr, numbins, low, high, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
+
+    def intbin(self, expr, min, max, underflow=True, overflow=True):
+        return intbin(expr, min, max, underflow=underflow, overflow=overflow, defs=self._defs, prev=self)
+
+    def partition(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        return partition(expr, edges, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
+
+    def cut(self, expr):
+        return cut(expr, defs=self._defs, prev=self)
+
+class _Scalable(_Chainable):
+    def categorical(self, expr):
+        return categorical(expr, defs=self._defs, prev=self)
+
+    def sparsebin(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
+        return sparsebin(expr, binwidth, origin=origin, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
+
+class _Booking(object):
+    def __repr__(self):
+        x = self
+        pieces = [x._repr()]
+        while x._prev is not None:
+            x = x._prev
+            pieces.insert(0, x._repr())
+        return ".".join(pieces)
+
+    def __str__(self):
+        x = self
+        pieces = [x._repr()]
+        while x._prev is not None:
+            x = x._prev
+            pieces.insert(0, x._repr())
+        return "(" + "\n  .".join(pieces) + ")"
+
+class defs(_Scalable, _Booking):
+    def __init__(self, **exprs):
+        self._defs = exprs
+        self._prev = None
+
+    def _repr(self):
+        return "defs({0})".format(", ".join("{0}={1}".format(n, repr(x)) for n, x in self._defs.items()))
+
+class weighted(_Endable, _Booking):
+    def __init__(self, expr, ignorenan=True, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._ignorenan = ignorenan
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label)]
+        if self._ignorenan is not True:
+            args.append("ignorenan={0}".format(repr(self._ignorenan)))
+        return "weighted({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def ignorenan(self):
+        return self._ignorenan
+
+    def _totalbins(self):
+        if self._prev is None:
+            return 2, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 2*totalbins, variable
+
+class prof(_Profilable, _Endable, _Booking):
+    def __init__(self, expr, ignorenan=True, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._ignorenan = ignorenan
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label)]
+        if self._ignorenan is not True:
+            args.append("ignorenan={0}".format(repr(self._ignorenan)))
+        return "prof({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def ignorenan(self):
+        return self._ignorenan
+
+    def _totalbins(self):
+        if self._prev is None:
+            return 3, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 3*totalbins, variable
+
+class binprof(_Profilable, _Endable, _Booking):
+    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._numbins = numbins
+        self._low = low
+        self._high = high
+        self._underflow = underflow
+        self._overflow = overflow
+        self._nanflow = nanflow
+        self._closedlow = closedlow
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label), repr(self._numbins), repr(self._low), repr(self._high)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
+        if self._nanflow is not True:
+            args.append("nanflow={0}".format(repr(self._nanflow)))
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(repr(self._closedlow)))
+        return "binprof({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def numbins(self):
+        return self._numbins
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
+
+    @property
+    def nanflow(self):
+        return self._nanflow
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    def _totalbins(self):
+        num = self._numbins
+        if self._underflow: num += 1
+        if self._overflow: num += 1
+        if self._nanflow: num += 1
+        if self._prev is None:
+            return 3*num, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 3*num*totalbins, variable
+
+class partitionprof(_Profilable, _Endable, _Booking):
+    def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._edges = tuple(edges)
+        self._underflow = underflow
+        self._overflow = overflow
+        self._nanflow = nanflow
+        self._closedlow = closedlow
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label), repr(self._edges)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
+        if self._nanflow is not True:
+            args.append("nanflow={0}".format(repr(self._nanflow)))
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(repr(self._closedlow)))
+        return "partitionprof({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def edges(self):
+        return self._edges
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
+
+    @property
+    def nanflow(self):
+        return self._nanflow
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    def _totalbins(self):
+        num = len(self._edges) - 1
+        if self._underflow: num += 1
+        if self._overflow: num += 1
+        if self._nanflow: num += 1
+        if self._prev is None:
+            return 3*num, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 3*num*totalbins, variable
+
+class bin(_Chainable, _Endable, _Booking):
+    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._numbins = numbins
+        self._low = low
+        self._high = high
+        self._underflow = underflow
+        self._overflow = overflow
+        self._nanflow = nanflow
+        self._closedlow = closedlow
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label), repr(self._numbins), repr(self._low), repr(self._high)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
+        if self._nanflow is not True:
+            args.append("nanflow={0}".format(repr(self._nanflow)))
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(repr(self._closedlow)))
+        return "bin({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def numbins(self):
+        return self._numbins
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
+
+    @property
+    def nanflow(self):
+        return self._nanflow
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    def _totalbins(self):
+        num = self._numbins
+        if self._underflow: num += 1
+        if self._overflow: num += 1
+        if self._nanflow: num += 1
+        if self._prev is None:
+            return num, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return num*totalbins, variable
+
+class intbin(_Chainable, _Endable, _Booking):
+    def __init__(self, expr, min, max, underflow=True, overflow=True, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._min = min
+        self._max = max
+        self._underflow = underflow
+        self._overflow = overflow
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label), repr(self._min), repr(self._max)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
+        return "intbin({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def min(self):
+        return self._min
+
+    @property
+    def max(self):
+        return self._max
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
+
+    def _totalbins(self):
+        num = self._max - self._min + 1
+        if self._underflow: num += 1
+        if self._overflow: num += 1
+        if self._prev is None:
+            return num, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return num*totalbins, variable
+
+class partition(_Chainable, _Endable, _Booking):
+    def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._edges = tuple(edges)
+        self._underflow = underflow
+        self._overflow = overflow
+        self._nanflow = nanflow
+        self._closedlow = closedlow
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label), repr(self._edges)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
+        if self._nanflow is not True:
+            args.append("nanflow={0}".format(repr(self._nanflow)))
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(repr(self._closedlow)))
+        return "partition({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def edges(self):
+        return self._edges
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
+
+    @property
+    def nanflow(self):
+        return self._nanflow
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    def _totalbins(self):
+        num = len(self._edges) - 1
+        if self._underflow: num += 1
+        if self._overflow: num += 1
+        if self._nanflow: num += 1
+        if self._prev is None:
+            return num, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return num*totalbins, variable
+
+class cut(_Chainable, _Endable, _Booking):
+    def __init__(self, expr, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        return "cut({0})".format(repr(self._label))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    def _totalbins(self):
+        if self._prev is None:
+            return 2, ()
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 2*totalbins, variable
+
+class categorical(_Scalable, _Endable, _Booking):
+    def __init__(self, expr, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        return "categorical({0})".format(repr(self._label))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    def _totalbins(self):
+        if self._prev is None:
+            return 1, (self._label,)
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 1*totalbins, variable + (self._label,)
+
+class sparsebin(_Scalable, _Endable, _Booking):
+    def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True, defs={}, prev=None):
+        self._expr, self._label = expr, expr
+        # self._expr, self._label = histbook.expr.Expr.parse(defs=defs, returnlabel=True)
+        self._binwidth = binwidth
+        self._origin = origin
+        self._nanflow = nanflow
+        self._closedlow = closedlow
+        self._defs = defs
+        self._prev = prev
+
+    def _repr(self):
+        args = [repr(self._label), repr(self._binwidth)]
+        if self._origin != 0:
+            args.append("origin={0}".format(repr(self._origin)))
+        if self._nanflow is not True:
+            args.append("nanflow={0}".format(repr(self._nanflow)))
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(repr(self._closedlow)))
+        return "sparsebin({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def nanflow(self):
+        return self._nanflow
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    def _totalbins(self):
+        if self._prev is None:
+            return 1, (self._label,)
+        else:
+            totalbins, variable = self._prev._totalbins()
+            return 1*totalbins, variable + (self._label,)
