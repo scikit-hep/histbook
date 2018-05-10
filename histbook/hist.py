@@ -32,7 +32,9 @@ import collections
 
 import histbook.axis
 
-class Book(collections.MutableMapping):
+class Fillable(object): pass
+
+class Book(collections.MutableMapping, Fillable):
     def __init__(self, hists={}, **keywords):
         self._unnamed = 1
 
@@ -69,3 +71,5 @@ class Book(collections.MutableMapping):
         else:
             return self._hists.keys()
 
+class Histogram(Fillable):
+    pass
