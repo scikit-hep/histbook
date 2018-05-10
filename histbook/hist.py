@@ -57,8 +57,8 @@ class Book(collections.MutableMapping, Fillable):
         if isinstance(value, Book):
             for n, x in value.items():
                 self._hists[name + "/" + n] = x
-        elif isinstance(value, histbook.axis._Endable):
-            self._hists[name] = value  # FIXME
+        elif isinstance(value, Hist):
+            self._hists[name] = value
         else:
             raise TypeError("histogram books can only be filled with histograms or other histogram books, not {0}".format(type(value)))
 
@@ -71,5 +71,5 @@ class Book(collections.MutableMapping, Fillable):
         else:
             return self._hists.keys()
 
-class Histogram(Fillable):
+class Hist(Fillable):
     pass
