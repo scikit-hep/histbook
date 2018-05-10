@@ -84,7 +84,7 @@ class _Endable(object):
     def fill(self, **arrays):
         import histbook.hist
         if not isinstance(self, histbook.hist.Fillable):
-            self.__class__ = type("DynamicFillable", self.__class__.__bases__ + (histbook.hist.Fillable,), {})
+            self.__class__ = type("DynamicFillable", (histbook.hist.Fillable,) + self.__class__.__bases__, {})
             self.__init__(self)
             self.fill(**arrays)
 
