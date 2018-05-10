@@ -28,16 +28,14 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import collections
 import sys
 
 class _Endable(object):
-    def fill(self, **arrays):
-        import histbook.hist
-        if not isinstance(self, histbook.hist.Fillable):
-            self.__class__ = type("DynamicFillable", (histbook.hist.Fillable,) + self.__class__.__bases__, {})
-            self.__init__(self)
-            self.fill(**arrays)
+    def axis(self):
+        out = [self]
+        while out[0]._prev is not None:
+            out.insert(0, out[0]._prev)
+        return tuple(out)
 
 class _Profilable(object):
     def weighted(self, expr, ignorenan=True):
@@ -88,31 +86,6 @@ class _Booking(object):
             x = x._prev
             pieces.insert(0, x._repr())
         return "(" + "\n  .".join(pieces) + ")"
-
-class book(_Endable, collections.MutableMapping):
-    def __init__(self, **hists):
-        self._hists = hists
-
-    def __repr__(self):
-        return "book({0} histograms)".format(len(self))
-
-    def __len__(self):
-        return len(self._hists)
-
-    def __getitem__(self, name):
-        return self._hists[name]
-
-    def __setitem__(self, name, value):
-        self._hists[name] = value
-
-    def __delitem__(self, name):
-        del self._hists[name]
-
-    def __iter__(self):
-        if sys.version_info[0] < 3:
-            return self._hists.iterkeys()
-        else:
-            return self._hists.keys()
 
 class defs(_Scalable, _Booking):
     def __init__(self, **exprs):
