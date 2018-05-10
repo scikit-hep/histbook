@@ -28,163 +28,60 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import sys
+class Axis(object):
+    def __lt__(self, other):
+        if isinstance(other, Axis):
+            return self._order < other._order
+        else:
+            raise TypeError("unorderable types: {0} < {1}".format(type(self), type(other)))
 
-class _Endable(object):
-    def axis(self):
-        out = [self]
-        while out[0]._prev is not None:
-            out.insert(0, out[0]._prev)
-        return tuple(out)
+class categorical(Axis):
+    _order = 0
 
-class _Profilable(object):
-    def weighted(self, expr, ignorenan=True):
-        return weighted(expr, ignorenan=ignorenan, defs=self._defs, prev=self)
+    def __init__(self, expr):
+        self._expr = expr
 
-    def prof(self, expr, ignorenan=True):
-        return prof(expr, ignorenan=ignorenan, defs=self._defs, prev=self)
-
-    def binprof(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        return binprof(expr, numbins, low, high, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
-
-    def partitionprof(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        return partitionprof(expr, edges, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
-
-class _Chainable(_Profilable):
-    def bin(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        return bin(expr, numbins, low, high, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
-
-    def intbin(self, expr, min, max, underflow=True, overflow=True):
-        return intbin(expr, min, max, underflow=underflow, overflow=overflow, defs=self._defs, prev=self)
-
-    def partition(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        return partition(expr, edges, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
-
-    def cut(self, expr):
-        return cut(expr, defs=self._defs, prev=self)
-
-class _Scalable(_Chainable):
-    def categorical(self, expr):
-        return categorical(expr, defs=self._defs, prev=self)
-
-    def sparse(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
-        return sparse(expr, binwidth, origin=origin, nanflow=nanflow, closedlow=closedlow, defs=self._defs, prev=self)
-
-class _Booking(object):
     def __repr__(self):
-        x = self
-        pieces = [x._repr()]
-        while x._prev is not None:
-            x = x._prev
-            pieces.insert(0, x._repr())
-        return ".".join(pieces)
-
-    def __str__(self):
-        x = self
-        pieces = [x._repr()]
-        while x._prev is not None:
-            x = x._prev
-            pieces.insert(0, x._repr())
-        return "(" + "\n  .".join(pieces) + ")"
-
-class defs(_Scalable, _Booking):
-    def __init__(self, **exprs):
-        self._defs = exprs
-        self._prev = None
-
-    def _repr(self):
-        return "defs({0})".format(", ".join("{0}={1}".format(n, repr(x)) for n, x in self._defs.items()))
-
-class weighted(_Endable, _Booking):
-    def __init__(self, expr, ignorenan=True, defs={}, prev=None):
-        self._expr = expr
-        self._ignorenan = ignorenan
-        self._defs = defs
-        self._prev = prev
-
-    def _repr(self):
-        args = [repr(self._expr)]
-        if self._ignorenan is not True:
-            args.append("ignorenan={0}".format(repr(self._ignorenan)))
-        return "weighted({0})".format(", ".join(args))
+        return "categorical({0})".format(repr(self._expr))
 
     @property
     def expr(self):
         return self._expr
 
-    @property
-    def ignorenan(self):
-        return self._ignorenan
+    def relabel(self, label):
+        return categorical(label)
 
-class prof(_Profilable, _Endable, _Booking):
-    def __init__(self, expr, ignorenan=True, defs={}, prev=None):
+class sparse(Axis):
+    _order = 0
+
+    def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
-        self._ignorenan = ignorenan
-        self._defs = defs
-        self._prev = prev
-
-    def _repr(self):
-        args = [repr(self._expr)]
-        if self._ignorenan is not True:
-            args.append("ignorenan={0}".format(repr(self._ignorenan)))
-        return "prof({0})".format(", ".join(args))
-
-    @property
-    def expr(self):
-        return self._expr
-
-    @property
-    def ignorenan(self):
-        return self._ignorenan
-
-class binprof(_Profilable, _Endable, _Booking):
-    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True, defs={}, prev=None):
-        self._expr = expr
-        self._numbins = numbins
-        self._low = low
-        self._high = high
-        self._underflow = underflow
-        self._overflow = overflow
+        self._binwidth = binwidth
+        self._origin = origin
         self._nanflow = nanflow
         self._closedlow = closedlow
-        self._defs = defs
-        self._prev = prev
 
-    def _repr(self):
-        args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
-        if self._underflow is not True:
-            args.append("underflow={0}".format(repr(self._underflow)))
-        if self._overflow is not True:
-            args.append("overflow={0}".format(repr(self._overflow)))
+    def __repr__(self):
+        args = [repr(self._expr), repr(self._binwidth)]
+        if self._origin != 0:
+            args.append("origin={0}".format(repr(self._origin)))
         if self._nanflow is not True:
             args.append("nanflow={0}".format(repr(self._nanflow)))
         if self._closedlow is not True:
             args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "binprof({0})".format(", ".join(args))
+        return "sparse({0})".format(", ".join(args))
 
     @property
     def expr(self):
         return self._expr
 
     @property
-    def numbins(self):
-        return self._numbins
+    def binwidth(self):
+        return self._binwidth
 
     @property
-    def low(self):
-        return self._low
-
-    @property
-    def high(self):
-        return self._high
-
-    @property
-    def underflow(self):
-        return self._underflow
-
-    @property
-    def overflow(self):
-        return self._overflow
+    def origin(self):
+        return self._origin
 
     @property
     def nanflow(self):
@@ -194,55 +91,13 @@ class binprof(_Profilable, _Endable, _Booking):
     def closedlow(self):
         return self._closedlow
 
-class partitionprof(_Profilable, _Endable, _Booking):
-    def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        self._expr = expr
-        self._edges = tuple(edges)
-        self._underflow = underflow
-        self._overflow = overflow
-        self._nanflow = nanflow
-        self._closedlow = closedlow
-        self._defs = defs
-        self._prev = prev
+    def relabel(self, label):
+        return sparse(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
 
-    def _repr(self):
-        args = [repr(self._expr), repr(self._edges)]
-        if self._underflow is not True:
-            args.append("underflow={0}".format(repr(self._underflow)))
-        if self._overflow is not True:
-            args.append("overflow={0}".format(repr(self._overflow)))
-        if self._nanflow is not True:
-            args.append("nanflow={0}".format(repr(self._nanflow)))
-        if self._closedlow is not True:
-            args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "partitionprof({0})".format(", ".join(args))
+class bin(Axis):
+    _order = 1
 
-    @property
-    def expr(self):
-        return self._expr
-
-    @property
-    def edges(self):
-        return self._edges
-
-    @property
-    def underflow(self):
-        return self._underflow
-
-    @property
-    def overflow(self):
-        return self._overflow
-
-    @property
-    def nanflow(self):
-        return self._nanflow
-
-    @property
-    def closedlow(self):
-        return self._closedlow
-
-class bin(_Chainable, _Endable, _Booking):
-    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True, defs={}, prev=None):
+    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._numbins = numbins
         self._low = low
@@ -251,10 +106,8 @@ class bin(_Chainable, _Endable, _Booking):
         self._overflow = overflow
         self._nanflow = nanflow
         self._closedlow = closedlow
-        self._defs = defs
-        self._prev = prev
 
-    def _repr(self):
+    def __repr__(self):
         args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
         if self._underflow is not True:
             args.append("underflow={0}".format(repr(self._underflow)))
@@ -298,17 +151,20 @@ class bin(_Chainable, _Endable, _Booking):
     def closedlow(self):
         return self._closedlow
 
-class intbin(_Chainable, _Endable, _Booking):
-    def __init__(self, expr, min, max, underflow=True, overflow=True, defs={}, prev=None):
+    def relabel(self, label):
+        return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
+class intbin(Axis):
+    _order = 1
+
+    def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr
         self._min = min
         self._max = max
         self._underflow = underflow
         self._overflow = overflow
-        self._defs = defs
-        self._prev = prev
 
-    def _repr(self):
+    def __repr__(self):
         args = [repr(self._expr), repr(self._min), repr(self._max)]
         if self._underflow is not True:
             args.append("underflow={0}".format(repr(self._underflow)))
@@ -336,7 +192,12 @@ class intbin(_Chainable, _Endable, _Booking):
     def overflow(self):
         return self._overflow
 
-class partition(_Chainable, _Endable, _Booking):
+    def relabel(self, label):
+        return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
+
+class partition(Axis):
+    _order = 1
+
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._edges = tuple(edges)
@@ -344,10 +205,8 @@ class partition(_Chainable, _Endable, _Booking):
         self._overflow = overflow
         self._nanflow = nanflow
         self._closedlow = closedlow
-        self._defs = defs
-        self._prev = prev
 
-    def _repr(self):
+    def __repr__(self):
         args = [repr(self._expr), repr(self._edges)]
         if self._underflow is not True:
             args.append("underflow={0}".format(repr(self._underflow)))
@@ -381,57 +240,91 @@ class partition(_Chainable, _Endable, _Booking):
 
     @property
     def closedlow(self):
-        return self._closedlow
+        return self._closedlo
 
-class cut(_Chainable, _Endable, _Booking):
-    def __init__(self, expr, defs={}, prev=None):
+    def relabel(self, label):
+        return partition(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
+class cut(Axis):
+    _order = 1
+
+    def __init__(self, expr):
         self._expr = expr
-        self._defs = defs
-        self._prev = prev
 
-    def _repr(self):
+    def __repr__(self):
         return "cut({0})".format(repr(self._expr))
 
     @property
     def expr(self):
         return self._expr
 
-class categorical(_Scalable, _Endable, _Booking):
-    def __init__(self, expr, defs={}, prev=None):
-        self._expr = expr
-        self._defs = defs
-        self._prev = prev
+    def relabel(self, label):
+        return cut(label)
 
-    def _repr(self):
-        return "categorical({0})".format(repr(self._expr))
+class prof(Axis):
+    _order = 2
+
+    def __init__(self, expr):
+        self._expr = expr
+
+    def __repr__(self):
+        return "prof({0})".format(repr(self._expr))
 
     @property
     def expr(self):
         return self._expr
 
-class sparse(_Scalable, _Endable, _Booking):
-    def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True, defs={}, prev=None):
+    def relabel(self, label):
+        return prof(label)
+
+class binprof(Axis):
+    _order = 2
+
+    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
-        self._binwidth = binwidth
-        self._origin = origin
+        self._numbins = numbins
+        self._low = low
+        self._high = high
+        self._underflow = underflow
+        self._overflow = overflow
         self._nanflow = nanflow
         self._closedlow = closedlow
-        self._defs = defs
-        self._prev = prev
 
-    def _repr(self):
-        args = [repr(self._expr), repr(self._binwidth)]
-        if self._origin != 0:
-            args.append("origin={0}".format(repr(self._origin)))
+    def __repr__(self):
+        args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
         if self._nanflow is not True:
             args.append("nanflow={0}".format(repr(self._nanflow)))
         if self._closedlow is not True:
             args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "sparse({0})".format(", ".join(args))
+        return "binprof({0})".format(", ".join(args))
 
     @property
     def expr(self):
         return self._expr
+
+    @property
+    def numbins(self):
+        return self._numbins
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
 
     @property
     def nanflow(self):
@@ -440,3 +333,56 @@ class sparse(_Scalable, _Endable, _Booking):
     @property
     def closedlow(self):
         return self._closedlow
+
+    def relabel(self, label):
+        return binprof(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
+class partitionprof(Axis):
+    _order = 2
+
+    def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
+        self._expr = expr
+        self._edges = tuple(edges)
+        self._underflow = underflow
+        self._overflow = overflow
+        self._nanflow = nanflow
+        self._closedlow = closedlow
+
+    def __repr__(self):
+        args = [repr(self._expr), repr(self._edges)]
+        if self._underflow is not True:
+            args.append("underflow={0}".format(repr(self._underflow)))
+        if self._overflow is not True:
+            args.append("overflow={0}".format(repr(self._overflow)))
+        if self._nanflow is not True:
+            args.append("nanflow={0}".format(repr(self._nanflow)))
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(repr(self._closedlow)))
+        return "partitionprof({0})".format(", ".join(args))
+
+    @property
+    def expr(self):
+        return self._expr
+
+    @property
+    def edges(self):
+        return self._edges
+
+    @property
+    def underflow(self):
+        return self._underflow
+
+    @property
+    def overflow(self):
+        return self._overflow
+
+    @property
+    def nanflow(self):
+        return self._nanflow
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    def relabel(self, label):
+        return partitionprof(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)

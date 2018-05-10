@@ -29,7 +29,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import collections
+import sys
 
+import histbook.expr
+import histbook.stmt
 import histbook.axis
 
 class Fillable(object): pass
@@ -45,7 +48,10 @@ class Book(collections.MutableMapping, Fillable):
             self._hists[n] = x
 
     def __repr__(self):
-        return "book({0} histograms)".format(len(self))
+        return "Book({0} histogram{1})".format(len(self), "" if len(self) == 1 else "s")
+
+    def __str__(self):
+        return "Book({" + ",\n      ".join("{0}: {1}".format(repr(n), repr(x)) for n, x in self.items()) + "})"
 
     def __len__(self):
         return len(self._hists)
@@ -72,4 +78,40 @@ class Book(collections.MutableMapping, Fillable):
             return self._hists.keys()
 
 class Hist(Fillable):
-    pass
+    def weight(self, expr):
+        return Hist(*[x.relabel(x._original) for x in self._axis], defs=self._defs, weight=expr)
+
+    def __init__(self, *axis, **opts):
+        weight = opts.pop("weight", None)
+        defs = opts.pop("defs", {})
+        if len(opts) > 0:
+            raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
+
+        self._defs = defs
+        self._axis = []
+        self._lookup = {}
+
+        for i, x in enumerate(sorted(axis)):
+            original = x._expr
+            expr, label = histbook.expr.Expr.parse(x.expr, defs=defs, returnlabel=True)
+            self._axis.append(x.relabel(label))
+            self._axis[-1]._original = original
+            self._axis[-1]._parsed = expr
+            self._lookup[expr] = i
+
+        if weight is None:
+            self._weightoriginal, self._weightparsed, self._weightlabel = None, None, None
+        else:
+            self._weightoriginal = weight
+            self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(expr, defs=self._defs, returnlabel=True)
+
+    def __repr__(self, indent=", "):
+        out = [repr(x) for x in self._axis]
+        if self._weightlabel is not None:
+            out.append("weight={0}".format(repr(self._weightlabel)))
+        if len(self._defs) > 0:
+            out.append("defs={" + ", ".join("{0}: {1}".format(repr(n), repr(str(x)) if isinstance(x, histbook.expr.Expr) else repr(x)) for n, x in self._defs.items()) + "}")
+        return "Hist(" + indent.join(out) + ")"
+
+    def __str__(self):
+        return self.__repr__(",\n     ")
