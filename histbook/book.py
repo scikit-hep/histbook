@@ -31,56 +31,7 @@
 import collections
 import sys
 
-class TotalBins(object):
-    def __init__(self, totalbins, variable):
-        self.totalbins = totalbins
-        self.variable = variable
-
-    @staticmethod
-    def _tosize(self, totalbins):
-        total, unit = totalbins * 8, "bytes"
-        if total > 2048:
-            total /= 1024.0
-            unit = "kB"
-            if total > 2048:
-                total /= 1024.0
-                unit = "MB"
-                if total > 2048:
-                    total /= 1024.0
-                    unit = "GB"
-                    if total > 2048:
-                        total /= 1024.0
-                        unit = "TB"
-        return total, unit
-
-    def __repr__(self):
-        total, unit = TotalBins._tosize(self.totalbins)
-        return "{0} bins ({1:.4g} {2}){3}".format(self.totalbins, total, unit, "".join(" * num(" + repr(x) + ")" for x in self.variable))
-
-    def __int__(self):
-        return self.totalbins
-
-class SumOfTotalBins(object):
-    def __init__(self, totalbins):
-        self.totalbins = totalbins
-
-    def __repr__(self):
-        totalbins = int(self)
-        total, unit = TotalBins._tosize(totalbins)
-
-        if any(x.variable != () for x in self.totalbins):
-            return "{0} bins ({1:.4g {2}}) at least".format(totalbins, total, unit)
-        else:
-            return "{0} bins ({1:.4g {2}})".format(totalbins, total, unit)
-
-    def __int__(self):
-        return sum(int(x) for x in self.totalbins)
-
 class _Endable(object):
-    @property
-    def totalbins(self):
-        return TotalBins(*self._totalbins())
-
     def fill(self, **arrays):
         import histbook.hist
         if not isinstance(self, histbook.hist.Fillable):
@@ -163,10 +114,6 @@ class book(_Endable, collections.MutableMapping):
         else:
             return self._hists.keys()
 
-    @property
-    def totalbins(self):
-        return SumOfTotalBins([x.totalbins for x in self._hists.values()])
-
 class defs(_Scalable, _Booking):
     def __init__(self, **exprs):
         self._defs = exprs
@@ -196,13 +143,6 @@ class weighted(_Endable, _Booking):
     def ignorenan(self):
         return self._ignorenan
 
-    def _totalbins(self):
-        if self._prev is None:
-            return 2, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 2*totalbins, variable
-
 class prof(_Profilable, _Endable, _Booking):
     def __init__(self, expr, ignorenan=True, defs={}, prev=None):
         self._expr = expr
@@ -223,13 +163,6 @@ class prof(_Profilable, _Endable, _Booking):
     @property
     def ignorenan(self):
         return self._ignorenan
-
-    def _totalbins(self):
-        if self._prev is None:
-            return 3, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 3*totalbins, variable
 
 class binprof(_Profilable, _Endable, _Booking):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True, defs={}, prev=None):
@@ -288,17 +221,6 @@ class binprof(_Profilable, _Endable, _Booking):
     def closedlow(self):
         return self._closedlow
 
-    def _totalbins(self):
-        num = self._numbins
-        if self._underflow: num += 1
-        if self._overflow: num += 1
-        if self._nanflow: num += 1
-        if self._prev is None:
-            return 3*num, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 3*num*totalbins, variable
-
 class partitionprof(_Profilable, _Endable, _Booking):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
@@ -345,17 +267,6 @@ class partitionprof(_Profilable, _Endable, _Booking):
     @property
     def closedlow(self):
         return self._closedlow
-
-    def _totalbins(self):
-        num = len(self._edges) - 1
-        if self._underflow: num += 1
-        if self._overflow: num += 1
-        if self._nanflow: num += 1
-        if self._prev is None:
-            return 3*num, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 3*num*totalbins, variable
 
 class bin(_Chainable, _Endable, _Booking):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True, defs={}, prev=None):
@@ -414,17 +325,6 @@ class bin(_Chainable, _Endable, _Booking):
     def closedlow(self):
         return self._closedlow
 
-    def _totalbins(self):
-        num = self._numbins
-        if self._underflow: num += 1
-        if self._overflow: num += 1
-        if self._nanflow: num += 1
-        if self._prev is None:
-            return num, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return num*totalbins, variable
-
 class intbin(_Chainable, _Endable, _Booking):
     def __init__(self, expr, min, max, underflow=True, overflow=True, defs={}, prev=None):
         self._expr = expr
@@ -462,16 +362,6 @@ class intbin(_Chainable, _Endable, _Booking):
     @property
     def overflow(self):
         return self._overflow
-
-    def _totalbins(self):
-        num = self._max - self._min + 1
-        if self._underflow: num += 1
-        if self._overflow: num += 1
-        if self._prev is None:
-            return num, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return num*totalbins, variable
 
 class partition(_Chainable, _Endable, _Booking):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -520,17 +410,6 @@ class partition(_Chainable, _Endable, _Booking):
     def closedlow(self):
         return self._closedlow
 
-    def _totalbins(self):
-        num = len(self._edges) - 1
-        if self._underflow: num += 1
-        if self._overflow: num += 1
-        if self._nanflow: num += 1
-        if self._prev is None:
-            return num, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return num*totalbins, variable
-
 class cut(_Chainable, _Endable, _Booking):
     def __init__(self, expr, defs={}, prev=None):
         self._expr = expr
@@ -544,13 +423,6 @@ class cut(_Chainable, _Endable, _Booking):
     def expr(self):
         return self._expr
 
-    def _totalbins(self):
-        if self._prev is None:
-            return 2, ()
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 2*totalbins, variable
-
 class categorical(_Scalable, _Endable, _Booking):
     def __init__(self, expr, defs={}, prev=None):
         self._expr = expr
@@ -563,13 +435,6 @@ class categorical(_Scalable, _Endable, _Booking):
     @property
     def expr(self):
         return self._expr
-
-    def _totalbins(self):
-        if self._prev is None:
-            return 1, (self._expr,)
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 1*totalbins, variable + (self._expr,)
 
 class sparse(_Scalable, _Endable, _Booking):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True, defs={}, prev=None):
@@ -602,10 +467,3 @@ class sparse(_Scalable, _Endable, _Booking):
     @property
     def closedlow(self):
         return self._closedlow
-
-    def _totalbins(self):
-        if self._prev is None:
-            return 1, (self._expr,)
-        else:
-            totalbins, variable = self._prev._totalbins()
-            return 1*totalbins, variable + (self._expr,)
