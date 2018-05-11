@@ -132,7 +132,7 @@ def histbook_intbin(underflow, overflow):
         shift = 0
 
     def intbin(values, min, max):
-        indexes = numpy.ma.array(data=(values + (shift - min)))
+        indexes = numpy.ma.array((values + (shift - min)), dtype=INDEXTYPE)
 
         if underflow:
             numpy.maximum(indexes, 0, indexes)
@@ -152,6 +152,31 @@ library["histbook.intbinUO"] = histbook_intbin(True, True)
 library["histbook.intbinU_"] = histbook_intbin(True, False)
 library["histbook.intbin_O"] = histbook_intbin(False, True)
 library["histbook.intbin__"] = histbook_intbin(False, False)
+
+def histbook_partition(underflow, overflow, nanflow, closedlow):
+    if nanflow:
+        nanindex = (1 if underflow else 0) + (1 if overflow else 0)
+    else:
+        nanindex = numpy.ma.masked
+    if underflow:
+        shift = 1
+    else:
+        shift = 0
+    def partition(values, edges):
+        indexes = numpy.ma.array(numpy.digitize(values, edges), dtype=INDEXTYPE)
+        if not closedlow:
+            indexes[numpy.isin(values, edges)] -= 1
+        if nanflow:
+            indexes[numpy.isnan(values)] = len(edges) + 1
+        else:
+            indexes[numpy.isnan(values)] = numpy.ma.masked
+        if not overflow:
+            indexes[indexes == len(edges)] = numpy.ma.masked
+        if not underflow:
+            indexes[indexes == 0] = numpy.ma.masked
+            numpy.subtract(indexes, 1, indexes)
+        return indexes
+    return partition
 
 def calculate(expr, symbols):
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
