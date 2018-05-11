@@ -176,8 +176,6 @@ def totree(expr):
         else:
             raise AssertionError(repr(expr.cmp))
 
-        return expr.__class__(expr.cmp, )
-
     elif isinstance(expr, histbook.expr.PlusMinus):
         out = None
         if len(expr.pos) > 0:

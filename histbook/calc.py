@@ -37,6 +37,106 @@ INDEXTYPE = numpy.int32
 library = {}
 
 library["numpy.add"] = numpy.add
+library["numpy.subtract"] = numpy.subtract
+library["numpy.multiply"] = numpy.multiply
+library["numpy.true_divide"] = numpy.true_divide
+library["numpy.equal"] = numpy.equal
+library["numpy.not_equal"] = numpy.not_equal
+library["numpy.less"] = numpy.less
+library["numpy.less_equal"] = numpy.less_equal
+library["numpy.isin"] = numpy.isin
+library["numpy.logical_or"] = numpy.logical_or
+library["numpy.logical_and"] = numpy.logical_and
+library["numpy.logical_not"] = numpy.logical_not
+
+library["abs"] = numpy.absolute
+library["acos"] = numpy.arccos
+library["acosh"] = numpy.arccosh
+library["asin"] = numpy.arcsin
+library["asinh"] = numpy.arcsinh
+library["atan2"] = numpy.arctan2
+library["atan"] = numpy.arctan
+library["atanh"] = numpy.arctanh
+library["xor"] = numpy.bitwise_xor
+library["ceil"] = numpy.ceil
+library["conjugate"] = numpy.conjugate
+library["copysign"] = numpy.copysign
+library["cos"] = numpy.cos
+library["cosh"] = numpy.cosh
+library["deg2rad"] = numpy.deg2rad
+library["exp2"] = numpy.exp2
+library["exp"] = numpy.exp
+library["expm1"] = numpy.expm1
+library["floor"] = numpy.floor
+library["fmod"] = numpy.fmod
+library["heaviside"] = numpy.heaviside
+library["hypot"] = numpy.hypot
+library["isfinite"] = numpy.isfinite
+library["isinf"] = numpy.isinf
+library["isnan"] = numpy.isnan
+library["left_shift"] = numpy.left_shift
+library["log10"] = numpy.log10
+library["log1p"] = numpy.log1p
+library["log2"] = numpy.log2
+library["logaddexp2"] = numpy.logaddexp2
+library["logaddexp"] = numpy.logaddexp
+library["log"] = numpy.log
+library["max"] = numpy.maximum
+library["min"] = numpy.minimum
+library["pow"] = numpy.power
+library["rad2deg"] = numpy.rad2deg
+library["mod"] = numpy.remainder
+library["right_shift"] = numpy.right_shift
+library["rint"] = numpy.rint
+library["sign"] = numpy.sign
+library["sinh"] = numpy.sinh
+library["sin"] = numpy.sin
+library["sqrt"] = numpy.sqrt
+library["tanh"] = numpy.tanh
+library["tan"] = numpy.tan
+library["trunc"] = numpy.trunc
+
+def vectorized_erf(complement):
+    a1 =  0.254829592
+    a2 = -0.284496736
+    a3 =  1.421413741
+    a4 = -1.453152027
+    a5 =  1.061405429
+    p  =  0.3275911
+    def erf(values):
+        sign = numpy.where(values < 0, -1.0, 1.0)
+        values = numpy.absolute(values)
+        t = 1.0 / (values * p + 1)
+        y = 1.0 - ((((a5*t + a4)*t + a3)*t + a2)*t + a1)*t * numpy.exp(numpy.negative(numpy.square(values)))
+        if complement:
+            return 1.0 - sign * y
+        else:
+            return sign * y
+    return erf
+
+library["erf"] = vectorized_erf(False)
+library["erfc"] = vectorized_erf(True)
+
+def vectorized_gamma(logarithm):
+    cofs = (76.18009173, -86.50532033, 24.01409822, -1.231739516e0, 0.120858003e-2, -0.536382e-5)
+    stp = 2.50662827465
+    def lgamma(values):
+        x = values - 1.0
+        tmp = x + 5.5
+        tmp = (x + 0.5)*numpy.log(tmp) - tmp
+        ser = numpy.ones(len(values), dtype=numpy.dtype(numpy.float64))
+        for cof in cofs:
+            numpy.add(x, 1.0, x)
+            numpy.add(ser, cof/x, ser)
+        return tmp + numpy.log(stp*ser)
+    if logarithm:
+        return lgamma
+    else:
+        return lambda values: numpy.exp(lgamma(values))
+
+library["gamma"] = vectorized_gamma(False)
+lgamma = library["lgamma"] = vectorized_gamma(True)
+library["factorial"] = lambda values: numpy.round(numpy.exp(lgamma(numpy.round(values) + 1)))
 
 def histbook_sparse(closedlow):
     def sparse(values, binwidth, origin):
@@ -208,4 +308,4 @@ def calculate(expr, symbols):
         return library[expr.fcn](*(calculate(arg, symbols) for arg in expr.args))
             
     else:
-        raise NotImplementedError(expr)
+        raise AssertionError(repr(expr))
