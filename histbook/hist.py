@@ -44,6 +44,10 @@ class Fillable(object):
     def fields(self):
         if self._fields is None:
             table = {}
+            for x in self._goals:
+                x.clear()
+            for x in self._goals:
+                x.grow(table)
             fields = histbook.stmt.sources(self._goals, table)
             self._instructions = self._streamline(0, histbook.stmt.instructions(fields))
             self._fields = sorted(x.goal.value for x in fields)
@@ -52,8 +56,11 @@ class Fillable(object):
     def _fill(self, arrays):
         self.fields  # for the side-effect of creating self._instructions
 
+        print "instructions", len(self._instructions)
+        print "\n".join(repr(x) for x in self._instructions)
+
         symbols = {}
-        for index, instruction in self._instructions:
+        for instruction in self._instructions:
             if isinstance(instruction, histbook.stmt.Param):
                 symbols[instruction.name] = arrays[instruction.extern]
 
@@ -140,6 +147,7 @@ class Hist(Fillable):
             new._parsed = expr
             newaxis.append(new)
 
+        self._goals = set()
         self._destination = [[]]
         self._lookup = {}
         def dest(goals):
@@ -168,7 +176,7 @@ class Hist(Fillable):
 
         self._shape.append(0)
         for new in newaxis:
-            if isinstance(x, histbook.axis.ProfileAxis):
+            if isinstance(new, histbook.axis.ProfileAxis):
                 self._profile.append(new)
                 new._sumindex = self._shape[-1]
                 new._sum2index = self._shape[-1] + 1
@@ -194,6 +202,11 @@ class Hist(Fillable):
 
         self._fields = None
 
+        print
+        print "goals", self._goals
+        print "destination", self._destination
+        print "lookup", self._lookup
+
     def __repr__(self, indent=", "):
         out = [repr(x) for x in self._axis]
         if self._weightlabel is not None:
@@ -210,6 +223,7 @@ class Hist(Fillable):
         return self._shape
 
     def _streamline(self, i, instructions):
+        out = []
         for instruction in instructions:
             if isinstance(instruction, histbook.stmt.Export):
                 if not hasattr(instruction, "destination"):
@@ -217,8 +231,10 @@ class Hist(Fillable):
                 if instruction.expr in self._lookup:
                     for j in self._lookup[instruction.expr]:
                         instruction.destination.append((i, j))
+            out.append(instruction)
+        return out
 
-    def fill(**arrays):
+    def fill(self, **arrays):
         if len(self._growable) > 0:
             raise NotImplementedError
         if len(self._profile) > 0:
@@ -249,7 +265,7 @@ class Hist(Fillable):
             j += 1
 
         self._content._shape = (-1, self._shape[-1])
-        numpy.add.at(self._content, indexes, 1)
+        numpy.add.at(self._content, indexes.compressed(), 1)
         self._content._shape = self._shape
 
         for j in range(len(self._destination[0])):

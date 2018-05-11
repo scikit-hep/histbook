@@ -35,10 +35,13 @@ import histbook.expr
 class CallGraphNode(object):
     def __init__(self, goal):
         self.goal = goal
+        self.clear()
+
+    def clear(self):
         self.requires = set()
         self.requiredby = set()
         self.numrequiredby = 0
-
+        
     def __repr__(self):
         return "<CallGraphNode for {0}>".format(repr(str(self.goal)))
 

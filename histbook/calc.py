@@ -31,6 +31,75 @@
 import histbook.expr
 import histbook.stmt
 
+import numpy
+INDEXTYPE = numpy.int32
+
+library = {}
+
+def histbook_bin(underflow, overflow, nanflow, closedlow):
+    # don't actually specialize the code; placeholder for backends unfriendly to branching (e.g. GPU)
+
+    shift = 0
+    if underflow:
+        underindex = 0
+        shift += 1
+    else:
+        underindex = numpy.ma.masked
+
+    if overflow:
+        overindex = shift
+        shift += 1
+    else:
+        overindex = numpy.ma.masked
+
+    if nanflow:
+        nanindex = shift
+    else:
+        nanindex = numpy.ma.masked
+
+    if underflow:
+        shift = 1
+    else:
+        shift = 0
+
+    def bin(values, numbins, low, high):
+        indexes = values - float(low)
+        numpy.multiply(indexes, numbins / (high - low), indexes)
+
+        if closedlow:
+            indexes = numpy.floor(indexes)
+            if shift != 0:
+                numpy.add(indexes, shift, indexes)
+        else:
+            indexes = numpy.ceil(indexes)
+            numpy.add(indexes, shift - 1, indexes)
+
+        out = numpy.ma.array(indexes, dtype=INDEXTYPE)
+        with numpy.errstate(invalid="ignore"):
+            out[indexes < 0] = underindex
+            out[indexes >= (numbins + shift)] = overindex + numbins
+            out[numpy.isnan(indexes)] = nanindex + numbins
+        return out
+
+    return bin
+
+library["histbook.binUONL"] = histbook_bin(True, True, True, True)
+library["histbook.binUONH"] = histbook_bin(True, True, True, False)
+library["histbook.binUO_L"] = histbook_bin(True, True, False, True)
+library["histbook.binUO_H"] = histbook_bin(True, True, False, False)
+library["histbook.binU_NL"] = histbook_bin(True, False, True, True)
+library["histbook.binU_NH"] = histbook_bin(True, False, True, False)
+library["histbook.binU__L"] = histbook_bin(True, False, False, True)
+library["histbook.binU__H"] = histbook_bin(True, False, False, False)
+library["histbook.bin_ONL"] = histbook_bin(False, True, True, True)
+library["histbook.bin_ONH"] = histbook_bin(False, True, True, False)
+library["histbook.bin_O_L"] = histbook_bin(False, True, False, True)
+library["histbook.bin_O_H"] = histbook_bin(False, True, False, False)
+library["histbook.bin__NL"] = histbook_bin(False, False, True, True)
+library["histbook.bin__NH"] = histbook_bin(False, False, True, False)
+library["histbook.bin___L"] = histbook_bin(False, False, False, True)
+library["histbook.bin___H"] = histbook_bin(False, False, False, False)
+
 def calculate(expr, symbols):
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]

@@ -38,8 +38,6 @@ class GrowableAxis(Axis): pass
 class FixedAxis(Axis): pass
 class ProfileAxis(Axis): pass
 
-INDEXTYPE = numpy.int32
-
 class categorical(GrowableAxis):
     def __init__(self, expr):
         self._expr = expr
@@ -103,7 +101,7 @@ class sparse(GrowableAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.sparse_{0}_{1}".format("nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._binwidth), Const(self._origin)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.sparse{0}{1}".format("N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, Const(self._binwidth), Const(self._origin)))]
 
 class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -170,7 +168,7 @@ class bin(FixedAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._numbins), Const(self._low), Const(self._high)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._numbins), histbook.expr.Const(self._low), histbook.expr.Const(self._high)))]
 
 class intbin(FixedAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
@@ -222,7 +220,7 @@ class intbin(FixedAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.intbin_{0}_{1}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow"), parsed, Const(self._min), Const(self._max)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.intbin{0}{1}".format("U" if self._underflow else "_", "O" if self._overflow else "_"), parsed, histbook.expr.Const(self._min), histbook.expr.Const(self._max)))]
 
 class partition(FixedAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -283,7 +281,7 @@ class partition(FixedAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._edges)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]
             
 class cut(FixedAxis):
     def __init__(self, expr):
@@ -407,7 +405,7 @@ class binprof(ProfileAxis):
             parsed = histbook.expr.Expr.parse(self._expr)
         return [histbook.stmt.CallGraphGoal(parsed),
                 histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed)),
-                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._numbins), Const(self._low), Const(self._high)))]
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._numbins), histbook.expr.Const(self._low), histbook.expr.Const(self._high)))]
 
 class partitionprof(ProfileAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -470,4 +468,4 @@ class partitionprof(ProfileAxis):
             parsed = histbook.expr.Expr.parse(self._expr)
         return [histbook.stmt.CallGraphGoal(parsed),
                 histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed)),
-                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._edges)))]
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]
