@@ -331,20 +331,18 @@ class partition(FixedAxis):
     def index(self, values):
         out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
 
+        nanflow = numpy.isnan(values)
+        sel = numpy.logical_not(nanflow)
+        valinrange, outinrange = values[sel], out[sel]
+
+        index = 0
         if self._closedlow:
-            nanflow = numpy.isnan(values)
-            sel = numpy.logical_not(nanflow)
-            valinrange, outinrange = values[sel], out[sel]
-
-            index = 0
-
             sel = valinrange[valinrange < self._edges[0]]
             if self._underflow:
                 outinrange[sel] = index
                 index += 1
             else:
                 outinrange[sel] = numpy.ma.masked
-
             numpy.logical_not(sel, sel)
             valinrange, outinrange = valinrange[sel], outinrange[sel]
 
@@ -355,17 +353,34 @@ class partition(FixedAxis):
                 numpy.logical_not(sel, sel)
                 valinrange, outinrange = valinrange[sel], outinrange[sel]
 
-            if self._overflow:
+        else:
+            sel = valinrange[valinrange <= self._edges[0]]
+            if self._underflow:
                 outinrange[sel] = index
                 index += 1
             else:
                 outinrange[sel] = numpy.ma.masked
+            numpy.logical_not(sel, sel)
+            valinrange, outinrange = valinrange[sel], outinrange[sel]
 
-            if self._nanflow:
-                out[nanflow] = index
+            for high in self._edges[1:]:
+                sel = valinrange[valinrange <= high]
+                outinrange[sel] = index
                 index += 1
-            else:
-                out[nanflow] = numpy.ma.masked
+                numpy.logical_not(sel, sel)
+                valinrange, outinrange = valinrange[sel], outinrange[sel]
+
+        if self._overflow:
+            outinrange[sel] = index
+            index += 1
+        else:
+            outinrange[sel] = numpy.ma.masked
+
+        if self._nanflow:
+            out[nanflow] = index
+            index += 1
+        else:
+            out[nanflow] = numpy.ma.masked
 
         return out
             
