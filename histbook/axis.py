@@ -101,7 +101,7 @@ class sparse(GrowableAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.sparse{0}{1}".format("N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, Const(self._binwidth), Const(self._origin)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.sparse{0}".format("L" if self._closedlow else "H"), parsed, Const(self._binwidth), Const(self._origin)))]
 
 class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):

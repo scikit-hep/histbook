@@ -36,9 +36,38 @@ INDEXTYPE = numpy.int32
 
 library = {}
 
-def histbook_bin(underflow, overflow, nanflow, closedlow):
-    # don't actually specialize the code; placeholder for backends unfriendly to branching (e.g. GPU)
+library["numpy.add"] = numpy.add
 
+def histbook_sparse(closedlow):
+    def sparse(values, binwidth, origin):
+        if origin == 0:
+            indexes = numpy.true_divide(values, float(binwidth))
+        else:
+            indexes = values - float(origin)
+            numpy.true_divide(indexes, float(binwidth), indexes)
+
+        if closedlow:
+            numpy.floor(indexes, indexes)
+        else:
+            numpy.ceil(indexes, indexes)
+            numpy.subtract(indexes, 1, indexes)
+
+        ok = numpy.isnan(indexes)
+        numpy.logical_not(ok, ok)
+
+        if ok.all():
+            uniques, inverse = numpy.unique(indexes, return_inverse=True)
+            inverse = inverse.astype(INDEXTYPE)
+        else:
+            uniques, okinverse = numpy.unique(indexes[ok], return_inverse=True)
+            inverse = numpy.ones(indexes.shape, dtype=INDEXTYPE)
+            numpy.multiply(inverse, -1, inverse)
+            inverse[ok] = okinverse
+        return uniques, inverse
+
+    return sparse
+    
+def histbook_bin(underflow, overflow, nanflow, closedlow):
     shift = 0
     if underflow:
         underindex = 0
@@ -67,11 +96,11 @@ def histbook_bin(underflow, overflow, nanflow, closedlow):
         numpy.multiply(indexes, numbins / (high - low), indexes)
 
         if closedlow:
-            indexes = numpy.floor(indexes)
+            numpy.floor(indexes, indexes)
             if shift != 0:
                 numpy.add(indexes, shift, indexes)
         else:
-            indexes = numpy.ceil(indexes)
+            numpy.ceil(indexes, indexes)
             numpy.add(indexes, shift - 1, indexes)
 
         out = numpy.ma.array(indexes, dtype=INDEXTYPE)
@@ -99,8 +128,6 @@ library["histbook.bin__NL"] = histbook_bin(False, False, True, True)
 library["histbook.bin__NH"] = histbook_bin(False, False, True, False)
 library["histbook.bin___L"] = histbook_bin(False, False, False, True)
 library["histbook.bin___H"] = histbook_bin(False, False, False, False)
-
-library["numpy.add"] = numpy.add
 
 def calculate(expr, symbols):
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
