@@ -331,6 +331,8 @@ class partition(FixedAxis):
     def index(self, values):
         out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
 
+        # FIXME: maybe do this better with numpy.digitize
+
         nanflow = numpy.isnan(values)
         sel = numpy.logical_not(nanflow)
         valinrange, outinrange = values[sel], out[sel]
