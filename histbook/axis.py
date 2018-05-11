@@ -34,30 +34,30 @@ import histbook.stmt
 import numpy
 
 class Axis(object): pass
-class GrowableAxis(Axis): pass
+class GroupAxis(Axis): pass
 class FixedAxis(Axis): pass
 class ProfileAxis(Axis): pass
 
-class categorical(GrowableAxis):
+class groupby(GroupAxis):
     def __init__(self, expr):
         self._expr = expr
 
     def __repr__(self):
-        return "categorical({0})".format(repr(self._expr))
+        return "groupby({0})".format(repr(self._expr))
 
     @property
     def expr(self):
         return self._expr
 
     def relabel(self, label):
-        return categorical(label)
+        return groupby(label)
 
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
         return [histbook.stmt.CallGraphGoal(parsed)]
 
-class sparse(GrowableAxis):
+class groupbin(GroupAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
         self._binwidth = binwidth
@@ -73,7 +73,7 @@ class sparse(GrowableAxis):
             args.append("nanflow={0}".format(repr(self._nanflow)))
         if self._closedlow is not True:
             args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "sparse({0})".format(", ".join(args))
+        return "groupbin({0})".format(", ".join(args))
 
     @property
     def expr(self):
@@ -96,12 +96,12 @@ class sparse(GrowableAxis):
         return self._closedlow
 
     def relabel(self, label):
-        return sparse(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
+        return groupbin(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.sparse{0}".format("L" if self._closedlow else "H"), parsed, Const(self._binwidth), Const(self._origin)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.groupbin{0}".format("L" if self._closedlow else "H"), parsed, Const(self._binwidth), Const(self._origin)))]
 
 class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -222,7 +222,7 @@ class intbin(FixedAxis):
             parsed = histbook.expr.Expr.parse(self._expr)
         return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.intbin{0}{1}".format("U" if self._underflow else "_", "O" if self._overflow else "_"), parsed, histbook.expr.Const(self._min), histbook.expr.Const(self._max)))]
 
-class partition(FixedAxis):
+class split(FixedAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._edges = tuple(sorted(edges))
@@ -241,7 +241,7 @@ class partition(FixedAxis):
             args.append("nanflow={0}".format(repr(self._nanflow)))
         if self._closedlow is not True:
             args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "partition({0})".format(", ".join(args))
+        return "split({0})".format(", ".join(args))
 
     @property
     def expr(self):
@@ -268,7 +268,7 @@ class partition(FixedAxis):
         return self._closedlo
 
     def relabel(self, label):
-        return partition(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+        return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     @property
     def numbins(self):
@@ -281,7 +281,7 @@ class partition(FixedAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.split{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]
             
 class cut(FixedAxis):
     def __init__(self, expr):
@@ -310,19 +310,19 @@ class cut(FixedAxis):
             parsed = histbook.expr.Expr.parse(self._expr)
         return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.cut", parsed))]
 
-class prof(ProfileAxis):
+class profile(ProfileAxis):
     def __init__(self, expr):
         self._expr = expr
 
     def __repr__(self):
-        return "prof({0})".format(repr(self._expr))
+        return "profile({0})".format(repr(self._expr))
 
     @property
     def expr(self):
         return self._expr
 
     def relabel(self, label):
-        return prof(label)
+        return profile(label)
 
     @property
     def numbins(self):
@@ -337,135 +337,3 @@ class prof(ProfileAxis):
             parsed = histbook.expr.Expr.parse(self._expr)
         return [histbook.stmt.CallGraphGoal(parsed),
                 histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed))]
-
-class binprof(ProfileAxis):
-    def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        self._expr = expr
-        self._numbins = numbins
-        self._low = low
-        self._high = high
-        self._underflow = underflow
-        self._overflow = overflow
-        self._nanflow = nanflow
-        self._closedlow = closedlow
-
-    def __repr__(self):
-        args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
-        if self._underflow is not True:
-            args.append("underflow={0}".format(repr(self._underflow)))
-        if self._overflow is not True:
-            args.append("overflow={0}".format(repr(self._overflow)))
-        if self._nanflow is not True:
-            args.append("nanflow={0}".format(repr(self._nanflow)))
-        if self._closedlow is not True:
-            args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "binprof({0})".format(", ".join(args))
-
-    @property
-    def expr(self):
-        return self._expr
-
-    @property
-    def numbins(self):
-        return self._numbins
-
-    @property
-    def low(self):
-        return self._low
-
-    @property
-    def high(self):
-        return self._high
-
-    @property
-    def underflow(self):
-        return self._underflow
-
-    @property
-    def overflow(self):
-        return self._overflow
-
-    @property
-    def nanflow(self):
-        return self._nanflow
-
-    @property
-    def closedlow(self):
-        return self._closedlow
-
-    def relabel(self, label):
-        return binprof(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
-
-    @property
-    def totbins(self):
-        return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
-
-    def _goals(self, parsed=None):
-        if parsed is None:
-            parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(parsed),
-                histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed)),
-                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._numbins), histbook.expr.Const(self._low), histbook.expr.Const(self._high)))]
-
-class partitionprof(ProfileAxis):
-    def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
-        self._expr = expr
-        self._edges = tuple(sorted(edges))
-        self._underflow = underflow
-        self._overflow = overflow
-        self._nanflow = nanflow
-        self._closedlow = closedlow
-
-    def __repr__(self):
-        args = [repr(self._expr), repr(self._edges)]
-        if self._underflow is not True:
-            args.append("underflow={0}".format(repr(self._underflow)))
-        if self._overflow is not True:
-            args.append("overflow={0}".format(repr(self._overflow)))
-        if self._nanflow is not True:
-            args.append("nanflow={0}".format(repr(self._nanflow)))
-        if self._closedlow is not True:
-            args.append("closedlow={0}".format(repr(self._closedlow)))
-        return "partitionprof({0})".format(", ".join(args))
-
-    @property
-    def expr(self):
-        return self._expr
-
-    @property
-    def edges(self):
-        return self._edges
-
-    @property
-    def underflow(self):
-        return self._underflow
-
-    @property
-    def overflow(self):
-        return self._overflow
-
-    @property
-    def nanflow(self):
-        return self._nanflow
-
-    @property
-    def closedlow(self):
-        return self._closedlow
-
-    def relabel(self, label):
-        return partitionprof(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
-
-    @property
-    def numbins(self):
-        return len(self._edges) - 1
-
-    @property
-    def totbins(self):
-        return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
-
-    def _goals(self, parsed=None):
-        if parsed is None:
-            parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(parsed),
-                histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed)),
-                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]

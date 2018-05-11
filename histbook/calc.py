@@ -138,8 +138,8 @@ library["gamma"] = vectorized_gamma(False)
 lgamma = library["lgamma"] = vectorized_gamma(True)
 library["factorial"] = lambda values: numpy.round(numpy.exp(lgamma(numpy.round(values) + 1)))
 
-def histbook_sparse(closedlow):
-    def sparse(values, binwidth, origin):
+def histbook_groupbin(closedlow):
+    def groupbin(values, binwidth, origin):
         if origin == 0:
             indexes = numpy.true_divide(values, float(binwidth))
         else:
@@ -165,10 +165,10 @@ def histbook_sparse(closedlow):
             inverse[ok] = okinverse
         return uniques, inverse
 
-    return sparse
+    return groupbin
 
-library["histbook.sparseL"] = histbook_sparse(True)
-library["histbook.sparseH"] = histbook_sparse(False)
+library["histbook.groupbinL"] = histbook_groupbin(True)
+library["histbook.groupbinH"] = histbook_groupbin(False)
     
 def histbook_bin(underflow, overflow, nanflow, closedlow):
     if nanflow:
@@ -253,7 +253,7 @@ library["histbook.intbinU_"] = histbook_intbin(True, False)
 library["histbook.intbin_O"] = histbook_intbin(False, True)
 library["histbook.intbin__"] = histbook_intbin(False, False)
 
-def histbook_partition(underflow, overflow, nanflow, closedlow):
+def histbook_split(underflow, overflow, nanflow, closedlow):
     if nanflow:
         nanindex = (1 if underflow else 0) + (1 if overflow else 0)
     else:
@@ -262,7 +262,7 @@ def histbook_partition(underflow, overflow, nanflow, closedlow):
         shift = 1
     else:
         shift = 0
-    def partition(values, edges):
+    def split(values, edges):
         indexes = numpy.ma.array(numpy.digitize(values, edges), dtype=INDEXTYPE)
         if not closedlow:
             indexes[numpy.isin(values, edges)] -= 1
@@ -276,24 +276,24 @@ def histbook_partition(underflow, overflow, nanflow, closedlow):
             indexes[indexes == 0] = numpy.ma.masked
             numpy.subtract(indexes, 1, indexes)
         return indexes
-    return partition
+    return split
 
-library["histbook.partitionUONL"] = histbook_partition(True, True, True, True)
-library["histbook.partitionUONH"] = histbook_partition(True, True, True, False)
-library["histbook.partitionUO_L"] = histbook_partition(True, True, False, True)
-library["histbook.partitionUO_H"] = histbook_partition(True, True, False, False)
-library["histbook.partitionU_NL"] = histbook_partition(True, False, True, True)
-library["histbook.partitionU_NH"] = histbook_partition(True, False, True, False)
-library["histbook.partitionU__L"] = histbook_partition(True, False, False, True)
-library["histbook.partitionU__H"] = histbook_partition(True, False, False, False)
-library["histbook.partition_ONL"] = histbook_partition(False, True, True, True)
-library["histbook.partition_ONH"] = histbook_partition(False, True, True, False)
-library["histbook.partition_O_L"] = histbook_partition(False, True, False, True)
-library["histbook.partition_O_H"] = histbook_partition(False, True, False, False)
-library["histbook.partition__NL"] = histbook_partition(False, False, True, True)
-library["histbook.partition__NH"] = histbook_partition(False, False, True, False)
-library["histbook.partition___L"] = histbook_partition(False, False, False, True)
-library["histbook.partition___H"] = histbook_partition(False, False, False, False)
+library["histbook.splitUONL"] = histbook_split(True, True, True, True)
+library["histbook.splitUONH"] = histbook_split(True, True, True, False)
+library["histbook.splitUO_L"] = histbook_split(True, True, False, True)
+library["histbook.splitUO_H"] = histbook_split(True, True, False, False)
+library["histbook.splitU_NL"] = histbook_split(True, False, True, True)
+library["histbook.splitU_NH"] = histbook_split(True, False, True, False)
+library["histbook.splitU__L"] = histbook_split(True, False, False, True)
+library["histbook.splitU__H"] = histbook_split(True, False, False, False)
+library["histbook.split_ONL"] = histbook_split(False, True, True, True)
+library["histbook.split_ONH"] = histbook_split(False, True, True, False)
+library["histbook.split_O_L"] = histbook_split(False, True, False, True)
+library["histbook.split_O_H"] = histbook_split(False, True, False, False)
+library["histbook.split__NL"] = histbook_split(False, False, True, True)
+library["histbook.split__NH"] = histbook_split(False, False, True, False)
+library["histbook.split___L"] = histbook_split(False, False, False, True)
+library["histbook.split___H"] = histbook_split(False, False, False, False)
 
 library["histbook.cut"] = lambda values: numpy.ma.array(values, dtype=INDEXTYPE)
 

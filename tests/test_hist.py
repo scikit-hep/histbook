@@ -78,7 +78,6 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content.tolist(), [[1], [2 + 3 + 4 + 5], [6 + 7 + 8 + 9], [10], [0]])
 
     def test_binbin(self):
-        print("")
         h = Hist(bin("x", 3, 0, 3, underflow=False, overflow=False, nanflow=False), bin("y", 5, 0, 5, underflow=False, overflow=False, nanflow=False))
         h.fill(x=numpy.array([1]), y=numpy.array([3]))
         self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0], [0]], [[0], [0], [0], [1], [0]], [[0], [0], [0], [0], [0]]])

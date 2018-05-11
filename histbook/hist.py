@@ -125,6 +125,9 @@ class Hist(Fillable):
         return Hist(*[x.relabel(x._original) for x in self._growable + self._fixed + self._profile], defs=self._defs, weight=expr)
 
     def __init__(self, *axis, **opts):
+        if len(axis) == 0:
+            raise TypeError("Hist must have at least one axis")
+
         weight = opts.pop("weight", None)
         defs = opts.pop("defs", {})
         if len(opts) > 0:
@@ -156,7 +159,7 @@ class Hist(Fillable):
 
         dictindex = 0
         for new in newaxis:
-            if isinstance(new, histbook.axis.GrowableAxis):
+            if isinstance(new, histbook.axis.GroupAxis):
                 self._growable.append(new)
                 new._dictindex = dictindex
                 dictindex += 1
@@ -230,8 +233,6 @@ class Hist(Fillable):
             raise NotImplementedError
         if len(self._profile) > 0:
             raise NotImplementedError
-        if self._weightparsed is not None:
-            raise NotImplementedError
 
         if self._content is None:
             self._content = numpy.zeros(self._shape, dtype=numpy.float64)
@@ -251,9 +252,12 @@ class Hist(Fillable):
             j += 1
             step += 1
 
-        self._content.shape = (-1, self._shape[-1])
-        numpy.add.at(self._content, indexes.compressed(), 1)
-        self._content.shape = self._shape
+        if self._weightparsed is None:
+            weight = 1
+
+
+        numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:,0], indexes.compressed(), weight)
+
 
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None
