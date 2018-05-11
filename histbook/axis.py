@@ -28,16 +28,16 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-class Axis(object):
-    def __lt__(self, other):
-        if isinstance(other, Axis):
-            return self._order < other._order
-        else:
-            raise TypeError("unorderable types: {0} < {1}".format(type(self), type(other)))
+import numpy
 
-class categorical(Axis):
-    _order = 0
+class Axis(object): pass
+class GrowableAxis(Axis): pass
+class FixedAxis(Axis): pass
+class ProfileAxis(Axis): pass
 
+INDEXTYPE = numpy.int32
+
+class categorical(GrowableAxis):
     def __init__(self, expr):
         self._expr = expr
 
@@ -51,9 +51,7 @@ class categorical(Axis):
     def relabel(self, label):
         return categorical(label)
 
-class sparse(Axis):
-    _order = 0
-
+class sparse(GrowableAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
         self._binwidth = binwidth
@@ -94,9 +92,7 @@ class sparse(Axis):
     def relabel(self, label):
         return sparse(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
 
-class bin(Axis):
-    _order = 1
-
+class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._numbins = numbins
@@ -154,9 +150,57 @@ class bin(Axis):
     def relabel(self, label):
         return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
-class intbin(Axis):
-    _order = 1
+    @property
+    def totbins(self):
+        return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
+    def index(self, values):
+        out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
+
+        if self._closedlow:
+            underflow = (values < self._low)
+            overflow = (values >= self._high)
+            nanflow = numpy.isnan(values)
+
+            inrange = numpy.bitwise_or(underflow, overflow)
+            numpy.bitwise_or(inrange, nanflow, inrange)
+            numpy.logical_not(inrange, inrange)
+
+            out[inrange] = numpy.floor((values[inrange] - self._low) * (self._numbins / (self._high - self._low)))
+
+        else:
+            underflow = (values <= self._low)
+            overflow = (values > self._high)
+            nanflow = numpy.isnan(values)
+
+            inrange = numpy.bitwise_or(underflow, overflow)
+            numpy.bitwise_or(inrange, nanflow, inrange)
+            numpy.logical_not(inrange, inrange)
+
+            out[inrange] = numpy.ceil((values[inrange] - self._low) * (self._numbins / (self._high - self._low))) - 1
+
+        index = self._numbins
+        if self._underflow:
+            out[underflow] = index
+            index += 1
+        else:
+            out[underflow] = numpy.ma.masked
+
+        if self._overflow:
+            out[overflow] = index
+            index += 1
+        else:
+            out[overflow] = numpy.ma.masked
+
+        if self._nanflow:
+            out[nanflow] = index
+            index += 1
+        else:
+            out[nanflow] = numpy.ma.masked
+
+        return out
+
+class intbin(FixedAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr
         self._min = min
@@ -195,12 +239,43 @@ class intbin(Axis):
     def relabel(self, label):
         return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
 
-class partition(Axis):
-    _order = 1
+    @property
+    def numbins(self):
+        return self._max - self._min + 1
 
+    @property
+    def totbins(self):
+        return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)
+
+    def index(self, values):
+        out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
+
+        underflow = (values < self._min)
+        overflow = (values > self._max)
+        inrange = numpy.bitwise_or(underflow, overflow)
+        numpy.logical_not(inrange, inrange)
+
+        out[inrange] = values[inrange] - self._min
+
+        index = self.numbins
+        if self._underflow:
+            out[underflow] = index
+            index += 1
+        else:
+            out[underflow] = numpy.ma.masked
+
+        if self._overflow:
+            out[overflow] = index
+            index += 1
+        else:
+            out[overflow] = numpy.ma.masked
+
+        return out
+
+class partition(FixedAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
-        self._edges = tuple(edges)
+        self._edges = tuple(sorted(edges))
         self._underflow = underflow
         self._overflow = overflow
         self._nanflow = nanflow
@@ -245,9 +320,56 @@ class partition(Axis):
     def relabel(self, label):
         return partition(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
-class cut(Axis):
-    _order = 1
+    @property
+    def numbins(self):
+        return len(self._edges) - 1
 
+    @property
+    def totbins(self):
+        return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def index(self, values):
+        out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
+
+        if self._closedlow:
+            nanflow = numpy.isnan(values)
+            sel = numpy.logical_not(nanflow)
+            valinrange, outinrange = values[sel], out[sel]
+
+            index = 0
+
+            sel = valinrange[valinrange < self._edges[0]]
+            if self._underflow:
+                outinrange[sel] = index
+                index += 1
+            else:
+                outinrange[sel] = numpy.ma.masked
+
+            numpy.logical_not(sel, sel)
+            valinrange, outinrange = valinrange[sel], outinrange[sel]
+
+            for high in self._edges[1:]:
+                sel = valinrange[valinrange < high]
+                outinrange[sel] = index
+                index += 1
+                numpy.logical_not(sel, sel)
+                valinrange, outinrange = valinrange[sel], outinrange[sel]
+
+            if self._overflow:
+                outinrange[sel] = index
+                index += 1
+            else:
+                outinrange[sel] = numpy.ma.masked
+
+            if self._nanflow:
+                out[nanflow] = index
+                index += 1
+            else:
+                out[nanflow] = numpy.ma.masked
+
+        return out
+            
+class cut(FixedAxis):
     def __init__(self, expr):
         self._expr = expr
 
@@ -261,9 +383,21 @@ class cut(Axis):
     def relabel(self, label):
         return cut(label)
 
-class prof(Axis):
-    _order = 2
+    @property
+    def numbins(self):
+        return 2
 
+    @property
+    def totbins(self):
+        return self.numbins
+
+    def index(self, values):
+        assert values.dtype == numpy.dtype(numpy.bool_) or values.dtype == numpy.dtype(numpy.bool)
+        out = numpy.ma.zeros(values.shape, dtype=INDEXTYPE)
+        out[values] = 1
+        return out
+
+class prof(ProfileAxis):
     def __init__(self, expr):
         self._expr = expr
 
@@ -277,9 +411,15 @@ class prof(Axis):
     def relabel(self, label):
         return prof(label)
 
-class binprof(Axis):
-    _order = 2
+    @property
+    def numbins(self):
+        return 1
 
+    @property
+    def totbins(self):
+        return self.numbins
+
+class binprof(ProfileAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._numbins = numbins
@@ -337,12 +477,14 @@ class binprof(Axis):
     def relabel(self, label):
         return binprof(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
-class partitionprof(Axis):
-    _order = 2
+    @property
+    def totbins(self):
+        return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
+class partitionprof(ProfileAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
-        self._edges = tuple(edges)
+        self._edges = tuple(sorted(edges))
         self._underflow = underflow
         self._overflow = overflow
         self._nanflow = nanflow
@@ -386,3 +528,11 @@ class partitionprof(Axis):
 
     def relabel(self, label):
         return partitionprof(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
+    @property
+    def numbins(self):
+        return len(self._edges) - 1
+
+    @property
+    def totbins(self):
+        return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)

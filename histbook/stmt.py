@@ -313,17 +313,16 @@ def instructions(sources):
             del live[n]
             yield Delete(n)
 
-def show(goals):
-    numbers = {}
-    order = []
-    def recurse(node):
-        for x in node.requires:
-            recurse(x)
-        if node not in numbers:
-            number = numbers[node] = len(numbers)
-            order.append(node)
-    for goal in goals:
-        recurse(goal)
-
-    for node in order:
-        print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
+# def show(goals):
+#     numbers = {}
+#     order = []
+#     def recurse(node):
+#         for x in node.requires:
+#             recurse(x)
+#         if node not in numbers:
+#             number = numbers[node] = len(numbers)
+#             order.append(node)
+#     for goal in goals:
+#         recurse(goal)
+#     for node in order:
+#         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
