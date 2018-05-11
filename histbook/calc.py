@@ -66,6 +66,9 @@ def histbook_sparse(closedlow):
         return uniques, inverse
 
     return sparse
+
+library["histbook.sparseL"] = histbook_sparse(True)
+library["histbook.sparseH"] = histbook_sparse(False)
     
 def histbook_bin(underflow, overflow, nanflow, closedlow):
     shift = 0
@@ -128,6 +131,34 @@ library["histbook.bin__NL"] = histbook_bin(False, False, True, True)
 library["histbook.bin__NH"] = histbook_bin(False, False, True, False)
 library["histbook.bin___L"] = histbook_bin(False, False, False, True)
 library["histbook.bin___H"] = histbook_bin(False, False, False, False)
+
+def histbook_intbin(underflow, overflow):
+    if underflow:
+        shift = 1
+    else:
+        shift = 0
+
+    def intbin(values, min, max):
+        indexes = numpy.ma.array(data=(values + (shift - min)))
+
+        if underflow:
+            numpy.maximum(indexes, 0, indexes)
+        else:
+            indexes[indexes < 0] = numpy.ma.masked
+
+        if overflow:
+            numpy.minimum(indexes, (shift + 1 + max - min), indexes)
+        else:
+            indexes[indexes > (shift + max - min)] = numpy.ma.masked
+
+        return indexes
+
+    return intbin
+
+library["histbook.intbinUO"] = histbook_intbin(True, True)
+library["histbook.intbinU_"] = histbook_intbin(True, False)
+library["histbook.intbin_O"] = histbook_intbin(False, True)
+library["histbook.intbin__"] = histbook_intbin(False, False)
 
 def calculate(expr, symbols):
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
