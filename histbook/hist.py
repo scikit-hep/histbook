@@ -44,12 +44,13 @@ class Fillable(object):
     def fields(self):
         if self._fields is None:
             table = {}
-            for x in self._goals:
+            goals = set(self._goals)
+            for x in goals:
                 x.clear()
-            for x in self._goals:
+            for x in goals:
                 x.grow(table)
-            fields = histbook.stmt.sources(self._goals, table)
-            self._instructions = self._streamline(0, histbook.stmt.instructions(fields))
+            fields = histbook.stmt.sources(goals, table)
+            self._instructions = self._streamline(0, histbook.stmt.instructions(fields, goals))
             self._fields = sorted(x.goal.value for x in fields)
         return self._fields
 
@@ -122,7 +123,7 @@ class Book(collections.MutableMapping, Fillable):
 
 class Hist(Fillable):
     def weight(self, expr):
-        return Hist(*[x.relabel(x._original) for x in self._growable + self._fixed + self._profile], defs=self._defs, weight=expr)
+        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], defs=self._defs, weight=expr)
 
     def __init__(self, *axis, **opts):
         if len(axis) == 0:
@@ -134,7 +135,7 @@ class Hist(Fillable):
             raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
 
         self._defs = defs
-        self._growable = []
+        self._group = []
         self._fixed = []
         self._profile = []
 
@@ -160,7 +161,7 @@ class Hist(Fillable):
         dictindex = 0
         for new in newaxis:
             if isinstance(new, histbook.axis.GroupAxis):
-                self._growable.append(new)
+                self._group.append(new)
                 new._dictindex = dictindex
                 dictindex += 1
                 dest(new._goals(new._parsed))
@@ -189,7 +190,7 @@ class Hist(Fillable):
 
         else:
             self._weightoriginal = weight
-            self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(expr, defs=self._defs, returnlabel=True)
+            self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(weight, defs=self._defs, returnlabel=True)
             self._sumwindex = self._shape[-1]
             self._sumw2index = self._shape[-1] + 1
             self._shape[-1] += 2
@@ -202,7 +203,7 @@ class Hist(Fillable):
         self._fields = None
 
     def __repr__(self, indent=", "):
-        out = [repr(x) for x in self._axis]
+        out = [repr(x) for x in self._group + self._fixed + self._profile]
         if self._weightlabel is not None:
             out.append("weight={0}".format(repr(self._weightlabel)))
         if len(self._defs) > 0:
@@ -229,7 +230,7 @@ class Hist(Fillable):
         return out
 
     def fill(self, **arrays):
-        if len(self._growable) > 0:
+        if len(self._group) > 0:
             raise NotImplementedError
         if len(self._profile) > 0:
             raise NotImplementedError
@@ -239,7 +240,9 @@ class Hist(Fillable):
 
         self._fill(arrays)
 
-        j = len(self._growable)
+        # loop over groups
+        j = len(self._group)
+
         step = 0
         for axis in self._fixed:
             if step == 0:
@@ -252,12 +255,16 @@ class Hist(Fillable):
             j += 1
             step += 1
 
+        # loop over profiles
+
         if self._weightparsed is None:
-            weight = 1
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), 1)
 
-
-        numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:,0], indexes.compressed(), weight)
-
+        else:
+            sumw = self._destination[0][j]
+            sumw2 = self._destination[0][j + 1]
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), sumw)
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), sumw2)
 
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None

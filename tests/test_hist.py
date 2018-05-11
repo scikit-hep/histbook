@@ -81,3 +81,8 @@ class TestHist(unittest.TestCase):
         h = Hist(bin("x", 3, 0, 3, underflow=False, overflow=False, nanflow=False), bin("y", 5, 0, 5, underflow=False, overflow=False, nanflow=False))
         h.fill(x=numpy.array([1]), y=numpy.array([3]))
         self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0], [0]], [[0], [0], [0], [1], [0]], [[0], [0], [0], [0], [0]]])
+
+    def test_weight(self):
+        h = Hist(bin("x", 10, 10, 11), weight="y")
+        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]))
+        self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.2, 0.020000000000000004], [0.2, 0.020000000000000004], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])

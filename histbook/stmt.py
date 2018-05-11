@@ -238,9 +238,37 @@ def walkdown(sources):
                 if all(y in seen for y in x.requires):
                     for y in recurse(x):
                         yield y
+
     for source in sources:
         for x in recurse(source):
             yield x
+
+# def walkdown(sources):
+#     seen = set()
+#     whenready = []
+#     def recurse(node):
+#         if node not in seen:
+#             seen.add(node)
+#             whenready.append(node)
+
+#         notready = []
+#         for trial in whenready:
+#             if all(x in seen for x in trial.requires):
+#                 yield trial
+#             else:
+#                 notready.append(trial)
+#         del whenready[:]
+#         whenready.extend(notready)
+
+#         pairs = [(x.numrequiredby, x) for x in node.requiredby]
+#         pairs.sort(reverse=True)
+#         for num, x in pairs:
+#             for y in recurse(x):
+#                 yield y
+
+#     for source in sources:
+#         for x in recurse(source):
+#             yield x
 
 class Instruction(object): pass
 
@@ -275,7 +303,7 @@ class Delete(Instruction):
     def __repr__(self):
         return "Delete({0})".format(repr(self.name))
 
-def instructions(sources):
+def instructions(sources, goals):
     live = {}
     names = {}
     namenum = [0]
@@ -303,7 +331,7 @@ def instructions(sources):
         else:
             raise NotImplementedError
 
-        if isinstance(node, CallGraphGoal):
+        if node in goals:
             yield Export(name, node.goal)
 
         dead = []
