@@ -492,7 +492,7 @@ class Name(Expr):
 
     def rename(self, names):
         assert self in names
-        return names[self]
+        return Name(names[self])
 
 class Call(Expr):
     def __init__(self, fcn, *args):

@@ -264,9 +264,9 @@ class Hist(Fillable):
             lastdim = self._shape[axis._shapeindex]
             j += 1
 
-        self._content._shape = (-1, self._shape[-1])
+        self._content.shape = (-1, self._shape[-1])
         numpy.add.at(self._content, indexes.compressed(), 1)
-        self._content._shape = self._shape
+        self._content.shape = self._shape
 
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None

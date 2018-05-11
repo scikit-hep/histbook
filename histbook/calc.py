@@ -101,8 +101,16 @@ library["histbook.bin___L"] = histbook_bin(False, False, False, True)
 library["histbook.bin___H"] = histbook_bin(False, False, False, False)
 
 def calculate(expr, symbols):
+    print repr(expr)
+
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]
 
+    elif isinstance(expr, histbook.expr.Const):
+        return expr.value
+
+    elif isinstance(expr, histbook.expr.Call) and expr.fcn in library:
+        return library[expr.fcn](*(calculate(arg, symbols) for arg in expr.args))
+            
     else:
-        raise NotImplementedError
+        raise NotImplementedError(expr)
