@@ -263,12 +263,12 @@ class Assign(Instruction):
         return "Assign({0}, {1})".format(repr(self.name), repr(str(self.expr)))
 
 class Export(Instruction):
-    def __init__(self, name, expr):
+    def __init__(self, name, goal):
         self.name = name
-        self.expr = expr
+        self.goal = goal
 
     def __repr__(self):
-        return "Export({0}, {1})".format(repr(self.name), repr(str(self.expr)))
+        return "Export({0}, {1})".format(repr(self.name), repr(str(self.goal)))
 
 class Delete(Instruction):
     def __init__(self, name):
@@ -306,7 +306,7 @@ def instructions(sources):
             raise NotImplementedError
 
         if isinstance(node, CallGraphGoal):
-            yield Export(name, node.original)
+            yield Export(name, node.goal)
 
         dead = []
         for n, x in live.items():

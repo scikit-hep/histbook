@@ -56,9 +56,6 @@ class Fillable(object):
     def _fill(self, arrays):
         self.fields  # for the side-effect of creating self._instructions
 
-        print "instructions", len(self._instructions)
-        print "\n".join(repr(x) for x in self._instructions)
-
         symbols = {}
         for instruction in self._instructions:
             if isinstance(instruction, histbook.stmt.Param):
@@ -80,13 +77,12 @@ class Fillable(object):
 
 class Book(collections.MutableMapping, Fillable):
     def __init__(self, hists={}, **keywords):
+        self._fields = None
         self._hists = collections.OrderedDict()
         for n, x in hists.items():
             self._hists[n] = x
         for n, x in keywords.items():
             self._hists[n] = x
-
-        self._fields = None
 
     def __repr__(self):
         return "Book({0} histogram{1})".format(len(self), "" if len(self) == 1 else "s")
@@ -202,11 +198,6 @@ class Hist(Fillable):
 
         self._fields = None
 
-        print
-        print "goals", self._goals
-        print "destination", self._destination
-        print "lookup", self._lookup
-
     def __repr__(self, indent=", "):
         out = [repr(x) for x in self._axis]
         if self._weightlabel is not None:
@@ -228,8 +219,8 @@ class Hist(Fillable):
             if isinstance(instruction, histbook.stmt.Export):
                 if not hasattr(instruction, "destination"):
                     instruction.destination = []
-                if instruction.expr in self._lookup:
-                    for j in self._lookup[instruction.expr]:
+                if instruction.goal in self._lookup:
+                    for j in self._lookup[instruction.goal]:
                         instruction.destination.append((i, j))
             out.append(instruction)
         return out

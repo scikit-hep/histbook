@@ -100,9 +100,9 @@ library["histbook.bin__NH"] = histbook_bin(False, False, True, False)
 library["histbook.bin___L"] = histbook_bin(False, False, False, True)
 library["histbook.bin___H"] = histbook_bin(False, False, False, False)
 
-def calculate(expr, symbols):
-    print repr(expr)
+library["numpy.add"] = numpy.add
 
+def calculate(expr, symbols):
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]
 

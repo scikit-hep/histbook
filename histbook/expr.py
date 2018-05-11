@@ -519,7 +519,7 @@ class Call(Expr):
 
     def rename(self, names):
         if self in names:
-            return names[self]
+            return Name(names[self])
         else:
             return self.__class__(self.fcn, *(x.rename(names) for x in self.args))
 
@@ -578,7 +578,7 @@ class RingAlgebra(Expr):
 
     def rename(self, names):
         if self in names:
-            return names[self]
+            return Name(names[self])
         else:
             return self.__class__(self.const, tuple(x.rename(names) for x in self.pos), tuple(x.rename(names) for x in self.neg))
 
@@ -829,7 +829,7 @@ class Logical(object):
 
     def rename(self, names):
         if self in names:
-            return names[self]
+            return Name(names[self])
         else:
             return self.__class__(*(x.rename(names) for x in self.args))
 
