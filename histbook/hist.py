@@ -245,15 +245,11 @@ class Hist(Fillable):
                 indexes = self._destination[0][j]
             elif step == 1:
                 indexes = indexes.copy()
-                indexes *= lastdim
-                indexes += self._destination[0][j]
-            else:
-                indexes *= lastdim
-                indexes += self._destination[0][j]
-
-            step += 1
-            lastdim = self._shape[axis._shapeindex]
+            if step > 0:
+                numpy.multiply(indexes, self._shape[axis._shapeindex], indexes)
+                numpy.add(indexes, self._destination[0][j], indexes)
             j += 1
+            step += 1
 
         self._content.shape = (-1, self._shape[-1])
         numpy.add.at(self._content, indexes.compressed(), 1)

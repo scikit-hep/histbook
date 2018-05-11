@@ -39,30 +39,35 @@ class TestHist(unittest.TestCase):
     def runTest(self):
         pass
 
-    def test_bin(self):
-        h = Hist(bin("x", 10, 0, 1))
+    def test_calc(self):
+        h = Hist(bin("x + 0.1", 10, 0, 1))
         h.fill(x=numpy.array([0.4, 0.3, 0.3, 0.5, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[0.0], [0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0], [0.0], [0.0]])
+        self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0]])
+
+    def test_bin(self):
+        h = Hist(bin("x", 10, 10, 11))
+        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]))
+        self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0], [0]])
 
         h = Hist(bin("x", 10, 0, 1))
         h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[1.0], [0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0], [2.0], [3.0]])
+        self.assertEqual(h._content.tolist(), [[1], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [2], [3]])
 
         h = Hist(bin("x", 10, 0, 1, underflow=False))
         h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0], [2.0], [3.0]])
+        self.assertEqual(h._content.tolist(), [[0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [2], [3]])
 
         h = Hist(bin("x", 10, 0, 1, overflow=False))
         h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[1.0], [0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0], [3.0]])
+        self.assertEqual(h._content.tolist(), [[1], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [3]])
 
         h = Hist(bin("x", 10, 0, 1, nanflow=False))
         h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[1.0], [0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0], [2.0]])
+        self.assertEqual(h._content.tolist(), [[1], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [2]])
 
         h = Hist(bin("x", 10, 0, 1, underflow=False, overflow=False, nanflow=False))
         h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0]])
+        self.assertEqual(h._content.tolist(), [[0], [0], [0], [2], [2], [1], [0], [0], [1], [0]])
 
         h = Hist(bin("x", 2, 0, 2))
         h.fill(x=numpy.array([0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001]))
@@ -72,8 +77,8 @@ class TestHist(unittest.TestCase):
         h.fill(x=numpy.array([0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001]))
         self.assertEqual(h._content.tolist(), [[1], [2 + 3 + 4 + 5], [6 + 7 + 8 + 9], [10], [0]])
 
-    def test_calc(self):
+    def test_binbin(self):
         print("")
-        h = Hist(bin("x + 0.1", 10, 0, 1))
-        h.fill(x=numpy.array([0.4, 0.3, 0.3, 0.5, 0.4, 0.8]))
-        self.assertEqual(h._content.tolist(), [[0.0], [0.0], [0.0], [0.0], [0.0], [2.0], [2.0], [1.0], [0.0], [0.0], [1.0], [0.0], [0.0]])
+        h = Hist(bin("x", 3, 0, 3, underflow=False, overflow=False, nanflow=False), bin("y", 5, 0, 5, underflow=False, overflow=False, nanflow=False))
+        h.fill(x=numpy.array([1]), y=numpy.array([3]))
+        self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0], [0]], [[0], [0], [0], [1], [0]], [[0], [0], [0], [0], [0]]])
