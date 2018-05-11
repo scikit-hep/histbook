@@ -45,11 +45,11 @@ class Fillable(object):
         if self._fields is None:
             table = {}
             fields = histbook.stmt.sources(self._goals, table)
-            self._instructions = histbook.stmt.instructions(fields)
+            self._instructions = self._streamline(0, histbook.stmt.instructions(fields))
             self._fields = sorted(x.goal.value for x in fields)
         return self._fields
 
-    def _fill(self, export, arrays):
+    def _fill(self, arrays):
         self.fields  # for the side-effect of creating self._instructions
 
         symbols = {}
@@ -61,7 +61,9 @@ class Fillable(object):
                 symbols[instruction.name] = histbook.calc.calculate(instruction.expr, symbols)
 
             elif isinstance(instruction, histbook.stmt.Export):
-                export(instruction.expr, symbols[instruction.name])
+                data = symbols[instruction.name]
+                for i, j in instruction.destination:
+                    self._destination[i][j] = data
 
             elif isinstance(instruction, histbook.stmt.Delete):
                 del symbols[instruction.name]
@@ -125,14 +127,6 @@ class Hist(Fillable):
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
 
-        if weight is None:
-            self._weightoriginal, self._weightparsed, self._weightlabel = None, None, None
-            self._goals = set()
-        else:
-            self._weightoriginal = weight
-            self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(expr, defs=self._defs, returnlabel=True)
-            self._goals = set([histbook.stmt.CallGraphGoal(self._weightparsed)])
-
         self._defs = defs
         self._growable = []
         self._fixed = []
@@ -145,38 +139,55 @@ class Hist(Fillable):
             new._original = old._expr
             new._parsed = expr
             newaxis.append(new)
-            self._goals.add(histbook.stmt.CallGraphGoal(expr))
 
-        # each growable axis adds a level to nested dicts
+        self._destination = [[]]
+        self._lookup = {}
+        def dest(goals):
+            self._goals.update(set(goals))
+            for goal in goals:
+                if goal.goal not in self._lookup:
+                    self._lookup[goal.goal] = []
+                self._lookup[goal.goal].append(len(self._destination[0]))
+                self._destination[0].append(None)
+
         dictindex = 0
         for new in newaxis:
             if isinstance(new, histbook.axis.GrowableAxis):
                 self._growable.append(new)
                 new._dictindex = dictindex
                 dictindex += 1
+                dest(new._goals(new._parsed))
 
-        # each fixed axis adds to the Numpy shape
         self._shape = []
         for new in newaxis:
             if isinstance(new, histbook.axis.FixedAxis):
                 self._fixed.append(new)
                 new._shapeindex = len(self._shape)
                 self._shape.append(new.totbins)
+                dest(new._goals(new._parsed))
 
-        # sumw is the 0th entry of the last shape index
-        # sumw2, if it exists, is the 1st entry of the same shape index
-        if weight is None:
-            self._shape.append(1)
-        else:
-            self._shape.append(2)
-
-        # sumwx and sumwx2 for each profile are also in the last shape index
+        self._shape.append(0)
         for new in newaxis:
             if isinstance(x, histbook.axis.ProfileAxis):
                 self._profile.append(new)
                 new._sumindex = self._shape[-1]
                 new._sum2index = self._shape[-1] + 1
                 self._shape[-1] += 2
+                dest(new._goals(new._parsed))
+
+        if weight is None:
+            self._weightoriginal, self._weightparsed, self._weightlabel = None, None, None
+            self._sumwindex = self._shape[-1]
+            self._shape[-1] += 1
+
+        else:
+            self._weightoriginal = weight
+            self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(expr, defs=self._defs, returnlabel=True)
+            self._sumwindex = self._shape[-1]
+            self._sumw2index = self._shape[-1] + 1
+            self._shape[-1] += 2
+            dest([histbook.stmt.CallGraphGoal(self._weightparsed),
+                  histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
 
         self._shape = tuple(self._shape)
         self._content = None
@@ -198,18 +209,48 @@ class Hist(Fillable):
     def shape(self):
         return self._shape
 
+    def _streamline(self, i, instructions):
+        for instruction in instructions:
+            if isinstance(instruction, histbook.stmt.Export):
+                if not hasattr(instruction, "destination"):
+                    instruction.destination = []
+                if instruction.expr in self._lookup:
+                    for j in self._lookup[instruction.expr]:
+                        instruction.destination.append((i, j))
+
     def fill(**arrays):
         if len(self._growable) > 0:
+            raise NotImplementedError
+        if len(self._profile) > 0:
+            raise NotImplementedError
+        if self._weightparsed is not None:
             raise NotImplementedError
 
         if self._content is None:
             self._content = numpy.zeros(self._shape, dtype=numpy.float64)
 
-        def export(expr, result):
-            for axis in self._fixed:
-                if expr == axis._parsed:
-                    HERE
+        self._fill(arrays)
 
+        j = len(self._growable)
+        step = 0
+        for axis in self._fixed:
+            if step == 0:
+                indexes = self._destination[0][j]
+            elif step == 1:
+                indexes = indexes.copy()
+                indexes *= lastdim
+                indexes += self._destination[0][j]
+            else:
+                indexes *= lastdim
+                indexes += self._destination[0][j]
 
-                    
-        self._fill(export, arrays)
+            step += 1
+            lastdim = self._shape[axis._shapeindex]
+            j += 1
+
+        self._content._shape = (-1, self._shape[-1])
+        numpy.add.at(self._content, indexes, 1)
+        self._content._shape = self._shape
+
+        for j in range(len(self._destination[0])):
+            self._destination[0][j] = None

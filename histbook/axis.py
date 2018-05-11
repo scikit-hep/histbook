@@ -28,6 +28,9 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import histbook.expr
+import histbook.stmt
+
 import numpy
 
 class Axis(object): pass
@@ -50,6 +53,11 @@ class categorical(GrowableAxis):
 
     def relabel(self, label):
         return categorical(label)
+
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(parsed)]
 
 class sparse(GrowableAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
@@ -91,6 +99,11 @@ class sparse(GrowableAxis):
 
     def relabel(self, label):
         return sparse(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
+
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.sparse_{0}_{1}".format("nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._binwidth), Const(self._origin)))]
 
 class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -154,51 +167,10 @@ class bin(FixedAxis):
     def totbins(self):
         return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
-    def index(self, values):
-        out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
-
-        if self._closedlow:
-            underflow = (values < self._low)
-            overflow = (values >= self._high)
-            nanflow = numpy.isnan(values)
-
-            inrange = numpy.bitwise_or(underflow, overflow)
-            numpy.bitwise_or(inrange, nanflow, inrange)
-            numpy.logical_not(inrange, inrange)
-
-            out[inrange] = numpy.floor((values[inrange] - self._low) * (self._numbins / (self._high - self._low)))
-
-        else:
-            underflow = (values <= self._low)
-            overflow = (values > self._high)
-            nanflow = numpy.isnan(values)
-
-            inrange = numpy.bitwise_or(underflow, overflow)
-            numpy.bitwise_or(inrange, nanflow, inrange)
-            numpy.logical_not(inrange, inrange)
-
-            out[inrange] = numpy.ceil((values[inrange] - self._low) * (self._numbins / (self._high - self._low))) - 1
-
-        index = self._numbins
-        if self._underflow:
-            out[underflow] = index
-            index += 1
-        else:
-            out[underflow] = numpy.ma.masked
-
-        if self._overflow:
-            out[overflow] = index
-            index += 1
-        else:
-            out[overflow] = numpy.ma.masked
-
-        if self._nanflow:
-            out[nanflow] = index
-            index += 1
-        else:
-            out[nanflow] = numpy.ma.masked
-
-        return out
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._numbins), Const(self._low), Const(self._high)))]
 
 class intbin(FixedAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
@@ -247,30 +219,10 @@ class intbin(FixedAxis):
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)
 
-    def index(self, values):
-        out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
-
-        underflow = (values < self._min)
-        overflow = (values > self._max)
-        inrange = numpy.bitwise_or(underflow, overflow)
-        numpy.logical_not(inrange, inrange)
-
-        out[inrange] = values[inrange] - self._min
-
-        index = self.numbins
-        if self._underflow:
-            out[underflow] = index
-            index += 1
-        else:
-            out[underflow] = numpy.ma.masked
-
-        if self._overflow:
-            out[overflow] = index
-            index += 1
-        else:
-            out[overflow] = numpy.ma.masked
-
-        return out
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.intbin_{0}_{1}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow"), parsed, Const(self._min), Const(self._max)))]
 
 class partition(FixedAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -328,63 +280,10 @@ class partition(FixedAxis):
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
-    def index(self, values):
-        out = numpy.ma.empty(values.shape, dtype=INDEXTYPE)
-
-        # FIXME: maybe do this better with numpy.digitize
-
-        nanflow = numpy.isnan(values)
-        sel = numpy.logical_not(nanflow)
-        valinrange, outinrange = values[sel], out[sel]
-
-        index = 0
-        if self._closedlow:
-            sel = valinrange[valinrange < self._edges[0]]
-            if self._underflow:
-                outinrange[sel] = index
-                index += 1
-            else:
-                outinrange[sel] = numpy.ma.masked
-            numpy.logical_not(sel, sel)
-            valinrange, outinrange = valinrange[sel], outinrange[sel]
-
-            for high in self._edges[1:]:
-                sel = valinrange[valinrange < high]
-                outinrange[sel] = index
-                index += 1
-                numpy.logical_not(sel, sel)
-                valinrange, outinrange = valinrange[sel], outinrange[sel]
-
-        else:
-            sel = valinrange[valinrange <= self._edges[0]]
-            if self._underflow:
-                outinrange[sel] = index
-                index += 1
-            else:
-                outinrange[sel] = numpy.ma.masked
-            numpy.logical_not(sel, sel)
-            valinrange, outinrange = valinrange[sel], outinrange[sel]
-
-            for high in self._edges[1:]:
-                sel = valinrange[valinrange <= high]
-                outinrange[sel] = index
-                index += 1
-                numpy.logical_not(sel, sel)
-                valinrange, outinrange = valinrange[sel], outinrange[sel]
-
-        if self._overflow:
-            outinrange[sel] = index
-            index += 1
-        else:
-            outinrange[sel] = numpy.ma.masked
-
-        if self._nanflow:
-            out[nanflow] = index
-            index += 1
-        else:
-            out[nanflow] = numpy.ma.masked
-
-        return out
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._edges)))]
             
 class cut(FixedAxis):
     def __init__(self, expr):
@@ -408,11 +307,10 @@ class cut(FixedAxis):
     def totbins(self):
         return self.numbins
 
-    def index(self, values):
-        assert values.dtype == numpy.dtype(numpy.bool_) or values.dtype == numpy.dtype(numpy.bool)
-        out = numpy.ma.zeros(values.shape, dtype=INDEXTYPE)
-        out[values] = 1
-        return out
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.cut", parsed))]
 
 class prof(ProfileAxis):
     def __init__(self, expr):
@@ -435,6 +333,12 @@ class prof(ProfileAxis):
     @property
     def totbins(self):
         return self.numbins
+
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(parsed),
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed))]
 
 class binprof(ProfileAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -498,6 +402,13 @@ class binprof(ProfileAxis):
     def totbins(self):
         return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(parsed),
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed)),
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.bin_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._numbins), Const(self._low), Const(self._high)))]
+
 class partitionprof(ProfileAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
@@ -553,3 +464,10 @@ class partitionprof(ProfileAxis):
     @property
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def _goals(self, parsed=None):
+        if parsed is None:
+            parsed = histbook.expr.Expr.parse(self._expr)
+        return [histbook.stmt.CallGraphGoal(parsed),
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed)),
+                histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.partition_{0}_{1}_{2}_{3}".format("underflow" if self._underflow else "nounderflow", "overflow" if self._overflow else "nooverflow", "nanflow" if self._nanflow else "nonanflow", "closedlow" if self._closedlow else "closedhigh"), parsed, Const(self._edges)))]
