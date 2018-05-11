@@ -178,8 +178,8 @@ class Hist(Fillable):
         for new in newaxis:
             if isinstance(new, histbook.axis.ProfileAxis):
                 self._profile.append(new)
-                new._sumindex = self._shape[-1]
-                new._sum2index = self._shape[-1] + 1
+                new._sumwxindex = self._shape[-1]
+                new._sumwx2index = self._shape[-1] + 1
                 self._shape[-1] += 2
                 dest(new._goals(new._parsed))
 
@@ -232,8 +232,6 @@ class Hist(Fillable):
     def fill(self, **arrays):
         if len(self._group) > 0:
             raise NotImplementedError
-        if len(self._profile) > 0:
-            raise NotImplementedError
 
         if self._content is None:
             self._content = numpy.zeros(self._shape, dtype=numpy.float64)
@@ -255,16 +253,23 @@ class Hist(Fillable):
             j += 1
             step += 1
 
-        # loop over profiles
-
+        # do weight first (have to multiply profiles by weight)
         if self._weightparsed is None:
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), 1)
-
+            weight = 1
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
         else:
-            sumw = self._destination[0][j]
-            sumw2 = self._destination[0][j + 1]
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), sumw)
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), sumw2)
+            weight = self._destination[0][j]
+            weight2 = self._destination[0][j + 1]
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), weight2)
+
+        # loop over profiles
+        for axis in self._profile:
+            sumx = self._destination[0][j]
+            sumx2 = self._destination[0][j + 1]
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, axis._sumwxindex], indexes.compressed(), sumx * weight)
+            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
+            j += 2
 
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None
