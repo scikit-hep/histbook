@@ -71,21 +71,8 @@ library["histbook.sparseL"] = histbook_sparse(True)
 library["histbook.sparseH"] = histbook_sparse(False)
     
 def histbook_bin(underflow, overflow, nanflow, closedlow):
-    shift = 0
-    if underflow:
-        underindex = 0
-        shift += 1
-    else:
-        underindex = numpy.ma.masked
-
-    if overflow:
-        overindex = shift
-        shift += 1
-    else:
-        overindex = numpy.ma.masked
-
     if nanflow:
-        nanindex = shift
+        nanindex = (1 if underflow else 0) + (1 if overflow else 0)
     else:
         nanindex = numpy.ma.masked
 
@@ -108,8 +95,14 @@ def histbook_bin(underflow, overflow, nanflow, closedlow):
 
         out = numpy.ma.array(indexes, dtype=INDEXTYPE)
         with numpy.errstate(invalid="ignore"):
-            out[indexes < 0] = underindex
-            out[indexes >= (numbins + shift)] = overindex + numbins
+            if underflow:
+                numpy.maximum(out, 0, out)
+            else:
+                out[out <= 0] = numpy.ma.masked
+            if overflow:
+                numpy.minimum(out, shift + numbins, out)
+            else:
+                out[out >= (numbins + shift)] = numpy.ma.masked
             out[numpy.isnan(indexes)] = nanindex + numbins
         return out
 
