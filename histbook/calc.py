@@ -178,6 +178,25 @@ def histbook_partition(underflow, overflow, nanflow, closedlow):
         return indexes
     return partition
 
+library["histbook.partitionUONL"] = histbook_partition(True, True, True, True)
+library["histbook.partitionUONH"] = histbook_partition(True, True, True, False)
+library["histbook.partitionUO_L"] = histbook_partition(True, True, False, True)
+library["histbook.partitionUO_H"] = histbook_partition(True, True, False, False)
+library["histbook.partitionU_NL"] = histbook_partition(True, False, True, True)
+library["histbook.partitionU_NH"] = histbook_partition(True, False, True, False)
+library["histbook.partitionU__L"] = histbook_partition(True, False, False, True)
+library["histbook.partitionU__H"] = histbook_partition(True, False, False, False)
+library["histbook.partition_ONL"] = histbook_partition(False, True, True, True)
+library["histbook.partition_ONH"] = histbook_partition(False, True, True, False)
+library["histbook.partition_O_L"] = histbook_partition(False, True, False, True)
+library["histbook.partition_O_H"] = histbook_partition(False, True, False, False)
+library["histbook.partition__NL"] = histbook_partition(False, False, True, True)
+library["histbook.partition__NH"] = histbook_partition(False, False, True, False)
+library["histbook.partition___L"] = histbook_partition(False, False, False, True)
+library["histbook.partition___H"] = histbook_partition(False, False, False, False)
+
+library["histbook.cut"] = lambda values: numpy.ma.array(values, dtype=INDEXTYPE)
+
 def calculate(expr, symbols):
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]
