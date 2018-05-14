@@ -265,28 +265,25 @@ library["histbook.intbin_O"] = histbook_intbin(False, True)
 library["histbook.intbin__"] = histbook_intbin(False, False)
 
 def histbook_split(underflow, overflow, nanflow, closedlow):
-    if nanflow:
-        nanindex = (1 if underflow else 0) + (1 if overflow else 0)
-    else:
-        nanindex = numpy.ma.masked
-    if underflow:
-        shift = 1
-    else:
-        shift = 0
     def split(values, edges):
         indexes = numpy.ma.array(numpy.digitize(values, edges), dtype=INDEXTYPE)
         if not closedlow:
             indexes[numpy.isin(values, edges)] -= 1
-        if nanflow:
-            indexes[numpy.isnan(values)] = len(edges) + 1
-        else:
-            indexes[numpy.isnan(values)] = numpy.ma.masked
+
         if not overflow:
             indexes[indexes == len(edges)] = numpy.ma.masked
+
+        if nanflow:
+            indexes[numpy.isnan(values)] = len(edges) + (1 if overflow else 0)
+        else:
+            indexes[numpy.isnan(values)] = numpy.ma.masked
+
         if not underflow:
             indexes[indexes == 0] = numpy.ma.masked
             numpy.subtract(indexes, 1, indexes)
+
         return indexes
+
     return split
 
 library["histbook.splitUONL"] = histbook_split(True, True, True, True)

@@ -259,6 +259,47 @@ class TestHist(unittest.TestCase):
         h.fill(x=numpy.arange(-5, 15))
         self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
 
+    def test_split(self):
+        h = Hist(split("x", (3,)))
+        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        self.assertEqual(h._content.tolist(), [[3], [4], [0]])
+
+        h = Hist(split("x", (3,)))
+        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, numpy.nan]))
+        self.assertEqual(h._content.tolist(), [[3], [3], [1]])
+
+        h = Hist(split("x", (2.5, 3.5)))
+        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        self.assertEqual(h._content.tolist(), [[3], [1], [3], [0]])
+
+        h = Hist(split("x", (2.5, 3.5, 5.0)))
+        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        self.assertEqual(h._content.tolist(), [[3], [1], [1], [2], [0]])
+
+        h = Hist(split("x", (2.5, 3.5, 5.0), closedlow=False))
+        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        self.assertEqual(h._content.tolist(), [[3], [1], [2], [1], [0]])
+
+        under = [[2]]
+        over = [[4]]
+        nan = [[1]]
+        for underflow in (False, True):
+            for overflow in (False, True):
+                for nanflow in (False, True):
+                    h = Hist(split("x", (3,), underflow=underflow, overflow=overflow, nanflow=nanflow))
+                    h.fill(x=numpy.array([numpy.nan, 1, 2, 3, 4, 5, 6]))
+                    self.assertEqual(h._content.tolist(), (under if underflow else []) + (over if overflow else []) + (nan if nanflow else []))
+
+        under = [[2]]
+        over = [[1]]
+        nan = [[1]]
+        for underflow in (False, True):
+            for overflow in (False, True):
+                for nanflow in (False, True):
+                    h = Hist(split("x", (2.5, 3.5, 5.0), underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=False))
+                    h.fill(x=numpy.array([numpy.nan, 1, 2, 3, 4, 5, 6]))
+                    self.assertEqual(h._content.tolist(), (under if underflow else []) + [[1], [2]] + (over if overflow else []) + (nan if nanflow else []))
+
     def test_profile(self):
         h = Hist(bin("x", 10, 10, 11), profile("y"))
         h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
