@@ -28,12 +28,42 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import numbers
+
 import histbook.expr
 import histbook.stmt
 
 import numpy
 
-class Axis(object): pass
+class Axis(object):
+    @staticmethod
+    def _int(x, n):
+        if not isinstance(x, (numbers.Integral, numpy.integer)):
+            raise TypeError("{0} must be an integer".format(n))
+        else:
+            return int(x)
+
+    @staticmethod
+    def _posint(x, n):
+        if not isinstance(x, (numbers.Integral, numpy.integer)) or x <= 0:
+            raise TypeError("{0} must be a positive integer".format(n))
+        else:
+            return int(x)
+
+    @staticmethod
+    def _real(x, n):
+        if not isinstance(x, (numbers.Real, numpy.floating)):
+            raise TypeError("{0} must be a real number".format(n))
+        else:
+            return float(x)
+
+    @staticmethod
+    def _bool(x, n):
+        if not isinstance(x, (bool, numpy.bool, numpy.bool_)):
+            raise TypeError("{0} must be boolean".format(n))
+        else:
+            return bool(x)
+
 class GroupAxis(Axis): pass
 class FixedAxis(Axis): pass
 class ProfileAxis(Axis): pass
@@ -60,10 +90,10 @@ class groupby(GroupAxis):
 class groupbin(GroupAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
-        self._binwidth = binwidth
-        self._origin = origin
-        self._nanflow = nanflow
-        self._closedlow = closedlow
+        self._binwidth = self._real(binwidth, "binwidth")
+        self._origin = self._real(origin, "origin")
+        self._nanflow = self._bool(nanflow, "nanflow")
+        self._closedlow = self._bool(closedlow, "closedlow")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._binwidth)]
@@ -106,13 +136,13 @@ class groupbin(GroupAxis):
 class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
-        self._numbins = numbins
-        self._low = low
-        self._high = high
-        self._underflow = underflow
-        self._overflow = overflow
-        self._nanflow = nanflow
-        self._closedlow = closedlow
+        self._numbins = self._posint(numbins, "numbins")
+        self._low = self._real(low, "low")
+        self._high = self._real(high, "high")
+        self._underflow = self._bool(underflow, "underflow")
+        self._overflow = self._bool(overflow, "overflow")
+        self._nanflow = self._bool(nanflow, "nanflow")
+        self._closedlow = self._bool(closedlow, "closedlow")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
@@ -173,10 +203,10 @@ class bin(FixedAxis):
 class intbin(FixedAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr
-        self._min = min
-        self._max = max
-        self._underflow = underflow
-        self._overflow = overflow
+        self._min = self._int(min, "min")
+        self._max = self._int(max, "max")
+        self._underflow = self._bool(underflow, "underflow")
+        self._overflow = self._bool(overflow, "overflow")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._min), repr(self._max)]
@@ -225,11 +255,16 @@ class intbin(FixedAxis):
 class split(FixedAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
-        self._edges = tuple(sorted(edges))
-        self._underflow = underflow
-        self._overflow = overflow
-        self._nanflow = nanflow
-        self._closedlow = closedlow
+        if isinstance(edges, (numbers.Real, numpy.floating)):
+            self._edges = (float(edges),)
+        else:
+            if len(edges) < 1 or not all(isinstance(x, (numbers.Real, numpy.floating)) for x in edges):
+                raise TypeError("edges must be a non-empty list of real numbers")
+            self._edges = tuple(sorted(float(x) for x in edges),)
+        self._underflow = self._bool(underflow, "underflow")
+        self._overflow = self._bool(overflow, "overflow")
+        self._nanflow = self._bool(nanflow, "nanflow")
+        self._closedlow = self._bool(closedlow, "closedlow")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._edges)]

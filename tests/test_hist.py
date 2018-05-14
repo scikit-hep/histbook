@@ -260,11 +260,11 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
 
     def test_split(self):
-        h = Hist(split("x", (3,)))
+        h = Hist(split("x", 3))
         h.fill(x=[0, 1, 2, 3, 4, 5, 6])
         self.assertEqual(h._content.tolist(), [[3], [4], [0]])
 
-        h = Hist(split("x", (3,)))
+        h = Hist(split("x", 3))
         h.fill(x=[0, 1, 2, 3, 4, 5, numpy.nan])
         self.assertEqual(h._content.tolist(), [[3], [3], [1]])
 
@@ -286,7 +286,7 @@ class TestHist(unittest.TestCase):
         for underflow in (False, True):
             for overflow in (False, True):
                 for nanflow in (False, True):
-                    h = Hist(split("x", (3,), underflow=underflow, overflow=overflow, nanflow=nanflow))
+                    h = Hist(split("x", 3, underflow=underflow, overflow=overflow, nanflow=nanflow))
                     h.fill(x=[numpy.nan, 1, 2, 3, 4, 5, 6])
                     self.assertEqual(h._content.tolist(), (under if underflow else []) + (over if overflow else []) + (nan if nanflow else []))
 
@@ -317,7 +317,7 @@ class TestHist(unittest.TestCase):
         h.fill(x=[1, 2, 3, 4, 5], y=[0, 1, 2, 3, 4])
         self.assertEqual(h._content.tolist(), [[4], [1]])
 
-        h = Hist(cut("x > 3 and y % 2 == 0"), split("x", (3.5,)))
+        h = Hist(cut("x > 3 and y % 2 == 0"), split("x", 3.5))
         h.fill(x=[1, 2, 3, 4, 5], y=[0, 1, 2, 3, 4])
         self.assertEqual(h._content.tolist(), [[[3], [1], [0]], [[0], [1], [0]]])
 
@@ -379,14 +379,14 @@ class TestHist(unittest.TestCase):
     def test_book(self):
         b = Book()
         b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
-        b["two"] = Hist(split("x", (1.5,), nanflow=False))
+        b["two"] = Hist(split("x", 1.5, nanflow=False))
         b.fill(x=[1, 1, 1, 2, 2])
         self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
         self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
 
         b = Book()
         b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
-        b["two"] = Hist(split("y", (1.5,), nanflow=False))
+        b["two"] = Hist(split("y", 1.5, nanflow=False))
         b.fill(x=[1, 1, 1, 2, 2], y=[1, 1, 1, 2, 2])
         self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
         self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
