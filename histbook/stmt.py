@@ -152,7 +152,7 @@ def totree(expr):
         return expr
 
     elif isinstance(expr, histbook.expr.Call):
-        return expr.__class__(expr.fcn, *(totree(x) for x in expr.args))
+        return histbook.expr.Call(expr.fcn, *(totree(x) for x in expr.args))
 
     elif isinstance(expr, histbook.expr.Relation):
         if expr.cmp == "==":

@@ -933,3 +933,7 @@ class Predicate(Expr):
 
     def negate(self):
         return Predicate(self.value, positive=not self.positive)
+
+    def rename(self, names):
+        assert self in names
+        return Predicate(names[self])

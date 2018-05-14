@@ -300,6 +300,27 @@ class TestHist(unittest.TestCase):
                     h.fill(x=numpy.array([numpy.nan, 1, 2, 3, 4, 5, 6]))
                     self.assertEqual(h._content.tolist(), (under if underflow else []) + [[1], [2]] + (over if overflow else []) + (nan if nanflow else []))
 
+    def test_cut(self):
+        h = Hist(cut("p"))
+        h.fill(p=numpy.array([False, True, True]))
+        self.assertEqual(h._content.tolist(), [[1], [2]])
+
+        h = Hist(cut("x > 3"))
+        h.fill(x=numpy.array([1, 2, 3, 4, 5]))
+        self.assertEqual(h._content.tolist(), [[3], [2]])
+
+        h = Hist(cut("x > 3 and p"))
+        h.fill(x=numpy.array([1, 2, 3, 4, 5]), p=numpy.array([True, False, True, False, True]))
+        self.assertEqual(h._content.tolist(), [[4], [1]])
+
+        h = Hist(cut("x > 3 and y % 2 == 0"))
+        h.fill(x=numpy.array([1, 2, 3, 4, 5]), y=numpy.array([0, 1, 2, 3, 4]))
+        self.assertEqual(h._content.tolist(), [[4], [1]])
+
+        h = Hist(cut("x > 3 and y % 2 == 0"), split("x", (3.5,)))
+        h.fill(x=numpy.array([1, 2, 3, 4, 5]), y=numpy.array([0, 1, 2, 3, 4]))
+        self.assertEqual(h._content.tolist(), [[[3], [1], [0]], [[0], [1], [0]]])
+
     def test_profile(self):
         h = Hist(bin("x", 10, 10, 11), profile("y"))
         h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
