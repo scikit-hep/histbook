@@ -33,6 +33,7 @@ import functools
 import sys
 
 import numpy
+COUNTTYPE = numpy.float64
 
 import histbook.expr
 import histbook.stmt
@@ -230,17 +231,15 @@ class Hist(Fillable):
         return out
 
     def fill(self, **arrays):
-        if len(self._group) > 0:
-            raise NotImplementedError
-
         if self._content is None:
-            self._content = numpy.zeros(self._shape, dtype=numpy.float64)
+            if len(self._group) == 0:
+                self._content = numpy.zeros(self._shape, dtype=COUNTTYPE)
+            else:
+                self._content = {}
 
         self._fill(arrays)
 
-        # loop over groups
         j = len(self._group)
-
         step = 0
         for axis in self._fixed:
             if step == 0:
@@ -253,23 +252,58 @@ class Hist(Fillable):
             j += 1
             step += 1
 
-        # do weight first (have to multiply profiles by weight)
+        axissumx, axissumx2 = [], []
+        for axis in self._profile:
+            axissumx.append(self._destination[0][j])
+            axissumx2.append(self._destination[0][j + 1])
+            j += 2
+
         if self._weightparsed is None:
             weight = 1
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
+            weight2 = None
         else:
             weight = self._destination[0][j]
             weight2 = self._destination[0][j + 1]
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), weight2)
 
-        # loop over profiles
-        for axis in self._profile:
-            sumx = self._destination[0][j]
-            sumx2 = self._destination[0][j + 1]
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, axis._sumwxindex], indexes.compressed(), sumx * weight)
-            numpy.add.at(self._content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
-            j += 2
+        def fillblock(content, indexes, axissumx, axissumx2, weight, weight2):
+            for sumx, sumx2, axis in zip(axissumx, axissumx2, self._profile):
+                numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwxindex], indexes.compressed(), sumx * weight)
+                numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
 
+            numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
+            if weight2 is not None:
+                numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), weight2)
+
+        def filldict(j, content, indexes, axissumx, axissumx2, weight, weight2):
+            if j == len(self._group):
+                fillblock(content, indexes, axissumx, axissumx2, weight, weight2)
+
+            else:
+                uniques, inverse = self._destination[0][j]
+                for idx, unique in enumerate(uniques):
+                    selection = (inverse == idx)
+                    antiselection = numpy.bitwise_not(selection)
+
+                    if unique not in content:
+                        if j + 1 == len(self._group):
+                            content[unique] = numpy.zeros(self._shape, dtype=COUNTTYPE)
+                        else:
+                            content[unique] = {}
+
+                    subcontent = content[unique]
+                    numpy.bitwise_or(antiselection, numpy.ma.getmaskarray(indexes), antiselection)
+                    subindexes = numpy.ma.array(data=numpy.ma.getdata(indexes), mask=antiselection)
+                    subaxissumx = [x[selection] for x in axissumx]
+                    subaxissumx2 = [x[selection] for x in axissumx2]
+                    if weight2 is None:
+                        subweight, subweight2 = weight, weight2
+                    else:
+                        subweight = weight[selection]
+                        subweight2 = weight2[selection]
+
+                    filldict(j + 1, subcontent, subindexes, subaxissumx, subaxissumx2, subweight, subweight2)
+
+        filldict(0, self._content, indexes, axissumx, axissumx2, weight, weight2)
+            
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None

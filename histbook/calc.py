@@ -138,6 +138,13 @@ library["gamma"] = vectorized_gamma(False)
 lgamma = library["lgamma"] = vectorized_gamma(True)
 library["factorial"] = lambda values: numpy.round(numpy.exp(lgamma(numpy.round(values) + 1)))
 
+def histbook_groupby(values):
+    uniques, inverse = numpy.unique(values, return_inverse=True)
+    inverse = inverse.astype(INDEXTYPE)
+    return uniques, inverse
+
+library["histbook.groupby"] = histbook_groupby
+
 def histbook_groupbin(closedlow):
     def groupbin(values, binwidth, origin):
         if origin == 0:
@@ -198,7 +205,7 @@ def histbook_bin(underflow, overflow, nanflow, closedlow):
             if underflow:
                 numpy.maximum(out, 0, out)
             else:
-                out[out <= 0] = numpy.ma.masked
+                out[out < 0] = numpy.ma.masked
             if overflow:
                 numpy.minimum(out, shift + numbins, out)
             else:

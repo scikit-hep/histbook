@@ -55,7 +55,7 @@ class groupby(GroupAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.stmt.CallGraphGoal(parsed)]
+        return [histbook.stmt.CallGraphGoal(histbook.expr.Call("histbook.groupby", parsed))]
 
 class groupbin(GroupAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
@@ -323,14 +323,6 @@ class profile(ProfileAxis):
 
     def relabel(self, label):
         return profile(label)
-
-    @property
-    def numbins(self):
-        return 1
-
-    @property
-    def totbins(self):
-        return self.numbins
 
     def _goals(self, parsed=None):
         if parsed is None:

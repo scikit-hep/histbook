@@ -99,3 +99,18 @@ class TestHist(unittest.TestCase):
         h = Hist(bin("x", 10, 10, 11), profile("y"), profile("2*y"))
         h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
         self.assertEqual(h._content.tolist(), [[0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.2, 0.020000000000000004, 0.4, 0.08000000000000002, 2.0], [0.2, 0.020000000000000004, 0.4, 0.08000000000000002, 2.0], [0.1, 0.010000000000000002, 0.2, 0.04000000000000001, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 2.0, 4.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]])
+
+    def test_groupby(self):
+        h = Hist(groupby("c"), bin("x", 3, 1.0, 4.0, underflow=False, overflow=False, nanflow=False))
+        h.fill(c=["one", "two", "three", "two", "one", "one", "one"], x=numpy.array([1, 2, 3, 2, 1, 1, 3]))
+        self.assertEqual(h._content["one"].tolist(), [[3], [0], [1]])
+        self.assertEqual(h._content["two"].tolist(), [[0], [2], [0]])
+        self.assertEqual(h._content["three"].tolist(), [[0], [0], [1]])
+
+    def test_groupby(self):
+        h = Hist(groupby("c1"), groupby("c2"), bin("x", 1, 1.0, 2.0, underflow=False, overflow=False, nanflow=False))
+        h.fill(c1=["one", "two", "one", "two"], c2=["uno", "uno", "dos", "dos"], x=numpy.array([1, 1, 1, 1]))
+        self.assertEqual(h._content["one"]["uno"].tolist(), [[1]])
+        self.assertEqual(h._content["two"]["uno"].tolist(), [[1]])
+        self.assertEqual(h._content["one"]["dos"].tolist(), [[1]])
+        self.assertEqual(h._content["two"]["dos"].tolist(), [[1]])
