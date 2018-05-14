@@ -264,14 +264,24 @@ class Hist(Fillable):
         else:
             weight = self._destination[0][j]
             weight2 = self._destination[0][j + 1]
+            selection = numpy.isnan(weight)
+            weight[selection] = 0.0
+            weight2[selection] = 0.0
 
         def fillblock(content, indexes, axissumx, axissumx2, weight, weight2):
             for sumx, sumx2, axis in zip(axissumx, axissumx2, self._profile):
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwxindex], indexes.compressed(), sumx * weight)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
 
-            numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
-            if weight2 is not None:
+            if weight2 is None:
+                numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
+            else:
+                selection = numpy.ma.getmask(indexes)
+                if selection is not numpy.ma.nomask:
+                    selection = numpy.bitwise_not(selection)
+                    weight = weight[selection]
+                    weight2 = weight2[selection]
+                numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), weight2)
 
         def filldict(j, content, indexes, axissumx, axissumx2, weight, weight2):

@@ -77,6 +77,157 @@ class TestHist(unittest.TestCase):
         h.fill(x=numpy.array([0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001]))
         self.assertEqual(h._content.tolist(), [[1], [2 + 3 + 4 + 5], [6 + 7 + 8 + 9], [10], [0]])
 
+    def test_bin_big(self):
+        numpy.random.seed(12345)
+        xdata = numpy.round(numpy.random.normal(0, 1, 10000), 2)
+        weights = numpy.random.uniform(-2, 2, 10000)
+        both = numpy.random.randint(0, 9999, 10)
+        xdata[numpy.random.randint(0, 9999, 10)] = numpy.nan
+        weights[numpy.random.randint(0, 9999, 10)] = numpy.nan
+        xdata[both] = numpy.nan
+        weights[both] = numpy.nan
+
+        nn = ~numpy.isnan(xdata)
+        nnweights = weights.copy()
+        nnweights[numpy.isnan(weights)] = 0.0
+        nnweights2 = nnweights**2
+        
+        with numpy.errstate(invalid="ignore"):
+            under = numpy.count_nonzero(xdata < 0.0)
+            bin0 = numpy.count_nonzero(numpy.logical_and(0.0 <= xdata, xdata < 0.1))
+            bin1 = numpy.count_nonzero(numpy.logical_and(0.1 <= xdata, xdata < 0.2))
+            bin2 = numpy.count_nonzero(numpy.logical_and(0.2 <= xdata, xdata < 0.3))
+            bin3 = numpy.count_nonzero(numpy.logical_and(0.3 <= xdata, xdata < 0.4))
+            bin4 = numpy.count_nonzero(numpy.logical_and(0.4 <= xdata, xdata < 0.5))
+            bin5 = numpy.count_nonzero(numpy.logical_and(0.5 <= xdata, xdata < 0.6))
+            bin6 = numpy.count_nonzero(numpy.logical_and(0.6 <= xdata, xdata < 0.7))
+            bin7 = numpy.count_nonzero(numpy.logical_and(0.7 <= xdata, xdata < 0.8))
+            bin8 = numpy.count_nonzero(numpy.logical_and(0.8 <= xdata, xdata < 0.9))
+            bin9 = numpy.count_nonzero(numpy.logical_and(0.9 <= xdata, xdata < 1.0))
+            over = numpy.count_nonzero(xdata >= 1.0)
+            nan = numpy.count_nonzero(numpy.isnan(xdata))
+
+            wunder = numpy.sum(nnweights * numpy.logical_and(nn, xdata < 0.0))
+            wbin0 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.0 <= xdata, xdata < 0.1)))
+            wbin1 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.1 <= xdata, xdata < 0.2)))
+            wbin2 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.2 <= xdata, xdata < 0.3)))
+            wbin3 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.3 <= xdata, xdata < 0.4)))
+            wbin4 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.4 <= xdata, xdata < 0.5)))
+            wbin5 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.5 <= xdata, xdata < 0.6)))
+            wbin6 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.6 <= xdata, xdata < 0.7)))
+            wbin7 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.7 <= xdata, xdata < 0.8)))
+            wbin8 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.8 <= xdata, xdata < 0.9)))
+            wbin9 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.9 <= xdata, xdata < 1.0)))
+            wover = numpy.sum(nnweights * numpy.logical_and(nn, (xdata >= 1.0)))
+            wnan = numpy.sum(nnweights * numpy.isnan(xdata))
+
+            w2under = numpy.sum(nnweights2 * numpy.logical_and(nn, (xdata < 0.0)))
+            w2bin0 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.0 <= xdata, xdata < 0.1)))
+            w2bin1 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.1 <= xdata, xdata < 0.2)))
+            w2bin2 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.2 <= xdata, xdata < 0.3)))
+            w2bin3 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.3 <= xdata, xdata < 0.4)))
+            w2bin4 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.4 <= xdata, xdata < 0.5)))
+            w2bin5 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.5 <= xdata, xdata < 0.6)))
+            w2bin6 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.6 <= xdata, xdata < 0.7)))
+            w2bin7 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.7 <= xdata, xdata < 0.8)))
+            w2bin8 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.8 <= xdata, xdata < 0.9)))
+            w2bin9 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.9 <= xdata, xdata < 1.0)))
+            w2over = numpy.sum(nnweights2 * numpy.logical_and(nn, (xdata >= 1.0)))
+            w2nan = numpy.sum(nnweights2 * numpy.isnan(xdata))
+
+        for underflow in False, True:
+            for overflow in False, True:
+                for nanflow in False, True:
+                    compare = [bin0, bin1, bin2, bin3, bin4, bin5, bin6, bin7, bin8, bin9]
+                    if underflow:
+                        compare.insert(0, under)
+                    if overflow:
+                        compare.append(over)
+                    if nanflow:
+                        compare.append(nan)
+                    h = Hist(bin("x", 10, 0, 1, underflow=underflow, overflow=overflow, nanflow=nanflow))
+                    h.fill(x=xdata)
+                    self.assertEqual(h._content.reshape(-1).tolist(), compare)
+
+                    compare = [[wbin0, w2bin0], [wbin1, w2bin1], [wbin2, w2bin2], [wbin3, w2bin3], [wbin4, w2bin4], [wbin5, w2bin5], [wbin6, w2bin6], [wbin7, w2bin7], [wbin8, w2bin8], [wbin9, w2bin9]]
+                    if underflow:
+                        compare.insert(0, [wunder, w2under])
+                    if overflow:
+                        compare.append([wover, w2over])
+                    if nanflow:
+                        compare.append([wnan, w2nan])
+                    h = Hist(bin("x", 10, 0, 1, underflow=underflow, overflow=overflow, nanflow=nanflow)).weight("w")
+                    h.fill(x=xdata, w=weights)
+                    self.assertTrue(numpy.absolute((h._content - numpy.array(compare)).reshape(-1)).max() < 1e-10)
+
+        with numpy.errstate(invalid="ignore"):
+            under = numpy.count_nonzero(xdata <= 0.0)
+            bin0 = numpy.count_nonzero(numpy.logical_and(0.0 < xdata, xdata <= 0.1))
+            bin1 = numpy.count_nonzero(numpy.logical_and(0.1 < xdata, xdata <= 0.2))
+            bin2 = numpy.count_nonzero(numpy.logical_and(0.2 < xdata, xdata <= 0.3))
+            bin3 = numpy.count_nonzero(numpy.logical_and(0.3 < xdata, xdata <= 0.4))
+            bin4 = numpy.count_nonzero(numpy.logical_and(0.4 < xdata, xdata <= 0.5))
+            bin5 = numpy.count_nonzero(numpy.logical_and(0.5 < xdata, xdata <= 0.6))
+            bin6 = numpy.count_nonzero(numpy.logical_and(0.6 < xdata, xdata <= 0.7))
+            bin7 = numpy.count_nonzero(numpy.logical_and(0.7 < xdata, xdata <= 0.8))
+            bin8 = numpy.count_nonzero(numpy.logical_and(0.8 < xdata, xdata <= 0.9))
+            bin9 = numpy.count_nonzero(numpy.logical_and(0.9 < xdata, xdata <= 1.0))
+            over = numpy.count_nonzero(xdata > 1.0)
+            nan = numpy.count_nonzero(numpy.isnan(xdata))
+
+            wunder = numpy.sum(nnweights * numpy.logical_and(nn, xdata <= 0.0))
+            wbin0 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.0 < xdata, xdata <= 0.1)))
+            wbin1 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.1 < xdata, xdata <= 0.2)))
+            wbin2 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.2 < xdata, xdata <= 0.3)))
+            wbin3 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.3 < xdata, xdata <= 0.4)))
+            wbin4 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.4 < xdata, xdata <= 0.5)))
+            wbin5 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.5 < xdata, xdata <= 0.6)))
+            wbin6 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.6 < xdata, xdata <= 0.7)))
+            wbin7 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.7 < xdata, xdata <= 0.8)))
+            wbin8 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.8 < xdata, xdata <= 0.9)))
+            wbin9 = numpy.sum(nnweights * numpy.logical_and(nn, numpy.logical_and(0.9 < xdata, xdata <= 1.0)))
+            wover = numpy.sum(nnweights * numpy.logical_and(nn, (xdata > 1.0)))
+            wnan = numpy.sum(nnweights * numpy.isnan(xdata))
+
+            w2under = numpy.sum(nnweights2 * numpy.logical_and(nn, (xdata <= 0.0)))
+            w2bin0 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.0 < xdata, xdata <= 0.1)))
+            w2bin1 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.1 < xdata, xdata <= 0.2)))
+            w2bin2 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.2 < xdata, xdata <= 0.3)))
+            w2bin3 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.3 < xdata, xdata <= 0.4)))
+            w2bin4 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.4 < xdata, xdata <= 0.5)))
+            w2bin5 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.5 < xdata, xdata <= 0.6)))
+            w2bin6 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.6 < xdata, xdata <= 0.7)))
+            w2bin7 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.7 < xdata, xdata <= 0.8)))
+            w2bin8 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.8 < xdata, xdata <= 0.9)))
+            w2bin9 = numpy.sum(nnweights2 * numpy.logical_and(nn, numpy.logical_and(0.9 < xdata, xdata <= 1.0)))
+            w2over = numpy.sum(nnweights2 * numpy.logical_and(nn, (xdata > 1.0)))
+            w2nan = numpy.sum(nnweights2 * numpy.isnan(xdata))
+
+        for underflow in False, True:
+            for overflow in False, True:
+                for nanflow in False, True:
+                    compare = [bin0, bin1, bin2, bin3, bin4, bin5, bin6, bin7, bin8, bin9]
+                    if underflow:
+                        compare.insert(0, under)
+                    if overflow:
+                        compare.append(over)
+                    if nanflow:
+                        compare.append(nan)
+                    h = Hist(bin("x", 10, 0, 1, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=False))
+                    h.fill(x=xdata)
+                    self.assertEqual(h._content.reshape(-1).tolist(), compare)
+
+                    compare = [[wbin0, w2bin0], [wbin1, w2bin1], [wbin2, w2bin2], [wbin3, w2bin3], [wbin4, w2bin4], [wbin5, w2bin5], [wbin6, w2bin6], [wbin7, w2bin7], [wbin8, w2bin8], [wbin9, w2bin9]]
+                    if underflow:
+                        compare.insert(0, [wunder, w2under])
+                    if overflow:
+                        compare.append([wover, w2over])
+                    if nanflow:
+                        compare.append([wnan, w2nan])
+                    h = Hist(bin("x", 10, 0, 1, underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=False)).weight("w")
+                    h.fill(x=xdata, w=weights)
+                    self.assertTrue(numpy.absolute((h._content - numpy.array(compare)).reshape(-1)).max() < 1e-10)
+
     def test_binbin(self):
         h = Hist(bin("x", 3, 0, 3, underflow=False, overflow=False, nanflow=False), bin("y", 5, 0, 5, underflow=False, overflow=False, nanflow=False))
         h.fill(x=numpy.array([1]), y=numpy.array([3]))
