@@ -77,12 +77,12 @@ class TestHist(unittest.TestCase):
         h.fill(x=numpy.array([0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001]))
         self.assertEqual(h._content.tolist(), [[1], [2 + 3 + 4 + 5], [6 + 7 + 8 + 9], [10], [0]])
 
-    def test_binbin(self):
+    def test_bin_bin(self):
         h = Hist(bin("x", 3, 0, 3, underflow=False, overflow=False, nanflow=False), bin("y", 5, 0, 5, underflow=False, overflow=False, nanflow=False))
         h.fill(x=numpy.array([1]), y=numpy.array([3]))
         self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0], [0]], [[0], [0], [0], [1], [0]], [[0], [0], [0], [0], [0]]])
 
-    def test_weight(self):
+    def test_bin_weight(self):
         h = Hist(bin("x", 10, 10, 11), weight="y")
         h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
         self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.2, 0.020000000000000004], [0.2, 0.020000000000000004], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
@@ -258,7 +258,7 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content["two"].tolist(), [[0], [2], [0]])
         self.assertEqual(h._content["three"].tolist(), [[0], [0], [1]])
 
-    def test_groupbygroupby(self):
+    def test_groupby_groupby(self):
         h = Hist(groupby("c1"), groupby("c2"), bin("x", 1, 1.0, 2.0, underflow=False, overflow=False, nanflow=False))
         h.fill(c1=["one", "two", "one", "two"], c2=["uno", "uno", "dos", "dos"], x=numpy.array([1, 1, 1, 1]))
         self.assertEqual(h._content["one"]["uno"].tolist(), [[1]])
@@ -278,3 +278,18 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content[-9.0].tolist(), [[1], [0], [0], [0]])
         self.assertEqual(h._content[1.0].tolist(),  [[0], [1], [0], [0]])
         self.assertEqual(h._content[11.0].tolist(), [[0], [0], [1], [1]])
+
+    def test_groupby_groupbin(self):
+        h = Hist(bin("y", 4, 1.0, 5.0, underflow=False, overflow=False, nanflow=False), groupby("c"), groupbin("x", 10.0))
+        h.fill(c=["one", "one", "two", "two"], x=numpy.array([0, 10, 15, 20]), y=numpy.array([1, 2, 3, 4]))
+        self.assertEqual(h._content["one"][0.0].tolist(),  [[1], [0], [0], [0]])
+        self.assertEqual(h._content["one"][10.0].tolist(), [[0], [1], [0], [0]])
+        self.assertEqual(h._content["two"][10.0].tolist(), [[0], [0], [1], [0]])
+        self.assertEqual(h._content["two"][20.0].tolist(), [[0], [0], [0], [1]])
+
+        h = Hist(groupbin("x", 10.0), bin("y", 4, 1.0, 5.0, underflow=False, overflow=False, nanflow=False), groupby("c"))
+        h.fill(c=["one", "one", "two", "two"], x=numpy.array([0, 10, 15, 20]), y=numpy.array([1, 2, 3, 4]))
+        self.assertEqual(h._content[0.0]["one"].tolist(),  [[1], [0], [0], [0]])
+        self.assertEqual(h._content[10.0]["one"].tolist(), [[0], [1], [0], [0]])
+        self.assertEqual(h._content[10.0]["two"].tolist(), [[0], [0], [1], [0]])
+        self.assertEqual(h._content[20.0]["two"].tolist(), [[0], [0], [0], [1]])
