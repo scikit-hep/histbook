@@ -242,6 +242,23 @@ class TestHist(unittest.TestCase):
                     h.fill(x=xdata, w=weights)
                     self.assertTrue(numpy.absolute((h._content - numpy.array(compare)).reshape(-1)).max() < 1e-10)
 
+    def test_intbin(self):
+        h = Hist(intbin("x", 0, 10, underflow=True, overflow=True))
+        h.fill(x=numpy.arange(-5, 15))
+        self.assertEqual(h._content.tolist(), [[5], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [4]])
+
+        h = Hist(intbin("x", 0, 10, underflow=True, overflow=False))
+        h.fill(x=numpy.arange(-5, 15))
+        self.assertEqual(h._content.tolist(), [[5], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
+
+        h = Hist(intbin("x", 0, 10, underflow=False, overflow=True))
+        h.fill(x=numpy.arange(-5, 15))
+        self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [4]])
+
+        h = Hist(intbin("x", 0, 10, underflow=False, overflow=False))
+        h.fill(x=numpy.arange(-5, 15))
+        self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
+
     def test_profile(self):
         h = Hist(bin("x", 10, 10, 11), profile("y"))
         h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
