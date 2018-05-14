@@ -194,7 +194,7 @@ def histbook_bin(underflow, overflow, nanflow, closedlow):
 
     def bin(values, numbins, low, high):
         indexes = values - float(low)
-        numpy.multiply(indexes, numbins / (high - low), indexes)
+        numpy.multiply(indexes, float(numbins) / float(high - low), indexes)
 
         if closedlow:
             numpy.floor(indexes, indexes)

@@ -46,13 +46,17 @@ class Fillable(object):
         if self._fields is None:
             table = {}
             goals = set(self._goals)
+
             for x in goals:
                 x.clear()
             for x in goals:
                 x.grow(table)
+
             fields = histbook.stmt.sources(goals, table)
-            self._instructions = self._streamline(0, histbook.stmt.instructions(fields, goals))
+
+            self._instructions = self._streamline(0, list(histbook.stmt.instructions(fields, goals)))
             self._fields = sorted(x.goal.value for x in fields)
+
         return self._fields
 
     def _fill(self, arrays):
@@ -101,10 +105,10 @@ class Book(collections.MutableMapping, Fillable):
     def __setitem__(self, name, value):
         if isinstance(value, Book):
             for n, x in value.items():
-                self._hists[name + "/" + n] = x
+                self._hists[name + "/" + n] = x.copy()
                 self._fields = None
         elif isinstance(value, Hist):
-            self._hists[name] = value
+            self._hists[name] = value.copy()
             self._fields = None
         else:
             raise TypeError("histogram books can only be filled with histograms or other histogram books, not {0}".format(type(value)))
@@ -122,9 +126,36 @@ class Book(collections.MutableMapping, Fillable):
     def _goals(self):
         return functools.reduce(set.union, (x._goals for x in self.values()))
 
+    def _streamline(self, i, instructions):
+        self._destination = []
+        for i, x in enumerate(self._hists.values()):
+            self._destination.append(x._destination[0])
+            x._streamline(i, instructions)
+        return instructions
+
+    def fill(self, **arrays):
+        for x in self._hists.values():
+            x._prefill()
+        self._fill(arrays)
+        for x in self._hists.values():
+            x._postfill(arrays)
+        
 class Hist(Fillable):
     def weight(self, expr):
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], defs=self._defs, weight=expr)
+
+    def copy(self):
+        out = self.__class__.__new__(self.__class__)
+        out.__dict__.update(self.__dict__)
+        def copy(content):
+            if content is None:
+                return None
+            elif isinstance(content, numpy.ndarray):
+                return content.copy()
+            else:
+                return dict((n, copy(x)) for n, x in content.items())
+        out._content = copy(self._content)
+        return out
 
     def __init__(self, *axis, **opts):
         if len(axis) == 0:
@@ -198,11 +229,11 @@ class Hist(Fillable):
             dest([histbook.stmt.CallGraphGoal(self._weightparsed),
                   histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
 
+        self._weight = weight
         self._shape = tuple(self._shape)
         self._content = None
-
         self._fields = None
-
+        
     def __repr__(self, indent=", "):
         out = [repr(x) for x in self._group + self._fixed + self._profile]
         if self._weightlabel is not None:
@@ -219,7 +250,6 @@ class Hist(Fillable):
         return self._shape
 
     def _streamline(self, i, instructions):
-        out = []
         for instruction in instructions:
             if isinstance(instruction, histbook.stmt.Export):
                 if not hasattr(instruction, "destination"):
@@ -227,18 +257,22 @@ class Hist(Fillable):
                 if instruction.goal in self._lookup:
                     for j in self._lookup[instruction.goal]:
                         instruction.destination.append((i, j))
-            out.append(instruction)
-        return out
+
+        return instructions
 
     def fill(self, **arrays):
+        self._prefill()
+        self._fill(arrays)
+        self._postfill(arrays)
+
+    def _prefill(self):
         if self._content is None:
             if len(self._group) == 0:
                 self._content = numpy.zeros(self._shape, dtype=COUNTTYPE)
             else:
                 self._content = {}
 
-        self._fill(arrays)
-
+    def _postfill(self, arrays):
         j = len(self._group)
         step = 0
         for axis in self._fixed:
@@ -265,8 +299,11 @@ class Hist(Fillable):
             weight = self._destination[0][j]
             weight2 = self._destination[0][j + 1]
             selection = numpy.isnan(weight)
-            weight[selection] = 0.0
-            weight2[selection] = 0.0
+            if selection.any():
+                weight = weight.copy()
+                weight2 = weight2.copy()
+                weight[selection] = 0.0
+                weight2[selection] = 0.0
 
         def fillblock(content, indexes, axissumx, axissumx2, weight, weight2):
             for sumx, sumx2, axis in zip(axissumx, axissumx2, self._profile):

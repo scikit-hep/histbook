@@ -372,3 +372,14 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content[10.0]["one"].tolist(), [[0], [1], [0], [0]])
         self.assertEqual(h._content[10.0]["two"].tolist(), [[0], [0], [1], [0]])
         self.assertEqual(h._content[20.0]["two"].tolist(), [[0], [0], [0], [1]])
+
+    def test_empty(self):
+        self.assertRaises(TypeError, lambda: Hist())
+
+    def test_book(self):
+        b = Book()
+        b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
+        b["two"] = Hist(split("x", (1.5,), nanflow=False))
+        b.fill(x=numpy.array([1, 1, 1, 2, 2]))
+        self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
+        self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
