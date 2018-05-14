@@ -62,10 +62,20 @@ class Fillable(object):
     def _fill(self, arrays):
         self.fields  # for the side-effect of creating self._instructions
 
+        length = None
         symbols = {}
         for instruction in self._instructions:
             if isinstance(instruction, histbook.stmt.Param):
-                symbols[instruction.name] = arrays[instruction.extern]
+                array = arrays[instruction.extern]
+                if not isinstance(array, numpy.ndarray):
+                    array = numpy.array(array)
+
+                if length is None:
+                    length = len(array)
+                elif length != len(array):
+                    raise ValueError("array {0} has len {1} but other arrays have len {2}".format(repr(instruction.extern), len(array), length))
+
+                symbols[instruction.name] = array
 
             elif isinstance(instruction, histbook.stmt.Assign):
                 symbols[instruction.name] = histbook.calc.calculate(instruction.expr, symbols)

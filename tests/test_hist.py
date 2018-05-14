@@ -41,54 +41,54 @@ class TestHist(unittest.TestCase):
 
     def test_calc(self):
         h = Hist(bin("x + 0.1", 10, 0, 1))
-        h.fill(x=numpy.array([0.4, 0.3, 0.3, 0.5, 0.4, 0.8]))
+        h.fill(x=[0.4, 0.3, 0.3, 0.5, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0]])
 
     def test_bin(self):
         h = Hist(bin("x", 10, 10, 11))
-        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]))
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8])
         self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0], [0]])
 
         h = Hist(bin("x", 10, 0, 1))
-        h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
+        h.fill(x=[0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[1], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [2], [3]])
 
         h = Hist(bin("x", 10, 0, 1, underflow=False))
-        h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
+        h.fill(x=[0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [2], [3]])
 
         h = Hist(bin("x", 10, 0, 1, overflow=False))
-        h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
+        h.fill(x=[0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[1], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [3]])
 
         h = Hist(bin("x", 10, 0, 1, nanflow=False))
-        h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
+        h.fill(x=[0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[1], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [2]])
 
         h = Hist(bin("x", 10, 0, 1, underflow=False, overflow=False, nanflow=False))
-        h.fill(x=numpy.array([0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8]))
+        h.fill(x=[0.4, 0.3, 123, 99, 0.3, numpy.nan, numpy.nan, numpy.nan, 0.5, -99, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[0], [0], [0], [2], [2], [1], [0], [0], [1], [0]])
 
         h = Hist(bin("x", 2, 0, 2))
-        h.fill(x=numpy.array([0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001]))
+        h.fill(x=[0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001])
         self.assertEqual(h._content.tolist(), [[0], [1 + 2 + 3 + 4], [5 + 6 + 7 + 8], [9 + 10], [0]])
 
         h = Hist(bin("x", 2, 0, 2, closedlow=False))
-        h.fill(x=numpy.array([0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001]))
+        h.fill(x=[0.0, 0.0001, 0.0001, 0.5, 0.5, 0.5, 0.9999, 0.9999, 0.9999, 0.9999, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.0001, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 1.9999, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001, 2.0001])
         self.assertEqual(h._content.tolist(), [[1], [2 + 3 + 4 + 5], [6 + 7 + 8 + 9], [10], [0]])
 
     def test_bin_bin(self):
         h = Hist(bin("x", 3, 0, 3, underflow=False, overflow=False, nanflow=False), bin("y", 5, 0, 5, underflow=False, overflow=False, nanflow=False))
-        h.fill(x=numpy.array([1]), y=numpy.array([3]))
+        h.fill(x=[1], y=[3])
         self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0], [0]], [[0], [0], [0], [1], [0]], [[0], [0], [0], [0], [0]]])
 
     def test_bin_weight(self):
         h = Hist(bin("x", 10, 10, 11), weight="y")
-        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[0.1, 0.1, 0.1, 0.1, 0.1, 1.0])
         self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.2, 0.020000000000000004], [0.2, 0.020000000000000004], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
 
         h = Hist(bin("x", 10, 10, 11)).weight("y")
-        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[0.1, 0.1, 0.1, 0.1, 0.1, 1.0])
         self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.2, 0.020000000000000004], [0.2, 0.020000000000000004], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
 
     def test_bin_big(self):
@@ -244,40 +244,40 @@ class TestHist(unittest.TestCase):
 
     def test_intbin(self):
         h = Hist(intbin("x", 0, 10, underflow=True, overflow=True))
-        h.fill(x=numpy.arange(-5, 15))
+        h.fill(x=range(-5, 15))
         self.assertEqual(h._content.tolist(), [[5], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [4]])
 
         h = Hist(intbin("x", 0, 10, underflow=True, overflow=False))
-        h.fill(x=numpy.arange(-5, 15))
+        h.fill(x=range(-5, 15))
         self.assertEqual(h._content.tolist(), [[5], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
 
         h = Hist(intbin("x", 0, 10, underflow=False, overflow=True))
-        h.fill(x=numpy.arange(-5, 15))
+        h.fill(x=range(-5, 15))
         self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [4]])
 
         h = Hist(intbin("x", 0, 10, underflow=False, overflow=False))
-        h.fill(x=numpy.arange(-5, 15))
+        h.fill(x=range(-5, 15))
         self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
 
     def test_split(self):
         h = Hist(split("x", (3,)))
-        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        h.fill(x=[0, 1, 2, 3, 4, 5, 6])
         self.assertEqual(h._content.tolist(), [[3], [4], [0]])
 
         h = Hist(split("x", (3,)))
-        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, numpy.nan]))
+        h.fill(x=[0, 1, 2, 3, 4, 5, numpy.nan])
         self.assertEqual(h._content.tolist(), [[3], [3], [1]])
 
         h = Hist(split("x", (2.5, 3.5)))
-        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        h.fill(x=[0, 1, 2, 3, 4, 5, 6])
         self.assertEqual(h._content.tolist(), [[3], [1], [3], [0]])
 
         h = Hist(split("x", (2.5, 3.5, 5.0)))
-        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        h.fill(x=[0, 1, 2, 3, 4, 5, 6])
         self.assertEqual(h._content.tolist(), [[3], [1], [1], [2], [0]])
 
         h = Hist(split("x", (2.5, 3.5, 5.0), closedlow=False))
-        h.fill(x=numpy.array([0, 1, 2, 3, 4, 5, 6]))
+        h.fill(x=[0, 1, 2, 3, 4, 5, 6])
         self.assertEqual(h._content.tolist(), [[3], [1], [2], [1], [0]])
 
         under = [[2]]
@@ -287,7 +287,7 @@ class TestHist(unittest.TestCase):
             for overflow in (False, True):
                 for nanflow in (False, True):
                     h = Hist(split("x", (3,), underflow=underflow, overflow=overflow, nanflow=nanflow))
-                    h.fill(x=numpy.array([numpy.nan, 1, 2, 3, 4, 5, 6]))
+                    h.fill(x=[numpy.nan, 1, 2, 3, 4, 5, 6])
                     self.assertEqual(h._content.tolist(), (under if underflow else []) + (over if overflow else []) + (nan if nanflow else []))
 
         under = [[2]]
@@ -297,49 +297,49 @@ class TestHist(unittest.TestCase):
             for overflow in (False, True):
                 for nanflow in (False, True):
                     h = Hist(split("x", (2.5, 3.5, 5.0), underflow=underflow, overflow=overflow, nanflow=nanflow, closedlow=False))
-                    h.fill(x=numpy.array([numpy.nan, 1, 2, 3, 4, 5, 6]))
+                    h.fill(x=[numpy.nan, 1, 2, 3, 4, 5, 6])
                     self.assertEqual(h._content.tolist(), (under if underflow else []) + [[1], [2]] + (over if overflow else []) + (nan if nanflow else []))
 
     def test_cut(self):
         h = Hist(cut("p"))
-        h.fill(p=numpy.array([False, True, True]))
+        h.fill(p=[False, True, True])
         self.assertEqual(h._content.tolist(), [[1], [2]])
 
         h = Hist(cut("x > 3"))
-        h.fill(x=numpy.array([1, 2, 3, 4, 5]))
+        h.fill(x=[1, 2, 3, 4, 5])
         self.assertEqual(h._content.tolist(), [[3], [2]])
 
         h = Hist(cut("x > 3 and p"))
-        h.fill(x=numpy.array([1, 2, 3, 4, 5]), p=numpy.array([True, False, True, False, True]))
+        h.fill(x=[1, 2, 3, 4, 5], p=[True, False, True, False, True])
         self.assertEqual(h._content.tolist(), [[4], [1]])
 
         h = Hist(cut("x > 3 and y % 2 == 0"))
-        h.fill(x=numpy.array([1, 2, 3, 4, 5]), y=numpy.array([0, 1, 2, 3, 4]))
+        h.fill(x=[1, 2, 3, 4, 5], y=[0, 1, 2, 3, 4])
         self.assertEqual(h._content.tolist(), [[4], [1]])
 
         h = Hist(cut("x > 3 and y % 2 == 0"), split("x", (3.5,)))
-        h.fill(x=numpy.array([1, 2, 3, 4, 5]), y=numpy.array([0, 1, 2, 3, 4]))
+        h.fill(x=[1, 2, 3, 4, 5], y=[0, 1, 2, 3, 4])
         self.assertEqual(h._content.tolist(), [[[3], [1], [0]], [[0], [1], [0]]])
 
     def test_profile(self):
         h = Hist(bin("x", 10, 10, 11), profile("y"))
-        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[0.1, 0.1, 0.1, 0.1, 0.1, 1.0])
         self.assertEqual(h._content.tolist(), [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.2, 0.020000000000000004, 2.0], [0.2, 0.020000000000000004, 2.0], [0.1, 0.010000000000000002, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 
         h = Hist(bin("x", 10, 10, 11), profile("y"), profile("2*y"))
-        h.fill(x=numpy.array([10.4, 10.3, 10.3, 10.5, 10.4, 10.8]), y=numpy.array([0.1, 0.1, 0.1, 0.1, 0.1, 1.0]))
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[0.1, 0.1, 0.1, 0.1, 0.1, 1.0])
         self.assertEqual(h._content.tolist(), [[0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.2, 0.020000000000000004, 0.4, 0.08000000000000002, 2.0], [0.2, 0.020000000000000004, 0.4, 0.08000000000000002, 2.0], [0.1, 0.010000000000000002, 0.2, 0.04000000000000001, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 2.0, 4.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]])
 
     def test_groupby(self):
         h = Hist(groupby("c"), bin("x", 3, 1.0, 4.0, underflow=False, overflow=False, nanflow=False))
-        h.fill(c=["one", "two", "three", "two", "one", "one", "one"], x=numpy.array([1, 2, 3, 2, 1, 1, 3]))
+        h.fill(c=["one", "two", "three", "two", "one", "one", "one"], x=[1, 2, 3, 2, 1, 1, 3])
         self.assertEqual(h._content["one"].tolist(), [[3], [0], [1]])
         self.assertEqual(h._content["two"].tolist(), [[0], [2], [0]])
         self.assertEqual(h._content["three"].tolist(), [[0], [0], [1]])
 
     def test_groupby_groupby(self):
         h = Hist(groupby("c1"), groupby("c2"), bin("x", 1, 1.0, 2.0, underflow=False, overflow=False, nanflow=False))
-        h.fill(c1=["one", "two", "one", "two"], c2=["uno", "uno", "dos", "dos"], x=numpy.array([1, 1, 1, 1]))
+        h.fill(c1=["one", "two", "one", "two"], c2=["uno", "uno", "dos", "dos"], x=[1, 1, 1, 1])
         self.assertEqual(h._content["one"]["uno"].tolist(), [[1]])
         self.assertEqual(h._content["two"]["uno"].tolist(), [[1]])
         self.assertEqual(h._content["one"]["dos"].tolist(), [[1]])
@@ -347,27 +347,27 @@ class TestHist(unittest.TestCase):
 
     def test_groupbin(self):
         h = Hist(groupbin("x", 10.0), bin("y", 4, 1.0, 5.0, underflow=False, overflow=False, nanflow=False))
-        h.fill(x=numpy.array([0, 10, 15, 20]), y=numpy.array([1, 2, 3, 4]))
+        h.fill(x=[0, 10, 15, 20], y=[1, 2, 3, 4])
         self.assertEqual(h._content[0.0].tolist(),  [[1], [0], [0], [0]])
         self.assertEqual(h._content[10.0].tolist(), [[0], [1], [1], [0]])
         self.assertEqual(h._content[20.0].tolist(), [[0], [0], [0], [1]])
 
         h = Hist(groupbin("x", 10.0, origin=1.0), bin("y", 4, 1.0, 5.0, underflow=False, overflow=False, nanflow=False))
-        h.fill(x=numpy.array([0, 10, 15, 20]), y=numpy.array([1, 2, 3, 4]))
+        h.fill(x=[0, 10, 15, 20], y=[1, 2, 3, 4])
         self.assertEqual(h._content[-9.0].tolist(), [[1], [0], [0], [0]])
         self.assertEqual(h._content[1.0].tolist(),  [[0], [1], [0], [0]])
         self.assertEqual(h._content[11.0].tolist(), [[0], [0], [1], [1]])
 
     def test_groupby_groupbin(self):
         h = Hist(bin("y", 4, 1.0, 5.0, underflow=False, overflow=False, nanflow=False), groupby("c"), groupbin("x", 10.0))
-        h.fill(c=["one", "one", "two", "two"], x=numpy.array([0, 10, 15, 20]), y=numpy.array([1, 2, 3, 4]))
+        h.fill(c=["one", "one", "two", "two"], x=[0, 10, 15, 20], y=[1, 2, 3, 4])
         self.assertEqual(h._content["one"][0.0].tolist(),  [[1], [0], [0], [0]])
         self.assertEqual(h._content["one"][10.0].tolist(), [[0], [1], [0], [0]])
         self.assertEqual(h._content["two"][10.0].tolist(), [[0], [0], [1], [0]])
         self.assertEqual(h._content["two"][20.0].tolist(), [[0], [0], [0], [1]])
 
         h = Hist(groupbin("x", 10.0), bin("y", 4, 1.0, 5.0, underflow=False, overflow=False, nanflow=False), groupby("c"))
-        h.fill(c=["one", "one", "two", "two"], x=numpy.array([0, 10, 15, 20]), y=numpy.array([1, 2, 3, 4]))
+        h.fill(c=["one", "one", "two", "two"], x=[0, 10, 15, 20], y=[1, 2, 3, 4])
         self.assertEqual(h._content[0.0]["one"].tolist(),  [[1], [0], [0], [0]])
         self.assertEqual(h._content[10.0]["one"].tolist(), [[0], [1], [0], [0]])
         self.assertEqual(h._content[10.0]["two"].tolist(), [[0], [0], [1], [0]])
@@ -380,6 +380,13 @@ class TestHist(unittest.TestCase):
         b = Book()
         b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
         b["two"] = Hist(split("x", (1.5,), nanflow=False))
-        b.fill(x=numpy.array([1, 1, 1, 2, 2]))
+        b.fill(x=[1, 1, 1, 2, 2])
+        self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
+        self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
+
+        b = Book()
+        b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
+        b["two"] = Hist(split("y", (1.5,), nanflow=False))
+        b.fill(x=[1, 1, 1, 2, 2], y=[1, 1, 1, 2, 2])
         self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
         self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
