@@ -148,16 +148,20 @@ library["histbook.groupby"] = histbook_groupby
 def histbook_groupbin(closedlow):
     def groupbin(values, binwidth, origin):
         if origin == 0:
-            indexes = numpy.true_divide(values, float(binwidth))
+            indexes = numpy.multiply(values, 1.0/float(binwidth))
         else:
             indexes = values - float(origin)
-            numpy.true_divide(indexes, float(binwidth), indexes)
+            numpy.multiply(indexes, 1.0/float(binwidth), indexes)
 
         if closedlow:
             numpy.floor(indexes, indexes)
         else:
             numpy.ceil(indexes, indexes)
             numpy.subtract(indexes, 1, indexes)
+
+        numpy.multiply(indexes, float(binwidth), indexes)
+        if origin != 0:
+            numpy.add(indexes, float(origin), indexes)
 
         ok = numpy.isnan(indexes)
         numpy.logical_not(ok, ok)
