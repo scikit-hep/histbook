@@ -106,6 +106,12 @@ class Fillable(object):
             else:
                 raise AssertionError(instruction)
 
+class Projectable(object):
+    pass
+
+
+
+
 class Book(collections.MutableMapping, Fillable):
     def __init__(self, hists={}, **keywords):
         self._fields = None
@@ -123,6 +129,9 @@ class Book(collections.MutableMapping, Fillable):
 
     def __len__(self):
         return len(self._hists)
+
+    def __contains__(self, name):
+        return name in self._hists
 
     def __getitem__(self, name):
         return self._hists[name]
@@ -177,22 +186,58 @@ class Book(collections.MutableMapping, Fillable):
         self._fill(arrays)
         for x in self._hists.values():
             x._postfill(arrays)
-        
-class Hist(Fillable):
+
+    def __add__(self, other):
+        if not isinstance(other, Book):
+            raise TypeError("histogram Books can only be added to other histogram Books")
+
+        out = Book(self._hists)
+        for n, x in other.items():
+            if n in out:
+                out[n] += x
+            else:
+                out[n] = x
+
+        return out
+
+    def __iadd__(self, other):
+        if not isinstance(other, Book):
+            raise TypeError("histogram Books can only be added to other histogram Books")
+
+        for n, x in other.items():
+            if n in self:
+                self[n] += x
+            else:
+                self[n] = x
+
+        return self
+
+    @staticmethod
+    def group(by="group", **books):
+        if any(not isinstance(x, Book) for x in books.values()):
+            raise TypeError("only histogram Books can be grouped")
+        out = Book()
+        for n in functools.reduce(set.union, (set(x.keys()) for x in books.values())):
+            out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
+        return out
+
+class Hist(Fillable, Projectable):
     def weight(self, expr):
-        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], defs=self._defs, weight=expr)
+        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
+
+    @staticmethod
+    def _copycontent(content):
+        if content is None:
+            return None
+        elif isinstance(content, numpy.ndarray):
+            return content.copy()
+        else:
+            return dict((n, Hist._copycontent(x)) for n, x in content.items())
 
     def copy(self):
         out = self.__class__.__new__(self.__class__)
         out.__dict__.update(self.__dict__)
-        def copy(content):
-            if content is None:
-                return None
-            elif isinstance(content, numpy.ndarray):
-                return content.copy()
-            else:
-                return dict((n, copy(x)) for n, x in content.items())
-        out._content = copy(self._content)
+        out._content = Hist._copycontent(self._content)
         return out
 
     def __init__(self, *axis, **opts):
@@ -399,3 +444,124 @@ class Hist(Fillable):
             
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None
+
+    def __add__(self, other):
+        if not isinstance(other, Hist):
+            raise TypeError("histograms can only be added to other histograms")
+
+        if self._group + self._fixed + self._profile != other._group + other._fixed + other._profile:
+            raise TypeError("histograms can only be added to other histograms with the same axis specifications")
+
+        def add(selfcontent, othercontent):
+            if selfcontent is None and othercontent is None:
+                return None
+
+            elif selfcontent is None:
+                return Hist._copycontent(othercontent)
+
+            elif othercontent is None:
+                return Hist._copycontent(selfcontent)
+
+            elif isinstance(selfcontent, numpy.ndarray) and isinstance(othercontent, numpy.ndarray):
+                return selfcontent + othercontent
+
+            else:
+                assert isinstance(selfcontent, dict) and isinstance(othercontent, dict)
+                out = {}
+                for n in selfcontent:
+                    if n in othercontent:
+                        out[n] = add(selfcontent[n], othercontent[n])
+                    else:
+                        out[n] = selfcontent[n]
+                for n in othercontent:
+                    if n not in selfcontent:
+                        out[n] = othercontent[n]
+                return out
+
+        out = self.__class__.__new__(self.__class__)
+        out.__dict__.update(self.__dict__)
+        out._content = add(self._content, other._content)
+        return out
+
+    def __iadd__(self, other):
+        if not isinstance(other, Hist):
+            raise TypeError("histograms can only be added to other histograms")
+
+        if self._group + self._fixed + self._profile != other._group + other._fixed + other._profile:
+            raise TypeError("histograms can only be added to other histograms with the same axis specifications")
+
+        def add(selfcontent, othercontent):
+            assert isinstance(selfcontent, dict) and isinstance(othercontent, dict)
+            for n in selfcontent:
+                if n in othercontent:
+                    if isinstance(selfcontent[n], numpy.ndarray):
+                        selfcontent[n] += othercontent[n]
+                    else:
+                        add(selfcontent[n], othercontent[n])
+            for n in othercontent:
+                if n not in selfcontent:
+                    selfcontent[n] = Hist._copycontent(othercontent[n])
+
+        if other._content is None:
+            pass
+
+        elif self._content is None:
+            self._content = Hist._copycontent(other._content)
+
+        elif isinstance(self._content, numpy.ndarray):
+            self._content += other._content
+
+        else:
+            add(self._content, other._content)
+
+    @staticmethod
+    def group(by="group", **hists):
+        if any(not isinstance(x, Hist) for x in hists.values()):
+            raise TypeError("only histograms can be grouped")
+
+        axis = None
+        for x in hists.values():
+            if axis is None:
+                axis = x._group + x._fixed + x._profile
+            elif axis != x._group + x._fixed + x._profile:
+                raise TypeError("histograms can only be grouped with the same axis specifications")
+
+        if axis is None:
+            raise ValueError("at least one histogram must be provided")
+
+        if histbook.axis.groupby(by) in axis:
+            raise ValueError("groupby({0}) already exists in these histograms; use hist.togroup(other) to add to a group".format(repr(by)))
+
+        out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in self._group + self._fixed + self._profile]), weight=self._weight, defs=self._defs)
+        for n, x in hists.items():
+            out._content[n] = Hist._copycontent(x._content)
+        return out
+
+    def togroup(**hists):
+        if len(self._group) == 0 or not isinstance(self._group[0], histbook.axis.groupby):
+            raise ValueError("togroup can only be used on histograms whose first axis is a groupby")
+
+        if any(not isinstance(x, Hist) for x in hists.values()):
+            raise TypeError("only histograms can be grouped")
+
+        for x in hists.values():
+            if self._group[1:] + self._fixed + self._profile != x._group + x._fixed + x._profile:
+                raise TypeError("histograms can only be grouped with the same axis specifications")
+
+        def add(selfcontent, othercontent):
+            assert isinstance(selfcontent, dict) and isinstance(othercontent, dict)
+            for n in selfcontent:
+                if n in othercontent:
+                    if isinstance(selfcontent[n], numpy.ndarray):
+                        selfcontent[n] += othercontent[n]
+                    else:
+                        add(selfcontent[n], othercontent[n])
+            for n in othercontent:
+                if n not in selfcontent:
+                    selfcontent[n] = Hist._copycontent(othercontent[n])
+
+        for n, x in hists.items():
+            if n in self._content:
+                add(self._content[n], other._content)
+            else:
+                self._content[n] = Hist._copycontent(other._content)
