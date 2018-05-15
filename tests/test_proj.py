@@ -200,3 +200,22 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.only("c == 'two'")._content["two"].tolist(), [[0], [0], [2], [0]])
         self.assertEqual(h.only("c == 'two' and x >= 0")._content["two"].tolist(), [[2], [0]])
         self.assertEqual(h.only("x >= 0 and c == 'two'")._content["two"].tolist(), [[2], [0]])
+
+    def test_groupbin(self):
+        h = Hist(groupbin("x", 10))
+        h.fill(x=[10, 15, 18, 20, 25])
+        self.assertEqual(set(h._content.keys()), set([10.0, 20.0]))
+        self.assertEqual(h._content[10.0].tolist(), [3])
+        self.assertEqual(h._content[20.0].tolist(), [2])
+        self.assertEqual(set(h.only("x < 20")._content.keys()), set([10.0]))
+        self.assertEqual(h.only("x < 20")._content[10.0].tolist(), [3])
+
+        h = Hist(groupbin("x", 10, closedlow=False))
+        h.fill(x=[10, 15, 18, 20, 25])
+        self.assertEqual(set(h._content.keys()), set([0.0, 10.0, 20.0]))
+        self.assertEqual(h._content[0.0].tolist(), [1])
+        self.assertEqual(h._content[10.0].tolist(), [3])
+        self.assertEqual(h._content[20.0].tolist(), [1])
+        self.assertEqual(set(h.only("x <= 20")._content.keys()), set([0.0, 10.0]))
+        self.assertEqual(h.only("x <= 20")._content[0.0].tolist(), [1])
+        self.assertEqual(h.only("x <= 20")._content[10.0].tolist(), [3])
