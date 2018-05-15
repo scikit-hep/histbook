@@ -170,3 +170,18 @@ class TestProj(unittest.TestCase):
             self.assertEqual(h.only("x > -0.5")._content.tolist(), [[2], [3], [4]])
             self.assertEqual(h.only("x > 0")._content.tolist(), [[3], [4]])
             self.assertEqual(h.only("x > 0.5")._content.tolist(), [[4]])
+
+    def test_bin_bin(self):
+        h = Hist(bin("x", 4, -1, 1, underflow=False, overflow=False, nanflow=False), bin("y", 4, -1, 1, underflow=False, overflow=False, nanflow=False))
+        h.fill(x=[0], y=[0])
+        h.fill(x=[0], y=[0])
+        h.fill(x=[0], y=[0])
+        h.fill(x=[0], y=[0])
+        h.fill(x=[0], y=[0.5])
+        h.fill(x=[0], y=[0.5])
+        h.fill(x=[0], y=[0.5])
+        h.fill(x=[0.5], y=[0])
+        h.fill(x=[0.5], y=[0])
+        h.fill(x=[0.5], y=[0.5])
+        self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0]], [[0], [0], [0], [0]], [[0], [0], [4], [3]], [[0], [0], [2], [1]]])
+        self.assertEqual(h.only("x >= 0 and y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])

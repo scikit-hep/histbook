@@ -40,7 +40,22 @@ class Projectable(object):
         raise ValueError("no such axis: {0}".format(repr(str(expr))))
 
     def only(self, expr, tolerance=1e-12):
-        cutexpr = expr = histbook.expr.Expr.parse(expr, defs=self._defs)
+        expr = histbook.expr.Expr.parse(expr, defs=self._defs)
+
+        if isinstance(expr, histbook.expr.LogicalAnd):
+            out = None
+            for arg in expr.args:
+                if out is None:
+                    out = self._only(arg, tolerance)
+                else:
+                    out = out._only(arg, tolerance)
+            return out
+
+        else:
+            return self._only(expr, tolerance)
+
+    def _only(self, expr, tolerance):
+        cutexpr = expr
         if not isinstance(expr, (histbook.expr.Relation, histbook.expr.Logical)):
             raise TypeError("selection expression must be boolean, not {0}".format(repr(str(expr))))
 
@@ -58,7 +73,7 @@ class Projectable(object):
                 raise TypeError("selection expression must have a variable left or right hand side, not {0}".format(repr(str(expr))))
 
             cutvalue = cutvalue.value   # unbox to Python
-            
+
         else:
             cutcmp = "=="
             cutvalue = True
