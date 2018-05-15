@@ -184,4 +184,7 @@ class TestProj(unittest.TestCase):
         h.fill(x=[0.5], y=[0])
         h.fill(x=[0.5], y=[0.5])
         self.assertEqual(h._content.tolist(), [[[0], [0], [0], [0]], [[0], [0], [0], [0]], [[0], [0], [4], [3]], [[0], [0], [2], [1]]])
+        self.assertEqual(h.only("x >= 0")._content.tolist(), [[[0], [0], [4], [3]], [[0], [0], [2], [1]]])
+        self.assertEqual(h.only("y >= 0")._content.tolist(), [[[0], [0]], [[0], [0]], [[4], [3]], [[2], [1]]])
         self.assertEqual(h.only("x >= 0 and y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
+        self.assertEqual(h.only("x >= 0").only("y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
