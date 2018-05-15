@@ -440,6 +440,11 @@ class split(FixedAxis):
         self._overflow = self._bool(overflow, "overflow")
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
+        self._checktot()
+
+    def _checktot(self):
+        if self.totbins == 0:
+            raise ValueError("at least one bin is required (may be over/under/nanflow)")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._edges)]
@@ -475,7 +480,7 @@ class split(FixedAxis):
 
     @property
     def closedlow(self):
-        return self._closedlo
+        return self._closedlow
 
     def relabel(self, label):
         return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
@@ -501,40 +506,46 @@ class split(FixedAxis):
             
     def _only(self, cmp, value, content, tolerance):
         if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
-            dist, edgex, edgei = sorted(((abs(value - x), x, i) for i, x in enumerate(self._edges)), reverse=True)[0]
+            dist, edgex, edgei = sorted((abs(value - x), x, i) for i, x in enumerate(self._edges))[0]
 
             if dist < tolerance:
                 out = self.__class__.__new__(self.__class__)
                 out.__dict__.update(self.__dict__)
 
-                if self.closedlow and cmp == "<":
+                cuti = edgei + (1 if self._underflow else 0)
+
+                if self._closedlow and cmp == "<":
                     out._edges = self._edges[:edgei + 1]
                     out._overflow = False
                     out._nanflow = False
-                    return out, slice(0, edgei + (1 if self._underflow else 0) + 1), edgex, False
+                    out._checktot()
+                    return out, slice(0, cuti), edgex, False
 
-                elif self.closedlow and cmp == ">=":
+                elif self._closedlow and cmp == ">=":
                     out._edges = self._edges[edgei:]
                     out._underflow = False
                     out._nanflow = False
-                    return out, slice(edgei + (1 if self._underflow else 0), len(self._edges) + (1 if self._underflow else 0) + (1 if self._overflow else 0)), edgex, False
+                    out._checktot()
+                    return out, slice(cuti, cuti + len(out._edges) + (1 if out._overflow else 0) - 1), edgex, False
 
-                elif not self.closedlow and cmp == ">":
+                elif not self._closedlow and cmp == ">":
                     out._edges = self._edges[edgei:]
                     out._underflow = False
                     out._nanflow = False
-                    return out, slice(edgei + (1 if self._underflow else 0), len(self._edges) + (1 if self._underflow else 0) + (1 if self._overflow else 0)), edgex, False
+                    out._checktot()
+                    return out, slice(cuti, cuti + len(out._edges) + (1 if out._overflow else 0) - 1), edgex, False
 
-                elif not self.closedlow and cmp == "<=":
+                elif not self._closedlow and cmp == "<=":
                     out._edges = self._edges[:edgei + 1]
                     out._overflow = False
                     out._nanflow = False
-                    return out, slice(0, edgei + (1 if self._underflow else 0) + 1), edgex, False
+                    out._checktot()
+                    return out, slice(0, cuti), edgex, False
 
                 else:
-                    return None, None, close, True
+                    return None, None, edgex, True
             else:
-                return None, None, close, False
+                return None, None, edgex, False
         else:
             return None, None, None, False
 

@@ -214,6 +214,49 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.only("x >= 9").axis("x"), intbin("x", 9, 10, underflow=False, overflow=False))
         self.assertEqual(h.only("x >= 9")._content.tolist(), [[1], [1]])
 
+    def test_split(self):
+        h = Hist(split("x", (0, 1), underflow=True, overflow=True, closedlow=True))
+        h.fill(x=[-1, 0.5, 0.5, 2, 2, 2, numpy.nan, numpy.nan, numpy.nan, numpy.nan])
+        self.assertEqual(h._content.tolist(), [[1], [2], [3], [4]])
+        self.assertEqual(h.only("x < 0").axis("x"), split("x", 0, underflow=True, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x < 1").axis("x"), split("x", (0, 1), underflow=True, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x < 0")._content.tolist(), [[1]])
+        self.assertEqual(h.only("x < 1")._content.tolist(), [[1], [2]])
+        self.assertEqual(h.only("x >= 1").axis("x"), split("x", 1, underflow=False, overflow=True, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x >= 0").axis("x"), split("x", (0, 1), underflow=False, overflow=True, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x >= 1")._content.tolist(), [[3]])
+        self.assertEqual(h.only("x >= 0")._content.tolist(), [[2], [3]])
+
+        h = Hist(split("x", (0, 1), underflow=False, overflow=True, closedlow=True))
+        h.fill(x=[-1, 0.5, 0.5, 2, 2, 2, numpy.nan, numpy.nan, numpy.nan, numpy.nan])
+        self.assertEqual(h._content.tolist(), [[2], [3], [4]])
+        self.assertEqual(h.only("x < 1").axis("x"), split("x", (0, 1), underflow=False, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x < 1")._content.tolist(), [[2]])
+        self.assertEqual(h.only("x >= 1").axis("x"), split("x", 1, underflow=False, overflow=True, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x >= 0").axis("x"), split("x", (0, 1), underflow=False, overflow=True, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x >= 1")._content.tolist(), [[3]])
+        self.assertEqual(h.only("x >= 0")._content.tolist(), [[2], [3]])
+
+        h = Hist(split("x", (0, 1), underflow=True, overflow=False, closedlow=True))
+        h.fill(x=[-1, 0.5, 0.5, 2, 2, 2, numpy.nan, numpy.nan, numpy.nan, numpy.nan])
+        self.assertEqual(h._content.tolist(), [[1], [2], [4]])
+        self.assertEqual(h.only("x < 0").axis("x"), split("x", 0, underflow=True, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x < 1").axis("x"), split("x", (0, 1), underflow=True, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x < 0")._content.tolist(), [[1]])
+        self.assertEqual(h.only("x < 1")._content.tolist(), [[1], [2]])
+        self.assertEqual(h.only("x >= 0").axis("x"), split("x", (0, 1), underflow=False, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x >= 0")._content.tolist(), [[2]])
+
+        h = Hist(split("x", (0, 1), underflow=False, overflow=False, closedlow=True))
+        h.fill(x=[-1, 0.5, 0.5, 2, 2, 2, numpy.nan, numpy.nan, numpy.nan, numpy.nan])
+        self.assertEqual(h._content.tolist(), [[2], [4]])
+        self.assertEqual(h.only("x < 1").axis("x"), split("x", (0, 1), underflow=False, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x < 1")._content.tolist(), [[2]])
+        self.assertEqual(h.only("x >= 0").axis("x"), split("x", (0, 1), underflow=False, overflow=False, nanflow=False, closedlow=True))
+        self.assertEqual(h.only("x >= 0")._content.tolist(), [[2]])
+
+
+
     def test_groupby(self):
         h = Hist(groupby("c"))
         h.fill(c=["one", "two", "three", "two", "three", "three"])
