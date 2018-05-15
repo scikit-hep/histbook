@@ -44,7 +44,10 @@ library["numpy.equal"] = numpy.equal
 library["numpy.not_equal"] = numpy.not_equal
 library["numpy.less"] = numpy.less
 library["numpy.less_equal"] = numpy.less_equal
-library["numpy.isin"] = numpy.isin
+try:
+    library["numpy.isin"] = numpy.isin
+except AttributeError:
+    library["numpy.isin"] = numpy.in1d
 library["numpy.logical_or"] = numpy.logical_or
 library["numpy.logical_and"] = numpy.logical_and
 library["numpy.logical_not"] = numpy.logical_not
@@ -69,7 +72,14 @@ library["exp"] = numpy.exp
 library["expm1"] = numpy.expm1
 library["floor"] = numpy.floor
 library["fmod"] = numpy.fmod
-library["heaviside"] = numpy.heaviside
+try:
+    library["heaviside"] = lambda x, middle=0.5: numpy.heaviside(x, middle)
+except AttributeError:
+    def heaviside(x, middle=0.5):
+        out = numpy.where(x < 0, 0.0, 1.0)
+        out[x == 0] = middle
+        return out
+    library["heaviside"] = heaviside
 library["hypot"] = numpy.hypot
 library["isfinite"] = numpy.isfinite
 library["isinf"] = numpy.isinf
@@ -268,7 +278,7 @@ def histbook_split(underflow, overflow, nanflow, closedlow):
     def split(values, edges):
         indexes = numpy.ma.array(numpy.digitize(values, edges), dtype=INDEXTYPE)
         if not closedlow:
-            indexes[numpy.isin(values, edges)] -= 1
+            indexes[library["numpy.isin"](values, edges)] -= 1
 
         if not overflow:
             indexes[indexes == len(edges)] = numpy.ma.masked

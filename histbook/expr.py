@@ -77,6 +77,10 @@ class Expr(object):
             for n, x in defs.items():
                 if isinstance(x, Expr):
                     _defs[n] = x
+                elif sys.version_info[0] < 3 and isinstance(x, (str, unicode)):
+                    _defs[n] = Expr.parse(x)
+                elif sys.version_info[0] >= 3 and isinstance(x, str):
+                    _defs[n] = Expr.parse(x)
                 else:
                     try:
                         _defs[n] = Const(pickle.loads(pickle.dumps(x)))

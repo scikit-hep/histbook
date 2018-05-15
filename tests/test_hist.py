@@ -44,6 +44,11 @@ class TestHist(unittest.TestCase):
         h.fill(x=[0.4, 0.3, 0.3, 0.5, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0]])
 
+    def test_defs(self):
+        h = Hist(bin("y", 10, 0, 1), defs={"y": "x + 0.1"})
+        h.fill(x=[0.4, 0.3, 0.3, 0.5, 0.4, 0.8])
+        self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0]])
+
     def test_bin(self):
         h = Hist(bin("x", 10, 10, 11))
         h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8])

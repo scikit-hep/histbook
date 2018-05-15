@@ -40,6 +40,17 @@ import histbook.stmt
 import histbook.axis
 import histbook.calc
 
+class _ChainedDict(object):
+    def __init__(self, one, two):
+        self._one = one
+        self._two = two
+
+    def __getitem__(self, n):
+        if n in self._two:         # self._two is a real dict
+            return self._two[n]    # and it has precedence
+        else:
+            return self._one[n]    # self._one might only have __getitem__
+        
 class Fillable(object):
     @property
     def fields(self):
@@ -51,7 +62,7 @@ class Fillable(object):
                 x.clear()
             for x in goals:
                 x.grow(table)
-
+            
             fields = histbook.stmt.sources(goals, table)
 
             self._instructions = self._streamline(0, list(histbook.stmt.instructions(fields, goals)))
@@ -66,7 +77,11 @@ class Fillable(object):
         symbols = {}
         for instruction in self._instructions:
             if isinstance(instruction, histbook.stmt.Param):
-                array = arrays[instruction.extern]
+                try:
+                    array = arrays[instruction.extern]
+                except KeyError:
+                    raise ValueError("required field {0} not found in fill arguments".format(repr(instruction.extern)))
+
                 if not isinstance(array, numpy.ndarray):
                     array = numpy.array(array)
 
@@ -132,6 +147,12 @@ class Book(collections.MutableMapping, Fillable):
         else:
             return self._hists.keys()
 
+    def keys(self):
+        return self._hists.keys()
+
+    def values(self):
+        return self._hists.values()
+
     @property
     def _goals(self):
         return functools.reduce(set.union, (x._goals for x in self.values()))
@@ -143,7 +164,14 @@ class Book(collections.MutableMapping, Fillable):
             x._streamline(i, instructions)
         return instructions
 
-    def fill(self, **arrays):
+    def fill(self, arrays=None, **more):
+        if arrays is None:
+            arrays = more
+        elif len(more) == 0:
+            pass
+        else:
+            arrays = _ChainedDict(arrays, more)
+
         for x in self._hists.values():
             x._prefill()
         self._fill(arrays)
@@ -270,7 +298,14 @@ class Hist(Fillable):
 
         return instructions
 
-    def fill(self, **arrays):
+    def fill(self, arrays=None, **more):
+        if arrays is None:
+            arrays = more
+        elif len(more) == 0:
+            pass
+        else:
+            arrays = _ChainedDict(arrays, more)
+
         self._prefill()
         self._fill(arrays)
         self._postfill(arrays)
