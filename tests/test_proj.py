@@ -189,6 +189,31 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.only("x >= 0 and y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
         self.assertEqual(h.only("x >= 0").only("y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
 
+    def test_intbin(self):
+        h = Hist(intbin("x", 5, 10))
+        h.fill(x=range(15))
+        self.assertEqual(h._content.tolist(), [[5], [1], [1], [1], [1], [1], [1], [4]])
+        self.assertEqual(h.only("x < 6").axis("x"), intbin("x", 5, 5, overflow=False))
+        self.assertEqual(h.only("x < 6")._content.tolist(), [[5], [1]])
+        self.assertEqual(h.only("x <= 6").axis("x"), intbin("x", 5, 6, overflow=False))
+        self.assertEqual(h.only("x <= 6")._content.tolist(), [[5], [1], [1]])
+        self.assertEqual(h.only("x > 9").axis("x"), intbin("x", 10, 10, underflow=False))
+        self.assertEqual(h.only("x > 9")._content.tolist(), [[1], [4]])
+        self.assertEqual(h.only("x >= 9").axis("x"), intbin("x", 9, 10, underflow=False))
+        self.assertEqual(h.only("x >= 9")._content.tolist(), [[1], [1], [4]])
+
+        h = Hist(intbin("x", 5, 10, underflow=False, overflow=False))
+        h.fill(x=range(15))
+        self.assertEqual(h._content.tolist(), [[1], [1], [1], [1], [1], [1]])
+        self.assertEqual(h.only("x < 6").axis("x"), intbin("x", 5, 5, underflow=False, overflow=False))
+        self.assertEqual(h.only("x < 6")._content.tolist(), [[1]])
+        self.assertEqual(h.only("x <= 6").axis("x"), intbin("x", 5, 6, underflow=False, overflow=False))
+        self.assertEqual(h.only("x <= 6")._content.tolist(), [[1], [1]])
+        self.assertEqual(h.only("x > 9").axis("x"), intbin("x", 10, 10, underflow=False, overflow=False))
+        self.assertEqual(h.only("x > 9")._content.tolist(), [[1]])
+        self.assertEqual(h.only("x >= 9").axis("x"), intbin("x", 9, 10, underflow=False, overflow=False))
+        self.assertEqual(h.only("x >= 9")._content.tolist(), [[1], [1]])
+
     def test_groupby(self):
         h = Hist(groupby("c"))
         h.fill(c=["one", "two", "three", "two", "three", "three"])

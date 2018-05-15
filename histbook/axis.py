@@ -169,7 +169,7 @@ class groupbin(GroupAxis):
         return hash((self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow))
 
     def _only(self, cmp, value, content, tolerance):
-        if isinstance(value, (numbers.Real, numpy.floating)):
+        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             close = round((value - float(self._origin)) / float(self._binwidth)) * float(self._binwidth) + float(self._origin)
             if abs(value - close) < tolerance:
                 if self._closedlow and cmp == "<":
@@ -194,7 +194,7 @@ class bin(FixedAxis):
         self._low = self._real(low, "low")
         self._high = self._real(high, "high")
         if (self._numbins > 0 and self._low >= self._high) or (self._low > self._high):
-            raise ValueError("low must be less than high")
+            raise ValueError("low must not be greater than than high")
         self._underflow = self._bool(underflow, "underflow")
         self._overflow = self._bool(overflow, "overflow")
         self._nanflow = self._bool(nanflow, "nanflow")
@@ -268,7 +268,7 @@ class bin(FixedAxis):
         return hash((self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow))
 
     def _only(self, cmp, value, content, tolerance):
-        if isinstance(value, (numbers.Real, numpy.floating)):
+        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             scale = float(self._numbins) / float(self._high - self._low)
             edgenum = int(round((value - float(self._low)) * scale))
             close = min(self._numbins, max(0, edgenum)) / scale + float(self._low)
@@ -323,6 +323,11 @@ class intbin(FixedAxis):
         self._max = self._int(max, "max")
         self._underflow = self._bool(underflow, "underflow")
         self._overflow = self._bool(overflow, "overflow")
+        self._checktot()
+
+    def _checktot(self):
+        if self._min > self._max:
+            raise ValueError("min must not be greater than max")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._min), repr(self._max)]
@@ -373,6 +378,52 @@ class intbin(FixedAxis):
 
     def __hash__(self):
         return hash((self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow))
+
+    def _only(self, cmp, value, content, tolerance):
+        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
+            if value + tolerance < self._min:
+                return None, None, self._min, False
+            if value - tolerance > self._max:
+                return None, None, self._max, False
+
+            if abs(value - round(value)) < tolerance:
+                out = self.__class__.__new__(self.__class__)
+                out.__dict__.update(self.__dict__)
+
+                if cmp == "<":
+                    out._max = int(round(value)) - 1
+                    out._overflow = False
+                    out._nanflow = False
+                    out._checktot()
+                    return out, slice(None, out._max - self._min + (1 if self._underflow else 0) + 1), round(value), False
+
+                elif cmp == "<=":
+                    out._max = int(round(value))
+                    out._overflow = False
+                    out._nanflow = False
+                    out._checktot()
+                    return out, slice(None, out._max - self._min + (1 if self._underflow else 0) + 1), round(value), False
+
+                elif cmp == ">":
+                    out._min = int(round(value)) + 1
+                    out._underflow = False
+                    out._nanflow = False
+                    out._checktot()
+                    return out, slice(out._min - self._min + (1 if self._underflow else 0), None), round(value), False
+
+                elif cmp == ">=":
+                    out._min = int(round(value))
+                    out._underflow = False
+                    out._nanflow = False
+                    out._checktot()
+                    return out, slice(out._min - self._min + (1 if self._underflow else 0), None), round(value), False
+
+                else:
+                    return None, None, round(value), True
+            else:
+                return None, None, round(value), False
+        else:
+            return None, None, None, False
 
 class split(FixedAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
