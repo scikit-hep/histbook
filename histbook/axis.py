@@ -199,9 +199,12 @@ class bin(FixedAxis):
         self._overflow = self._bool(overflow, "overflow")
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
+        self._checktot()
+
+    def _checktot(self):
         if self.totbins == 0:
             raise ValueError("at least one bin is required (may be over/under/nanflow)")
-
+        
     def __repr__(self):
         args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
         if self._underflow is not True:
@@ -279,6 +282,7 @@ class bin(FixedAxis):
                     out._high = close
                     out._overflow = False
                     out._nanflow = False
+                    out._checktot()
                     return out, slice(0, edgenum + (1 if self._underflow else 0)), close, False
 
                 elif self._closedlow and cmp == ">=":
@@ -286,20 +290,23 @@ class bin(FixedAxis):
                     out._low = close
                     out._underflow = False
                     out._nanflow = False
-                    return out, slice(edgenum + (1 if self._underflow else 0), self.totbins - 1), close, False
+                    out._checktot()
+                    return out, slice(edgenum + (1 if self._underflow else 0), self._numbins + (1 if self._underflow else 0) + (1 if out._overflow else 0)), close, False
 
                 elif not self._closedlow and cmp == ">":
                     out._numbins = self._numbins - edgenum
                     out._low = close
                     out._underflow = False
                     out._nanflow = False
-                    return out, slice(edgenum + (1 if self._underflow else 0), self.totbins - 1), close, False
+                    out._checktot()
+                    return out, slice(edgenum + (1 if self._underflow else 0), self._numbins + (1 if self._underflow else 0) + (1 if out._overflow else 0)), close, False
 
                 elif not self._closedlow and cmp == "<=":
                     out._numbins = edgenum
                     out._high = close
                     out._overflow = False
                     out._nanflow = False
+                    out._checktot()
                     return out, slice(0, edgenum + (1 if self._underflow else 0)), close, False
 
                 else:
