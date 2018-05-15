@@ -44,9 +44,9 @@ class Axis(object):
             return int(x)
 
     @staticmethod
-    def _posint(x, n):
-        if not isinstance(x, (numbers.Integral, numpy.integer)) or x <= 0:
-            raise TypeError("{0} must be a positive integer".format(n))
+    def _nonnegint(x, n):
+        if not isinstance(x, (numbers.Integral, numpy.integer)) or x < 0:
+            raise TypeError("{0} must be a non-negative integer".format(n))
         else:
             return int(x)
 
@@ -95,6 +95,26 @@ class groupby(GroupAxis):
 
     def __hash__(self):
         return hash((self.__class__, self._expr))
+
+    def _only(self, cmp, value, content, tolerance):
+        if cmp == "==":
+            return self, lambda x: x == value, None, False
+        elif cmp == "!=":
+            return self, lambda x: x != value, None, False
+        elif cmp == "<":
+            return self, lambda x: x < value, None, False
+        elif cmp == "<=":
+            return self, lambda x: x <= value, None, False
+        elif cmp == ">":
+            return self, lambda x: x > value, None, False
+        elif cmp == ">=":
+            return self, lambda x: x >= value, None, False
+        elif cmp == "in":
+            return self, lambda x: x in value, None, False
+        elif cmp == "not in":
+            return self, lambda x: x not in value, None, False
+        else:
+            raise AssertionError(cmp)
 
 class groupbin(GroupAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
@@ -148,16 +168,39 @@ class groupbin(GroupAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow))
 
+    def _only(self, cmp, value, content, tolerance):
+        if isinstance(value, (numbers.Real, numpy.floating)):
+            close = round((value - float(self._origin)) / float(self._binwidth)) * float(self._binwidth) + float(self._origin)
+            if abs(value - close) < tolerance:
+                if self._closedlow and cmp == "<":
+                    return self, lambda x: x < close, close, False
+                elif self._closedlow and cmp == ">=":
+                    return self, lambda x: x >= close, close, False
+                elif not self._closedlow and cmp == ">":
+                    return self, lambda x: x >= close, close, False
+                elif not self._closedlow and cmp == "<=":
+                    return self, lambda x: x < close, close, False
+                else:
+                    return None, None, close, True
+            else:
+                return None, None, close, False
+        else:
+            return None, None, None, False
+
 class bin(FixedAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
-        self._numbins = self._posint(numbins, "numbins")
+        self._numbins = self._nonnegint(numbins, "numbins")
         self._low = self._real(low, "low")
         self._high = self._real(high, "high")
+        if (self._numbins > 0 and self._low >= self._high) or (self._low > self._high):
+            raise ValueError("low must be less than high")
         self._underflow = self._bool(underflow, "underflow")
         self._overflow = self._bool(overflow, "overflow")
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
+        if self.totbins == 0:
+            raise ValueError("at least one bin is required (may be over/under/nanflow)")
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
@@ -221,6 +264,51 @@ class bin(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow))
 
+    def _only(self, cmp, value, content, tolerance):
+        if isinstance(value, (numbers.Real, numpy.floating)):
+            scale = float(self._numbins) / float(self._high - self._low)
+            edgenum = int(round((value - float(self._low)) * scale))
+            close = min(self._numbins, max(0, edgenum)) / scale + float(self._low)
+
+            if abs(value - close) < tolerance:
+                out = self.__class__.__new__(self.__class__)
+                out.__dict__.update(self.__dict__)
+
+                if self._closedlow and cmp == "<":
+                    out._numbins = edgenum
+                    out._high = close
+                    out._overflow = False
+                    out._nanflow = False
+                    return out, slice(0, edgenum + (1 if self._underflow else 0)), close, False
+
+                elif self._closedlow and cmp == ">=":
+                    out._numbins = self._numbins - edgenum
+                    out._low = close
+                    out._underflow = False
+                    out._nanflow = False
+                    return out, slice(edgenum + (1 if self._underflow else 0), self.totbins - 1), close, False
+
+                elif not self._closedlow and cmp == ">":
+                    out._numbins = self._numbins - edgenum
+                    out._low = close
+                    out._underflow = False
+                    out._nanflow = False
+                    return out, slice(edgenum + (1 if self._underflow else 0), self.totbins - 1), close, False
+
+                elif not self._closedlow and cmp == "<=":
+                    out._numbins = edgenum
+                    out._high = close
+                    out._overflow = False
+                    out._nanflow = False
+                    return out, slice(0, edgenum + (1 if self._underflow else 0)), close, False
+
+                else:
+                    return None, None, close, True
+            else:
+                return None, None, close, False
+        else:
+            return None, None, None, False
+            
 class intbin(FixedAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr

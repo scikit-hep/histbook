@@ -236,9 +236,6 @@ class Hist(Fillable, histbook.proj.Projectable):
         return out
 
     def __init__(self, *axis, **opts):
-        if len(axis) == 0:
-            raise TypeError("Hist must have at least one axis")
-
         weight = opts.pop("weight", None)
         defs = opts.pop("defs", {})
         if len(opts) > 0:
@@ -306,6 +303,12 @@ class Hist(Fillable, histbook.proj.Projectable):
             self._shape[-1] += 2
             dest([histbook.stmt.CallGraphGoal(self._weightparsed),
                   histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
+
+        self._group = tuple(self._group)
+        self._fixed = tuple(self._fixed)
+        self._profile = tuple(self._profile)
+        if len(self._fixed) == 0:
+            raise TypeError("Hist must have at least one fixed-size axis")
 
         self._weight = weight
         self._shape = tuple(self._shape)
@@ -527,7 +530,19 @@ class Hist(Fillable, histbook.proj.Projectable):
         if histbook.axis.groupby(by) in axis:
             raise ValueError("groupby({0}) already exists in these histograms; use hist.togroup(other) to add to a group".format(repr(by)))
 
-        out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in self._group + self._fixed + self._profile]), weight=self._weight, defs=self._defs)
+        weight = None
+        for x in hists.values():
+            if weight is None:
+                weight = x._weight
+            elif weight != x._weight:
+                weight = None
+                break
+
+        defs = {}
+        for x in hists.values():
+            defs.update(x._defs)
+
+        out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in self._group + self._fixed + self._profile]), weight=weight, defs=defs)
         for n, x in hists.items():
             out._content[n] = Hist._copycontent(x._content)
         return out
