@@ -35,10 +35,11 @@ import sys
 import numpy
 COUNTTYPE = numpy.float64
 
-import histbook.expr
-import histbook.stmt
 import histbook.axis
 import histbook.calc
+import histbook.expr
+import histbook.proj
+import histbook.stmt
 
 class _ChainedDict(object):
     def __init__(self, one, two):
@@ -105,12 +106,6 @@ class Fillable(object):
 
             else:
                 raise AssertionError(instruction)
-
-class Projectable(object):
-    pass
-
-
-
 
 class Book(collections.MutableMapping, Fillable):
     def __init__(self, hists={}, **keywords):
@@ -221,7 +216,7 @@ class Book(collections.MutableMapping, Fillable):
             out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
         return out
 
-class Hist(Fillable, Projectable):
+class Hist(Fillable, histbook.proj.Projectable):
     def weight(self, expr):
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
 
