@@ -189,5 +189,14 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.only("x >= 0 and y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
         self.assertEqual(h.only("x >= 0").only("y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
 
-    # def test_groupby(self):
-    #     h = Hist(groupby(), bin())
+    def test_groupby(self):
+        h = Hist(groupby("c"))
+        h.fill(c=["one", "two", "three", "two", "three", "three"])
+        self.assertEqual(set(h.only("c == 'two'")._content.keys()), set(["two"]))
+        self.assertEqual(set(h.only("c in {'two', 'three'}")._content.keys()), set(["two", "three"]))
+
+        h = Hist(groupby("c"), bin("x", 4, -1, 1, underflow=False, overflow=False, nanflow=False))
+        h.fill(c=["one", "two", "three", "two", "three", "three"], x=[0, 0, 0, 0, 0, 0])
+        self.assertEqual(h.only("c == 'two'")._content["two"].tolist(), [[0], [0], [2], [0]])
+        self.assertEqual(h.only("c == 'two' and x >= 0")._content["two"].tolist(), [[2], [0]])
+        self.assertEqual(h.only("x >= 0 and c == 'two'")._content["two"].tolist(), [[2], [0]])
