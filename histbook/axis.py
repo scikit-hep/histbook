@@ -434,6 +434,8 @@ class split(FixedAxis):
             if len(edges) < 1 or not all(isinstance(x, (numbers.Real, numpy.floating)) for x in edges):
                 raise TypeError("edges must be a non-empty list of real numbers")
             self._edges = tuple(sorted(float(x) for x in edges),)
+        if len(self._edges) != len(set(self._edges)):
+            raise ValueError("edges must all be distinct")
         self._underflow = self._bool(underflow, "underflow")
         self._overflow = self._bool(overflow, "overflow")
         self._nanflow = self._bool(nanflow, "nanflow")
@@ -497,6 +499,45 @@ class split(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow))
             
+    def _only(self, cmp, value, content, tolerance):
+        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
+            dist, edgex, edgei = sorted(((abs(value - x), x, i) for i, x in enumerate(self._edges)), reverse=True)[0]
+
+            if dist < tolerance:
+                out = self.__class__.__new__(self.__class__)
+                out.__dict__.update(self.__dict__)
+
+                if self.closedlow and cmp == "<":
+                    out._edges = self._edges[:edgei + 1]
+                    out._overflow = False
+                    out._nanflow = False
+                    return out, slice(0, edgei + (1 if self._underflow else 0) + 1), edgex, False
+
+                elif self.closedlow and cmp == ">=":
+                    out._edges = self._edges[edgei:]
+                    out._underflow = False
+                    out._nanflow = False
+                    return out, slice(edgei + (1 if self._underflow else 0), len(self._edges) + (1 if self._underflow else 0) + (1 if self._overflow else 0)), edgex, False
+
+                elif not self.closedlow and cmp == ">":
+                    out._edges = self._edges[edgei:]
+                    out._underflow = False
+                    out._nanflow = False
+                    return out, slice(edgei + (1 if self._underflow else 0), len(self._edges) + (1 if self._underflow else 0) + (1 if self._overflow else 0)), edgex, False
+
+                elif not self.closedlow and cmp == "<=":
+                    out._edges = self._edges[:edgei + 1]
+                    out._overflow = False
+                    out._nanflow = False
+                    return out, slice(0, edgei + (1 if self._underflow else 0) + 1), edgex, False
+
+                else:
+                    return None, None, close, True
+            else:
+                return None, None, close, False
+        else:
+            return None, None, None, False
+
 class cut(FixedAxis):
     def __init__(self, expr):
         self._expr = expr
