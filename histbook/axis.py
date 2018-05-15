@@ -582,6 +582,50 @@ class cut(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr))
 
+    def _only(self, cmp, value, content, tolerance):
+        if isinstance(value, (bool, numpy.bool, numpy.bool_)):
+            if cmp == "==" and value == True:
+                return nullaxis(), slice(1, 2), None, False
+
+            elif cmp == "!=" and value == False:
+                return nullaxis(), slice(0, 1), None, False
+
+            else:
+                return None, None, None, True
+        else:
+            return None, None, None, False
+            
+class nullaxis(FixedAxis):
+    def __repr__(self):
+        return "nullaxis()"
+
+    @property
+    def expr(self):
+        return histbook.expr.Const(None)
+
+    def relabel(self, label):
+        return self
+
+    @property
+    def numbins(self):
+        return 1
+
+    @property
+    def totbins(self):
+        return self.numbins
+
+    def _goals(self, parsed=None):
+        return []
+
+    def __eq__(self, other):
+        return self.__class__ is other.__class__
+
+    def __hash__(self):
+        return hash((self.__class__,))
+
+    def _only(self, cmp, value, content, tolerance):
+        return None, None, None, False
+
 class profile(ProfileAxis):
     def __init__(self, expr):
         self._expr = expr
