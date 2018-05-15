@@ -307,8 +307,6 @@ class Hist(Fillable, histbook.proj.Projectable):
         self._group = tuple(self._group)
         self._fixed = tuple(self._fixed)
         self._profile = tuple(self._profile)
-        if len(self._fixed) == 0:
-            raise TypeError("Hist must have at least one fixed-size axis")
 
         self._weight = weight
         self._shape = tuple(self._shape)
@@ -363,6 +361,7 @@ class Hist(Fillable, histbook.proj.Projectable):
     def _postfill(self, arrays):
         j = len(self._group)
         step = 0
+        indexes = None
         for axis in self._fixed:
             if step == 0:
                 indexes = self._destination[0][j]
@@ -395,6 +394,8 @@ class Hist(Fillable, histbook.proj.Projectable):
 
         def fillblock(content, indexes, axissumx, axissumx2, weight, weight2):
             for sumx, sumx2, axis in zip(axissumx, axissumx2, self._profile):
+                if indexes is None:
+                    indexes = numpy.ma.zeros(len(sumx), dtype=histbook.calc.INDEXTYPE)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwxindex], indexes.compressed(), sumx * weight)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
 
@@ -406,6 +407,8 @@ class Hist(Fillable, histbook.proj.Projectable):
                     selection = numpy.bitwise_not(selection)
                     weight = weight[selection]
                     weight2 = weight2[selection]
+                if indexes is None:
+                    indexes = numpy.ma.zeros(len(weight), dtype=histbook.calc.INDEXTYPE)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), weight2)
 
@@ -426,8 +429,11 @@ class Hist(Fillable, histbook.proj.Projectable):
                             content[unique] = {}
 
                     subcontent = content[unique]
-                    numpy.bitwise_or(antiselection, numpy.ma.getmaskarray(indexes), antiselection)
-                    subindexes = numpy.ma.array(data=numpy.ma.getdata(indexes), mask=antiselection)
+                    if indexes is None:
+                        subindexes = numpy.ma.zeros(numpy.count_nonzero(selection), dtype=histbook.calc.INDEXTYPE)
+                    else:
+                        numpy.bitwise_or(antiselection, numpy.ma.getmaskarray(indexes), antiselection)
+                        subindexes = numpy.ma.array(data=numpy.ma.getdata(indexes), mask=antiselection)
                     subaxissumx = [x[selection] for x in axissumx]
                     subaxissumx2 = [x[selection] for x in axissumx2]
                     if weight2 is None:

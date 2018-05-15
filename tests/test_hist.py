@@ -49,6 +49,33 @@ class TestHist(unittest.TestCase):
         h.fill(x=[0.4, 0.3, 0.3, 0.5, 0.4, 0.8])
         self.assertEqual(h._content.tolist(), [[0], [0], [0], [0], [0], [2], [2], [1], [0], [0], [1], [0], [0]])
 
+    def test_nofixed(self):
+        h = Hist(groupby("c"))
+        h.fill(c=["one", "two", "one", "one", "one"])
+        self.assertEqual(h._content["one"].tolist(), [4])
+        self.assertEqual(h._content["two"].tolist(), [1])
+
+        h = Hist(groupby("c"), profile("x"))
+        h.fill(c=["one", "two", "one", "one", "one"], x=[3, 2, 3, 5, 5])
+        self.assertEqual(h._content["one"].tolist(), [16, 68, 4])
+        self.assertEqual(h._content["two"].tolist(), [2, 4, 1])
+
+        h = Hist(profile("x"))
+        h.fill(x=[3, 3, 5, 5])
+        self.assertEqual(h._content.tolist(), [16, 68, 4])
+
+        h = Hist(weight="x")
+        h.fill(x=[3, 3, 5, 5])
+        self.assertEqual(h._content.tolist(), [16, 68])
+
+        h = Hist(profile("y"), weight="x")
+        h.fill(x=[2], y=[3])
+        self.assertEqual(h._content.tolist(), [6, 18, 2, 4])
+
+        h = Hist(bin("y", 1, -100, 100, underflow=False, overflow=False, nanflow=False), profile("y"), weight="x")
+        h.fill(x=[2], y=[3])
+        self.assertEqual(h._content.tolist(), [[6, 18, 2, 4]])
+
     def test_bin(self):
         h = Hist(bin("x", 10, 10, 11))
         h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8])
@@ -377,9 +404,6 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content[10.0]["one"].tolist(), [[0], [1], [0], [0]])
         self.assertEqual(h._content[10.0]["two"].tolist(), [[0], [0], [1], [0]])
         self.assertEqual(h._content[20.0]["two"].tolist(), [[0], [0], [0], [1]])
-
-    def test_empty(self):
-        self.assertRaises(TypeError, lambda: Hist())
 
     def test_book(self):
         b = Book()

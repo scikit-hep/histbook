@@ -188,3 +188,6 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.only("y >= 0")._content.tolist(), [[[0], [0]], [[0], [0]], [[4], [3]], [[2], [1]]])
         self.assertEqual(h.only("x >= 0 and y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
         self.assertEqual(h.only("x >= 0").only("y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
+
+    # def test_groupby(self):
+    #     h = Hist(groupby(), bin())
