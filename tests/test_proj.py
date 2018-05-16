@@ -295,11 +295,23 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.only("x > 0").axis("x"), split("x", (0, 1), underflow=False, overflow=False, nanflow=False, closedlow=False))
         self.assertEqual(h.only("x > 0")._content.tolist(), [[2]])
 
+    def test_cut(self):
+        h = Hist(cut("p"))
+        h.fill(p=[True, True, False])
+        self.assertEqual(h._content.tolist(), [[1], [2]])
+        self.assertEqual(h.only("p")._content.tolist(), [[2]])
+        self.assertEqual(h.only("not p")._content.tolist(), [[1]])
+
     def test_groupby(self):
         h = Hist(groupby("c"))
         h.fill(c=["one", "two", "three", "two", "three", "three"])
         self.assertEqual(set(h.only("c == 'two'")._content.keys()), set(["two"]))
         self.assertEqual(set(h.only("c in {'two', 'three'}")._content.keys()), set(["two", "three"]))
+        self.assertEqual(set(h.only("c > 'one'")._content.keys()), set(["two", "three"]))  # (alphabetically)
+        self.assertEqual(set(h.only("c != 'two'")._content.keys()), set(["one", "three"]))
+        self.assertEqual(set(h.only("not c == 'two'")._content.keys()), set(["one", "three"]))
+        self.assertEqual(set(h.only("c != 'two' and c != 'three'")._content.keys()), set(["one"]))
+        self.assertEqual(set(h.only("c == 'two' or c == 'three'")._content.keys()), set(["two", "three"]))
 
         h = Hist(groupby("c"), bin("x", 4, -1, 1, underflow=False, overflow=False, nanflow=False))
         h.fill(c=["one", "two", "three", "two", "three", "three"], x=[0, 0, 0, 0, 0, 0])
@@ -325,3 +337,8 @@ class TestProj(unittest.TestCase):
         self.assertEqual(set(h.only("x <= 20")._content.keys()), set([0.0, 10.0]))
         self.assertEqual(h.only("x <= 20")._content[0.0].tolist(), [1])
         self.assertEqual(h.only("x <= 20")._content[10.0].tolist(), [3])
+
+        h = Hist(groupbin("x", 10))
+        h.fill(x=[15, 25, 25, 35, 35, 35])
+        self.assertEqual(set(h._content.keys()), set([10.0, 20.0, 30.0]))
+        self.assertEqual(set(h.only("x < 20 or x >= 30")._content.keys()), set([10.0, 30.0]))

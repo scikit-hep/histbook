@@ -55,46 +55,97 @@ class Projectable(object):
             return self._only(expr, tolerance)
 
     def _only(self, expr, tolerance):
-        cutexpr = expr
-        if not isinstance(expr, (histbook.expr.Relation, histbook.expr.Logical)):
+        if not isinstance(expr, (histbook.expr.Relation, histbook.expr.Logical, histbook.expr.Predicate, histbook.expr.Name)):
             raise TypeError("selection expression must be boolean, not {0}".format(repr(str(expr))))
 
-        if isinstance(cutexpr, histbook.expr.Relation):
-            cutcmp = cutexpr.cmp
-            if isinstance(cutexpr.left, histbook.expr.Const):
-                cutvalue, cutexpr = cutexpr.left, cutexpr.right
-                cutcmp = {"<": ">", "<=": ">="}.get(cutcmp, cutcmp)
+        def normalizeexpr(expr):
+            if isinstance(expr, histbook.expr.Relation):
+                cutcmp = expr.cmp
+                if isinstance(expr.left, histbook.expr.Const):
+                    cutvalue, cutexpr = expr.left, expr.right
+                    cutcmp = {"<": ">", "<=": ">="}.get(cutcmp, cutcmp)
+                else:
+                    cutexpr, cutvalue = expr.left, expr.right
+
+                if not isinstance(cutvalue, histbook.expr.Const):
+                    raise TypeError("selection expression must have a constant left or right hand side, not {0}".format(repr(str(expr))))
+                if isinstance(cutexpr, histbook.expr.Const):
+                    raise TypeError("selection expression must have a variable left or right hand side, not {0}".format(repr(str(expr))))
+
+                cutvalue = cutvalue.value   # unbox to Python
+
+            elif isinstance(expr, histbook.expr.Predicate):
+                if expr.positive:
+                    cutexpr = histbook.expr.Name(expr.value)
+                    cutcmp = "=="
+                    cutvalue = True
+                else:
+                    cutexpr = histbook.expr.Name(expr.value)
+                    cutcmp = "!="
+                    cutvalue = True
+
             else:
-                cutexpr, cutvalue = cutexpr.left, cutexpr.right
+                cutexpr = expr
+                cutcmp = "=="
+                cutvalue = True
 
-            if not isinstance(cutvalue, histbook.expr.Const):
-                raise TypeError("selection expression must have a constant left or right hand side, not {0}".format(repr(str(expr))))
-            if isinstance(cutexpr, histbook.expr.Const):
-                raise TypeError("selection expression must have a variable left or right hand side, not {0}".format(repr(str(expr))))
+            return cutexpr, cutcmp, cutvalue
 
-            cutvalue = cutvalue.value   # unbox to Python
-
-        else:
-            cutcmp = "=="
-            cutvalue = True
+        cutexpr, cutcmp, cutvalue = normalizeexpr(expr)
 
         out = self.__class__.__new__(self.__class__)
         out.__dict__.update(self.__dict__)
 
-        closest, closestaxis, wrongcmpaxis = None, None, None
         allaxis = self._group + self._fixed
-        for axis in allaxis:
+
+        def logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis):
+            if isinstance(axis, (histbook.axis.groupby, histbook.axis.groupbin)) and isinstance(cutexpr, histbook.expr.LogicalOr):
+                good = True
+                orslice = None
+                for andexpr in cutexpr.args:
+                    andslice = None
+                    for expr in andexpr.args:
+                        expr, cmp, value = normalizeexpr(expr)
+                        check, _, slice1, _, _ = logical(expr, cmp, value, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis)
+                        if check is None:
+                            good = False
+                            break
+                        elif andslice is None:
+                            andslice = slice1
+                        else:
+                            slice2 = andslice
+                            andslice = lambda x: slice1(x) and slice2(x)
+
+                    if not good:
+                        break
+                    elif orslice is None:
+                        orslice = andslice
+                    else:
+                        slice1 = andslice
+                        slice2 = orslice
+                        orslice = lambda x: slice1(x) or slice2(x)
+
+                if good:
+                    return axis, axis, orslice, None, None
+
             if cutexpr == axis._parsed:
                 newaxis, cutslice, close, wrongcmp = axis._only(cutcmp, cutvalue, out._content, tolerance)
                 if newaxis is not None:
                     cutaxis = axis
-                    break
-                if close is not None and (closest is None or abs(cutvalue - close) < abs(cutvalue - closest)):
-                    closest = close
-                    closestaxis = axis
-                if wrongcmp:
-                    wrongcmpaxis = axis
+                else:
+                    if close is not None and (closest is None or abs(cutvalue - close) < abs(cutvalue - closest)):
+                        closest = close
+                        closestaxis = axis
+                    if wrongcmp:
+                        wrongcmpaxis = axis
 
+            return cutaxis, newaxis, cutslice, closest, wrongcmpaxis
+
+        cutaxis, newaxis, cutslice, closest, wrongcmpaxis = None, None, None, None, None
+        for axis in allaxis:
+            cutaxis, newaxis, cutslice, closest, wrongcmpaxis = logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis)
+            if cutaxis is not None:
+                break
         else:
             if wrongcmpaxis is not None:
                 raise ValueError("no axis can select {0} (axis {1} has the wrong inequality; low edges are {2})".format(repr(str(expr)), wrongcmpaxis, "closed" if wrongcmpaxis.closedlow else "open"))

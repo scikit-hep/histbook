@@ -318,9 +318,10 @@ class TestHist(unittest.TestCase):
         for underflow in (False, True):
             for overflow in (False, True):
                 for nanflow in (False, True):
-                    h = Hist(split("x", 3, underflow=underflow, overflow=overflow, nanflow=nanflow))
-                    h.fill(x=[numpy.nan, 1, 2, 3, 4, 5, 6])
-                    self.assertEqual(h._content.tolist(), (under if underflow else []) + (over if overflow else []) + (nan if nanflow else []))
+                    if underflow or overflow or nanflow:
+                        h = Hist(split("x", 3, underflow=underflow, overflow=overflow, nanflow=nanflow))
+                        h.fill(x=[numpy.nan, 1, 2, 3, 4, 5, 6])
+                        self.assertEqual(h._content.tolist(), (under if underflow else []) + (over if overflow else []) + (nan if nanflow else []))
 
         under = [[2]]
         over = [[1]]

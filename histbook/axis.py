@@ -584,20 +584,20 @@ class cut(FixedAxis):
 
     def _only(self, cmp, value, content, tolerance):
         if isinstance(value, (bool, numpy.bool, numpy.bool_)):
-            if cmp == "==" and value == True:
-                return nullaxis(), slice(1, 2), None, False
+            if (cmp == "==" and value == True) or (cmp == "!=" and value == False):
+                return _nullaxis(), slice(1, 2), None, False
 
-            elif cmp == "!=" and value == False:
-                return nullaxis(), slice(0, 1), None, False
+            elif (cmp == "==" and value == False) or (cmp == "!=" and value == True):
+                return _nullaxis(), slice(0, 1), None, False
 
             else:
                 return None, None, None, True
         else:
             return None, None, None, False
             
-class nullaxis(FixedAxis):
+class _nullaxis(FixedAxis):
     def __repr__(self):
-        return "nullaxis()"
+        return "_nullaxis()"
 
     @property
     def expr(self):
