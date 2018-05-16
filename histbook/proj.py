@@ -98,15 +98,15 @@ class Projectable(object):
 
         allaxis = self._group + self._fixed
 
-        def logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis):
+        def logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, closestaxis, wrongcmpaxis):
             if isinstance(axis, (histbook.axis.groupby, histbook.axis.groupbin)) and isinstance(cutexpr, histbook.expr.LogicalOr):
                 good = True
                 orslice = None
                 for andexpr in cutexpr.args:
                     andslice = None
-                    for expr in andexpr.args:
-                        expr, cmp, value = normalizeexpr(expr)
-                        check, _, slice1, _, _ = logical(expr, cmp, value, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis)
+                    for xpr in andexpr.args:
+                        xpr, cmp, value = normalizeexpr(xpr)
+                        check, _, slice1, _, _, _ = logical(xpr, cmp, value, axis, cutaxis, newaxis, cutslice, closest, closestaxis, wrongcmpaxis)
                         if check is None:
                             good = False
                             break
@@ -126,7 +126,12 @@ class Projectable(object):
                         orslice = lambda x: slice1(x) or slice2(x)
 
                 if good:
-                    return axis, axis, orslice, None, None
+                    return axis, axis, orslice, None, None, None
+
+            if isinstance(axis, histbook.axis.cut) and expr == axis._parsed:
+                newaxis, cutslice, close, wrongcmp = axis._only("==", True, out._content, tolerance)
+                if newaxis is not None:
+                    return axis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis
 
             if cutexpr == axis._parsed:
                 newaxis, cutslice, close, wrongcmp = axis._only(cutcmp, cutvalue, out._content, tolerance)
@@ -139,11 +144,11 @@ class Projectable(object):
                     if wrongcmp:
                         wrongcmpaxis = axis
 
-            return cutaxis, newaxis, cutslice, closest, wrongcmpaxis
+            return cutaxis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis
 
-        cutaxis, newaxis, cutslice, closest, wrongcmpaxis = None, None, None, None, None
+        cutaxis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis = None, None, None, None, None, None
         for axis in allaxis:
-            cutaxis, newaxis, cutslice, closest, wrongcmpaxis = logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis)
+            cutaxis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis = logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis)
             if cutaxis is not None:
                 break
         else:
@@ -168,6 +173,7 @@ class Projectable(object):
                 return content[tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))].copy()
 
         out._group = tuple(newaxis if x is cutaxis else x for x in self._group)
-        out._fixed = tuple(newaxis if x is cutaxis else x for x in self._fixed)
+        out._fixed = tuple(y for y in [newaxis if x is cutaxis else x for x in self._fixed] if not isinstance(y, histbook.axis._nullaxis))
+        out._shape = tuple([newaxis.totbins if x is cutaxis else x for x in out._fixed] + [self._shape[-1]])
         out._content = cutcontent(0, self._content)
         return out

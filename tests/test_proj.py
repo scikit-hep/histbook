@@ -301,6 +301,15 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h._content.tolist(), [[1], [2]])
         self.assertEqual(h.only("p")._content.tolist(), [[2]])
         self.assertEqual(h.only("not p")._content.tolist(), [[1]])
+        self.assertEqual(h.only("p")._fixed, ())
+        self.assertEqual(h.only("p")._shape, (1,))
+        self.assertEqual(h.only("not p")._fixed, ())
+        self.assertEqual(h.only("not p")._shape, (1,))
+
+        h = Hist(cut("x > 5"))
+        h.fill(x=[8, 7, 3])
+        self.assertEqual(h._content.tolist(), [[1], [2]])
+        self.assertEqual(h.only("x > 5")._content.tolist(), [[2]])
 
     def test_groupby(self):
         h = Hist(groupby("c"))
@@ -327,6 +336,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h._content[20.0].tolist(), [2])
         self.assertEqual(set(h.only("x < 20")._content.keys()), set([10.0]))
         self.assertEqual(h.only("x < 20")._content[10.0].tolist(), [3])
+        self.assertEqual(h.only("not x >= 20")._content[10.0].tolist(), [3])
 
         h = Hist(groupbin("x", 10, closedlow=False))
         h.fill(x=[10, 15, 18, 20, 25])
@@ -337,6 +347,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(set(h.only("x <= 20")._content.keys()), set([0.0, 10.0]))
         self.assertEqual(h.only("x <= 20")._content[0.0].tolist(), [1])
         self.assertEqual(h.only("x <= 20")._content[10.0].tolist(), [3])
+        self.assertEqual(h.only("not x > 20")._content[10.0].tolist(), [3])
 
         h = Hist(groupbin("x", 10))
         h.fill(x=[15, 25, 25, 35, 35, 35])
