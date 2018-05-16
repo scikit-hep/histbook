@@ -96,7 +96,7 @@ class groupby(GroupAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr))
 
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         if cmp == "==":
             return self, lambda x: x == value, None, False
         elif cmp == "!=":
@@ -168,7 +168,7 @@ class groupbin(GroupAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow))
 
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             close = round((value - float(self._origin)) / float(self._binwidth)) * float(self._binwidth) + float(self._origin)
             if abs(value - close) < tolerance:
@@ -267,7 +267,7 @@ class bin(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow))
 
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             scale = float(self._numbins) / float(self._high - self._low)
             edgenum = int(round((value - float(self._low)) * scale))
@@ -379,7 +379,7 @@ class intbin(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow))
 
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             if value + tolerance < self._min:
                 return None, None, self._min, False
@@ -504,7 +504,7 @@ class split(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow))
             
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             dist, edgex, edgei = sorted((abs(value - x), x, i) for i, x in enumerate(self._edges))[0]
 
@@ -582,7 +582,7 @@ class cut(FixedAxis):
     def __hash__(self):
         return hash((self.__class__, self._expr))
 
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         if isinstance(value, (bool, numpy.bool, numpy.bool_)):
             if (cmp == "==" and value == True) or (cmp == "!=" and value == False):
                 return _nullaxis(), slice(1, 2), None, False
@@ -623,7 +623,7 @@ class _nullaxis(FixedAxis):
     def __hash__(self):
         return hash((self.__class__,))
 
-    def _only(self, cmp, value, content, tolerance):
+    def _select(self, cmp, value, content, tolerance):
         return None, None, None, False
 
 class profile(ProfileAxis):

@@ -39,24 +39,24 @@ class Projectable(object):
                 return axis
         raise ValueError("no such axis: {0}".format(repr(str(expr))))
 
-    def only(self, expr, tolerance=1e-12):
+    def select(self, expr, tolerance=1e-12):
         expr = histbook.expr.Expr.parse(expr, defs=self._defs)
 
         if isinstance(expr, histbook.expr.LogicalAnd):
             out = None
             for arg in expr.args:
                 if out is None:
-                    out = self._only(arg, tolerance)
+                    out = self._select(arg, tolerance)
                 else:
-                    out = out._only(arg, tolerance)
+                    out = out._select(arg, tolerance)
             return out
 
         else:
-            return self._only(expr, tolerance)
+            return self._select(expr, tolerance)
 
-    def _only(self, expr, tolerance):
+    def _select(self, expr, tolerance):
         if not isinstance(expr, (histbook.expr.Relation, histbook.expr.Logical, histbook.expr.Predicate, histbook.expr.Name)):
-            raise TypeError("selection expression must be boolean, not {0}".format(repr(str(expr))))
+            raise TypeError("select expression must be boolean, not {0}".format(repr(str(expr))))
 
         def normalizeexpr(expr):
             if isinstance(expr, histbook.expr.Relation):
@@ -68,9 +68,9 @@ class Projectable(object):
                     cutexpr, cutvalue = expr.left, expr.right
 
                 if not isinstance(cutvalue, histbook.expr.Const):
-                    raise TypeError("selection expression must have a constant left or right hand side, not {0}".format(repr(str(expr))))
+                    raise TypeError("select expression must have a constant left or right hand side, not {0}".format(repr(str(expr))))
                 if isinstance(cutexpr, histbook.expr.Const):
-                    raise TypeError("selection expression must have a variable left or right hand side, not {0}".format(repr(str(expr))))
+                    raise TypeError("select expression must have a variable left or right hand side, not {0}".format(repr(str(expr))))
 
                 cutvalue = cutvalue.value   # unbox to Python
 
@@ -129,12 +129,12 @@ class Projectable(object):
                     return axis, axis, orslice, None, None, None
 
             if isinstance(axis, histbook.axis.cut) and expr == axis._parsed:
-                newaxis, cutslice, close, wrongcmp = axis._only("==", True, out._content, tolerance)
+                newaxis, cutslice, close, wrongcmp = axis._select("==", True, out._content, tolerance)
                 if newaxis is not None:
                     return axis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis
 
             if cutexpr == axis._parsed:
-                newaxis, cutslice, close, wrongcmp = axis._only(cutcmp, cutvalue, out._content, tolerance)
+                newaxis, cutslice, close, wrongcmp = axis._select(cutcmp, cutvalue, out._content, tolerance)
                 if newaxis is not None:
                     cutaxis = axis
                 else:
