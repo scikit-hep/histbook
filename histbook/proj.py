@@ -28,16 +28,45 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import numbers
+
+import numpy
+
 import histbook.axis
 import histbook.expr
 
+class Axis(tuple):
+    def __getitem__(self, item):
+        if isinstance(item, (numbers.Integral, numpy.integer)):
+            return super(Axis, self).__getitem__(item)
+        else:
+            expr = histbook.expr.Expr.parse(item, defs=self._defs)
+            for axis in self:
+                if expr == axis._parsed:
+                    return axis
+            raise IndexError("no such axis: {0}".format(repr(str(expr))))
+
 class Projectable(object):
-    def axis(self, expr):
-        expr = histbook.expr.Expr.parse(expr, defs=self._defs)
-        for axis in self._group + self._fixed + self._profile:
-            if expr == axis._parsed:
-                return axis
-        raise ValueError("no such axis: {0}".format(repr(str(expr))))
+    @property
+    def axis(self):
+        out = Axis(self._group + self._fixed + self._profile)
+        out._defs = self._defs
+        return out
+
+    def project(self, *axis):
+        axis = [x if isinstance(x, histbook.axis.Axis) else self.axis(x) for x in axis]
+        for x in axis:
+            if x not in self._group + self._fixed + self._profile:
+                raise IndexError("no such axis: {0}".format(x))
+
+        out = self.__class__(*[x.relabel(x._original) for x in axis], weight=self._weight, defs=self._defs)
+
+
+
+
+
+
+
 
     def select(self, expr, tolerance=1e-12):
         expr = histbook.expr.Expr.parse(expr, defs=self._defs)
@@ -93,9 +122,6 @@ class Projectable(object):
 
         cutexpr, cutcmp, cutvalue = normalizeexpr(expr)
 
-        out = self.__class__.__new__(self.__class__)
-        out.__dict__.update(self.__dict__)
-
         allaxis = self._group + self._fixed
 
         def logical(cutexpr, cutcmp, cutvalue, axis, cutaxis, newaxis, cutslice, closest, closestaxis, wrongcmpaxis):
@@ -129,12 +155,12 @@ class Projectable(object):
                     return axis, axis, orslice, None, None, None
 
             if isinstance(axis, histbook.axis.cut) and expr == axis._parsed:
-                newaxis, cutslice, close, wrongcmp = axis._select("==", True, out._content, tolerance)
+                newaxis, cutslice, close, wrongcmp = axis._select("==", True, tolerance)
                 if newaxis is not None:
                     return axis, newaxis, cutslice, closest, wrongcmpaxis, closestaxis
 
             if cutexpr == axis._parsed:
-                newaxis, cutslice, close, wrongcmp = axis._select(cutcmp, cutvalue, out._content, tolerance)
+                newaxis, cutslice, close, wrongcmp = axis._select(cutcmp, cutvalue, tolerance)
                 if newaxis is not None:
                     cutaxis = axis
                 else:
@@ -172,8 +198,15 @@ class Projectable(object):
             else:
                 return content[tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))].copy()
 
-        out._group = tuple(newaxis if x is cutaxis else x for x in self._group)
-        out._fixed = tuple(y for y in [newaxis if x is cutaxis else x for x in self._fixed] if not isinstance(y, histbook.axis._nullaxis))
-        out._shape = tuple([newaxis.totbins if x is cutaxis else x for x in out._fixed] + [self._shape[-1]])
+        # out = self.__class__.__new__(self.__class__)
+        # out.__dict__.update(self.__dict__)
+        # out._group = tuple(newaxis if x is cutaxis else x for x in self._group)
+        # out._fixed = tuple(y for y in [newaxis if x is cutaxis else x for x in self._fixed] if not isinstance(y, histbook.axis._nullaxis))
+        # out._shape = tuple([newaxis.totbins if x is cutaxis else x for x in out._fixed] + [self._shape[-1]])
+        # out._content = cutcontent(0, self._content)
+
+        axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
+        axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
+        out = self.__class__(*axis, weight=self._weight, defs=self._defs)
         out._content = cutcontent(0, self._content)
         return out
