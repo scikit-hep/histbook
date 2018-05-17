@@ -70,6 +70,7 @@ class Axis(object):
 class GroupAxis(Axis): pass
 class FixedAxis(Axis): pass
 class ProfileAxis(Axis): pass
+class NumericalAxis(object): pass
 
 class groupby(GroupAxis):
     def __init__(self, expr):
@@ -116,7 +117,7 @@ class groupby(GroupAxis):
         else:
             raise AssertionError(cmp)
 
-class groupbin(GroupAxis):
+class groupbin(GroupAxis, NumericalAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
         self._binwidth = self._real(binwidth, "binwidth")
@@ -187,7 +188,7 @@ class groupbin(GroupAxis):
         else:
             return None, None, None, False
 
-class bin(FixedAxis):
+class bin(FixedAxis, NumericalAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._numbins = self._nonnegint(numbins, "numbins")
@@ -316,7 +317,7 @@ class bin(FixedAxis):
         else:
             return None, None, None, False
             
-class intbin(FixedAxis):
+class intbin(FixedAxis, NumericalAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr
         self._min = self._int(min, "min")
@@ -425,7 +426,7 @@ class intbin(FixedAxis):
         else:
             return None, None, None, False
 
-class split(FixedAxis):
+class split(FixedAxis, NumericalAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         if isinstance(edges, (numbers.Real, numpy.floating)):
@@ -626,7 +627,7 @@ class _nullaxis(FixedAxis):
     def _select(self, cmp, value, tolerance):
         return None, None, None, False
 
-class profile(ProfileAxis):
+class profile(ProfileAxis, NumericalAxis):
     def __init__(self, expr):
         self._expr = expr
 

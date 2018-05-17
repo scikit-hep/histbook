@@ -241,3 +241,65 @@ class Projectable(object):
         if self._content is not None:
             out._content = cutcontent(0, self._content)
         return out
+
+    def table(self, *profile, **opts):
+        count = opts.pop("count", True)
+        error = opts.pop("error", True)
+        if len(opts) > 0:
+            raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
+
+        self._prefill()
+
+        profile = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in profile]
+        profileindex = []
+        for prof in profile:
+            if prof not in self._profile:
+                raise IndexError("no such profile axis: {0}".format(prof))
+            else:
+                profileindex.append(self._profile.index(prof))
+
+        profile = [self._profile[i] for i in profileindex]
+
+        columns = []
+        if count:
+            columns.append("count()")
+            if error:
+                columns.append("err(count())")
+        for prof in profile:
+            columns.append(str(prof.expr))
+            if error:
+                columns.append("err({0})".format(str(prof.expr)))
+
+        def handlearray(content):
+            content = content.reshape((-1, self._shape[-1]))
+
+            out = numpy.zeros((content.shape[0], len(columns)), dtype=content.dtype)
+            outindex = 0
+
+            sumw = content[:, self._sumwindex]
+            if count:
+                out[:, outindex] = sumw
+                outindex += 1
+                if error:
+                    if self._weightparsed is None:
+                        out[:, outindex] = numpy.sqrt(sumw)
+                    else:
+                        out[:, outindex] = numpy.sqrt(content[:, self._sumw2index])
+                    outindex += 1
+
+            if len(profile) > 0:
+                if self._weightparsed is None:
+                    sumeff = sumw
+                else:
+                    sumeff = numpy.square(sumw) / content[:, self._sumw2index]
+
+            for prof in profile:
+                out[:, outindex] = content[:, prof._sumwxindex] / sumw
+                outindex += 1
+                if error:
+                    out[:, outindex] = numpy.sqrt(((content[:, prof._sumwx2index] / sumw) - numpy.square(out[:, outindex - 1])) / sumeff)
+                    outindex += 1
+
+            return out.view([(x, content.dtype) for x in columns]).reshape(self._shape[:-1])
+
+        return handlearray(self._content)

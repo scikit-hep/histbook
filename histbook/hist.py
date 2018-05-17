@@ -211,7 +211,7 @@ class Book(collections.MutableMapping, Fillable):
         return self
 
     @staticmethod
-    def group(by="group", **books):
+    def group(by="source", **books):
         if any(not isinstance(x, Book) for x in books.values()):
             raise TypeError("only histogram Books can be grouped")
         out = Book()
@@ -525,7 +525,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
             add(self._content, other._content)
 
     @staticmethod
-    def group(by="group", **hists):
+    def group(by="source", **hists):
         if any(not isinstance(x, Hist) for x in hists.values()):
             raise TypeError("only histograms can be grouped")
 
