@@ -29,7 +29,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import histbook.expr
-import histbook.stmt
 
 import numpy
 INDEXTYPE = numpy.int32

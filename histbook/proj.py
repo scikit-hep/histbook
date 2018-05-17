@@ -35,10 +35,10 @@ import numpy
 import histbook.axis
 import histbook.expr
 
-class Axis(tuple):
+class AxisTuple(tuple):
     def __getitem__(self, item):
         if isinstance(item, (numbers.Integral, numpy.integer)):
-            return super(Axis, self).__getitem__(item)
+            return super(AxisTuple, self).__getitem__(item)
         else:
             expr = histbook.expr.Expr.parse(item, defs=self._defs)
             for axis in self:
@@ -49,9 +49,12 @@ class Axis(tuple):
 class Projectable(object):
     @property
     def axis(self):
-        out = Axis(self._group + self._fixed + self._profile)
+        out = AxisTuple(self._group + self._fixed + self._profile)
         out._defs = self._defs
         return out
+
+    def rebin(self, axis, to):
+        raise NotImplementedError
 
     def project(self, *axis):
         allaxis = self._group + self._fixed + self._profile

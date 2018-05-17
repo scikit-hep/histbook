@@ -37,9 +37,10 @@ COUNTTYPE = numpy.float64
 
 import histbook.axis
 import histbook.calc
+import histbook.export
 import histbook.expr
 import histbook.proj
-import histbook.stmt
+import histbook.instr
 
 class _ChainedDict(object):
     def __init__(self, one, two):
@@ -64,9 +65,9 @@ class Fillable(object):
             for x in goals:
                 x.grow(table)
             
-            fields = histbook.stmt.sources(goals, table)
+            fields = histbook.instr.sources(goals, table)
 
-            self._instructions = self._streamline(0, list(histbook.stmt.instructions(fields, goals)))
+            self._instructions = self._streamline(0, list(histbook.instr.instructions(fields, goals)))
             self._fields = sorted(x.goal.value for x in fields)
 
         return self._fields
@@ -77,7 +78,7 @@ class Fillable(object):
         length = None
         symbols = {}
         for instruction in self._instructions:
-            if isinstance(instruction, histbook.stmt.Param):
+            if isinstance(instruction, histbook.instr.Param):
                 try:
                     array = arrays[instruction.extern]
                 except KeyError:
@@ -93,15 +94,15 @@ class Fillable(object):
 
                 symbols[instruction.name] = array
 
-            elif isinstance(instruction, histbook.stmt.Assign):
+            elif isinstance(instruction, histbook.instr.Assign):
                 symbols[instruction.name] = histbook.calc.calculate(instruction.expr, symbols)
 
-            elif isinstance(instruction, histbook.stmt.Export):
+            elif isinstance(instruction, histbook.instr.Export):
                 data = symbols[instruction.name]
                 for i, j in instruction.destination:
                     self._destination[i][j] = data
 
-            elif isinstance(instruction, histbook.stmt.Delete):
+            elif isinstance(instruction, histbook.instr.Delete):
                 del symbols[instruction.name]
 
             else:
@@ -218,7 +219,7 @@ class Book(collections.MutableMapping, Fillable):
             out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
         return out
 
-class Hist(Fillable, histbook.proj.Projectable):
+class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
     def weight(self, expr):
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
 
@@ -303,8 +304,8 @@ class Hist(Fillable, histbook.proj.Projectable):
             self._sumwindex = self._shape[-1]
             self._sumw2index = self._shape[-1] + 1
             self._shape[-1] += 2
-            dest([histbook.stmt.CallGraphGoal(self._weightparsed),
-                  histbook.stmt.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
+            dest([histbook.instr.CallGraphGoal(self._weightparsed),
+                  histbook.instr.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
 
         self._group = tuple(self._group)
         self._fixed = tuple(self._fixed)
@@ -332,7 +333,7 @@ class Hist(Fillable, histbook.proj.Projectable):
 
     def _streamline(self, i, instructions):
         for instruction in instructions:
-            if isinstance(instruction, histbook.stmt.Export):
+            if isinstance(instruction, histbook.instr.Export):
                 if not hasattr(instruction, "destination"):
                     instruction.destination = []
                 if instruction.goal in self._lookup:
