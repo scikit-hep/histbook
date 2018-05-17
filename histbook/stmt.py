@@ -223,7 +223,7 @@ class CallGraphGoal(CallGraphNode):
         self.original = goal
 
 def sources(goals, table):
-    return functools.reduce(set.union, (x.sources(table) for x in goals))
+    return functools.reduce(set.union, (x.sources(table) for x in goals), set())
 
 def walkdown(sources):
     seen = set()

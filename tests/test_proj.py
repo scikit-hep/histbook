@@ -66,6 +66,23 @@ class TestProj(unittest.TestCase):
         self.assertEqual(hy._content.tolist(), [[5], [10]])
         self.assertEqual(hxy.project("y")._content.tolist(), [[5], [10]])
 
+    def test_project_away(self):
+        empty = Hist()
+        empty.fill(x=[1, 2, 3])
+        self.assertEqual(empty._content.tolist(), [1])
+
+        h = Hist(bin("x", 10, 0, 10))
+        h.fill(x=[1, 2, 3])
+        self.assertEqual(h.project()._content.tolist(), [3])
+
+        empty = Hist(weight="y")
+        empty.fill(x=[1, 2, 3], y=[0.1, 0.1, 0.1])
+        self.assertEqual(empty._content.tolist(), [0.30000000000000004, 0.030000000000000006])
+
+        h = Hist(bin("x", 10, 0, 10), weight="y")
+        h.fill(x=[1, 2, 3], y=[0.1, 0.1, 0.1])
+        self.assertEqual(h.project()._content.tolist(), [0.30000000000000004, 0.030000000000000006])
+
     def test_select_bin_axis(self):
         for underflow in False, True:
             for overflow in False, True:

@@ -107,6 +107,8 @@ class Fillable(object):
             else:
                 raise AssertionError(instruction)
 
+        return length
+
 class Book(collections.MutableMapping, Fillable):
     def __init__(self, hists={}, **keywords):
         self._fields = None
@@ -178,9 +180,9 @@ class Book(collections.MutableMapping, Fillable):
 
         for x in self._hists.values():
             x._prefill()
-        self._fill(arrays)
+        length = self._fill(arrays)
         for x in self._hists.values():
-            x._postfill(arrays)
+            x._postfill(arrays, length)
 
     def __add__(self, other):
         if not isinstance(other, Book):
@@ -348,8 +350,8 @@ class Hist(Fillable, histbook.proj.Projectable):
             arrays = _ChainedDict(arrays, more)
 
         self._prefill()
-        self._fill(arrays)
-        self._postfill(arrays)
+        length = self._fill(arrays)
+        self._postfill(arrays, length)
 
     def _prefill(self):
         if self._content is None:
@@ -358,7 +360,7 @@ class Hist(Fillable, histbook.proj.Projectable):
             else:
                 self._content = {}
 
-    def _postfill(self, arrays):
+    def _postfill(self, arrays, length):
         j = len(self._group)
         step = 0
         indexes = None
@@ -400,7 +402,10 @@ class Hist(Fillable, histbook.proj.Projectable):
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
 
             if weight2 is None:
-                numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
+                if indexes is None:
+                    content.reshape((-1, self._shape[-1]))[:, self._sumwindex] += (1 if length is None else length) * weight
+                else:
+                    numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
             else:
                 selection = numpy.ma.getmask(indexes)
                 if selection is not numpy.ma.nomask:
