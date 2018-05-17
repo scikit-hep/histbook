@@ -122,6 +122,10 @@ class TestProj(unittest.TestCase):
         h.fill(x=[1, 2, 3], y=[0.1, 0.1, 0.1])
         self.assertEqual(h.project()._content.tolist(), [0.30000000000000004, 0.030000000000000006])
 
+        hc = Hist(groupby("c"))
+        hc.fill(c=["one", "one", "two"])
+        self.assertEqual(hc.project()._content.tolist(), [3])
+
     def test_select_bin_axis(self):
         for underflow in False, True:
             for overflow in False, True:
