@@ -64,15 +64,17 @@ class Projectable(object):
         def projarray(content):
             return numpy.sum(content, tuple(i for i, x in enumerate(self._fixed) if x not in axis))
 
-        def addany(j, left, right):
-            if j < len(self._group):
-                out = dict((n, addany(j + 1, x, right[n]) if n in right else x) for n, x in left.items())
-                out.update(right)
+        def addany(left, right):
+            if isinstance(left, dict) and isinstance(right, dict):
+                out = dict((n, addany(x, right[n]) if n in right else x) for n, x in left.items())
+                for n, x in right.items():
+                    if n not in left:
+                        out[n] = x
                 return out
             else:
                 return left + right
 
-        def addall(j, values):
+        def addall(values):
             assert len(values) != 0
             left = values[:len(values) // 2]
             right = values[len(values) // 2:]
@@ -81,16 +83,16 @@ class Projectable(object):
             elif len(right) == 0:
                 return left
             elif len(left) == 1 and len(right) == 1:
-                return addany(j, left[0], right[0])
+                return addany(left[0], right[0])
             else:
-                return addall(j, [addall(j, left)] + [addall(j, right)])
+                return addall([addall(left)] + [addall(right)])
             
         def projcontent(j, content):
             if j < len(self._group):
                 if allaxis[j] in axis:
                     return dict((n, projcontent(j + 1, x)) for n, x in content.items())
                 else:
-                    return addall(j + 1, [projcontent(j + 1, x) for x in content.values()])
+                    return addall([projcontent(j + 1, x) for x in content.values()])
             else:
                 return projarray(content)
 

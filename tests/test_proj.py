@@ -105,6 +105,26 @@ class TestProj(unittest.TestCase):
         self.assertEqual(hcx.project("x")._content.tolist(), [[3], [3]])
         self.assertEqual(hcx.project("x").axis, (bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False),))
 
+    def test_project_groupby_groupby(self):
+        def tolist(obj):
+            if isinstance(obj, dict):
+                return dict((n, tolist(x)) for n, x in obj.items())
+            else:
+                return obj.tolist()
+
+        hcdx = Hist(groupby("c"), groupby("d"), bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False))
+        hcdx.fill(c=["one", "one", "two", "two"], d=["uno", "dos", "un", "deux"], x=[0, 1, 0, 1])
+        self.assertEqual(tolist(hcdx._content), {"two": {"dos": [[0], [0]], "un": [[1], [0]], "deux": [[0], [1]], "uno": [[0], [0]]}, "one": {"dos": [[0], [1]], "un": [[0], [0]], "deux": [[0], [0]], "uno": [[1], [0]]}})
+        self.assertEqual(tolist(hcdx.project("c")._content), {"two": [2], "one": [2]})
+        self.assertEqual(tolist(hcdx.project("c", "d").project("c")._content), {"two": [2], "one": [2]})
+        self.assertEqual(tolist(hcdx.project("d")._content), {"dos": [1], "un": [1], "deux": [1], "uno": [1]})
+        self.assertEqual(tolist(hcdx.project("c", "d").project("d")._content), {"dos": [1], "un": [1], "deux": [1], "uno": [1]})
+        self.assertEqual(tolist(hcdx.project("c", "d")._content), {"two": {"dos": [0], "un": [1], "deux": [1], "uno": [0]}, "one": {"dos": [1], "un": [0], "deux": [0], "uno": [1]}})
+        self.assertEqual(tolist(hcdx.project("d", "c")._content), {"two": {"dos": [0], "un": [1], "deux": [1], "uno": [0]}, "one": {"dos": [1], "un": [0], "deux": [0], "uno": [1]}})
+        self.assertEqual(tolist(hcdx.project("x")._content), [[2], [2]])
+        self.assertEqual(tolist(hcdx.project("c", "x").project("x")._content), [[2], [2]])
+        self.assertEqual(tolist(hcdx.project("d", "x").project("x")._content), [[2], [2]])
+
     def test_project_away(self):
         empty = Hist()
         empty.fill(x=[1, 2, 3])
