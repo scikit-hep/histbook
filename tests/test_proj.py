@@ -39,7 +39,34 @@ class TestProj(unittest.TestCase):
     def runTest(self):
         pass
 
-    def test_bin_axis(self):
+    def test_project_bin(self):
+        hxy = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False),
+                   bin("y", 2, 0, 2, underflow=False, overflow=False, nanflow=False))
+        hx = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False))
+        hy = Hist(bin("y", 2, 0, 2, underflow=False, overflow=False, nanflow=False))
+        for i in range(1):
+            hxy.fill(x=[0], y=[0])
+            hx.fill(x=[0], y=[0])
+            hy.fill(x=[0], y=[0])
+        for i in range(2):
+            hxy.fill(x=[0], y=[1])
+            hx.fill(x=[0], y=[1])
+            hy.fill(x=[0], y=[1])
+        for i in range(4):
+            hxy.fill(x=[1], y=[0])
+            hx.fill(x=[1], y=[0])
+            hy.fill(x=[1], y=[0])
+        for i in range(8):
+            hxy.fill(x=[1], y=[1])
+            hx.fill(x=[1], y=[1])
+            hy.fill(x=[1], y=[1])
+        self.assertEqual(hxy._content.tolist(), [[[1], [2]], [[4], [8]]])
+        self.assertEqual(hx._content.tolist(), [[3], [12]])
+        self.assertEqual(hxy.project("x")._content.tolist(), [[3], [12]])
+        self.assertEqual(hy._content.tolist(), [[5], [10]])
+        self.assertEqual(hxy.project("y")._content.tolist(), [[5], [10]])
+
+    def test_select_bin_axis(self):
         for underflow in False, True:
             for overflow in False, True:
                 h = Hist(bin("x", 4, -1, 1, underflow=underflow, overflow=overflow))
@@ -72,7 +99,7 @@ class TestProj(unittest.TestCase):
                 if overflow:
                     self.assertEqual(h.select("x > 1").axis["x"],   bin("x", 0,    1,    1,     underflow=False, overflow=overflow, nanflow=False, closedlow=False))
 
-    def test_bin_content(self):
+    def test_select_bin_content(self):
         for nanflow in False, True:
             h = Hist(bin("x", 4, -1, 1, underflow=True, overflow=True, nanflow=nanflow))
             h._content = numpy.arange(1, h.axis["x"].totbins + 1, dtype=numpy.float64).reshape(h.axis["x"].totbins, 1)
@@ -171,7 +198,7 @@ class TestProj(unittest.TestCase):
             self.assertEqual(h.select("x > 0")._content.tolist(), [[3], [4]])
             self.assertEqual(h.select("x > 0.5")._content.tolist(), [[4]])
 
-    def test_bin_bin(self):
+    def test_select_bin_bin(self):
         h = Hist(bin("x", 4, -1, 1, underflow=False, overflow=False, nanflow=False), bin("y", 4, -1, 1, underflow=False, overflow=False, nanflow=False))
         h.fill(x=[0], y=[0])
         h.fill(x=[0], y=[0])
@@ -189,7 +216,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.select("x >= 0 and y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
         self.assertEqual(h.select("x >= 0").select("y >= 0")._content.tolist(), [[[4], [3]], [[2], [1]]])
 
-    def test_intbin(self):
+    def test_select_intbin(self):
         h = Hist(intbin("x", 5, 10))
         h.fill(x=range(15))
         self.assertEqual(h._content.tolist(), [[5], [1], [1], [1], [1], [1], [1], [4]])
@@ -214,7 +241,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.select("x >= 9").axis["x"], intbin("x", 9, 10, underflow=False, overflow=False))
         self.assertEqual(h.select("x >= 9")._content.tolist(), [[1], [1]])
 
-    def test_split(self):
+    def test_select_split(self):
         h = Hist(split("x", (0, 1), underflow=True, overflow=True, closedlow=True))
         h.fill(x=[-1, 0.5, 0.5, 2, 2, 2, numpy.nan, numpy.nan, numpy.nan, numpy.nan])
         self.assertEqual(h._content.tolist(), [[1], [2], [3], [4]])
@@ -295,7 +322,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.select("x > 0").axis["x"], split("x", (0, 1), underflow=False, overflow=False, nanflow=False, closedlow=False))
         self.assertEqual(h.select("x > 0")._content.tolist(), [[2]])
 
-    def test_cut(self):
+    def test_select_cut(self):
         h = Hist(cut("p"))
         h.fill(p=[True, True, False])
         self.assertEqual(h._content.tolist(), [[1], [2]])
@@ -311,7 +338,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h._content.tolist(), [[1], [2]])
         self.assertEqual(h.select("x > 5")._content.tolist(), [[2]])
 
-    def test_groupby(self):
+    def test_select_groupby(self):
         h = Hist(groupby("c"))
         h.fill(c=["one", "two", "three", "two", "three", "three"])
         self.assertEqual(set(h.select("c == 'two'")._content.keys()), set(["two"]))
@@ -328,7 +355,7 @@ class TestProj(unittest.TestCase):
         self.assertEqual(h.select("c == 'two' and x >= 0")._content["two"].tolist(), [[2], [0]])
         self.assertEqual(h.select("x >= 0 and c == 'two'")._content["two"].tolist(), [[2], [0]])
 
-    def test_groupbin(self):
+    def test_select_groupbin(self):
         h = Hist(groupbin("x", 10))
         h.fill(x=[10, 15, 18, 20, 25])
         self.assertEqual(set(h._content.keys()), set([10.0, 20.0]))

@@ -54,19 +54,49 @@ class Projectable(object):
         return out
 
     def project(self, *axis):
-        axis = [x if isinstance(x, histbook.axis.Axis) else self.axis(x) for x in axis]
+        allaxis = self._group + self._fixed + self._profile
+
+        axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
         for x in axis:
-            if x not in self._group + self._fixed + self._profile:
+            if x not in allaxis:
                 raise IndexError("no such axis: {0}".format(x))
 
-        out = self.__class__(*[x.relabel(x._original) for x in axis], weight=self._weight, defs=self._defs)
+        def projarray(content):
+            return numpy.sum(content, tuple(i for i, x in enumerate(self._fixed) if x not in axis))
 
+        def addany(j, left, right):
+            if j < len(self._group):
+                out = dict((n, addany(j + 1, x, right[n]) if n in right else x) for n, x in left.items())
+                out.update(right)
+                return out
+            else:
+                return left + right
 
+        def addall(j, values):
+            assert len(values) != 0
+            left = values[:len(values) // 2]
+            right = values[len(values) // 2:]
+            if len(left) == 0:
+                return right
+            elif len(right) == 0:
+                return left
+            else:
+                return addany(j, addall(j, left), addall(j, right))
+            
+        def projcontent(j, content):
+            if j < len(self._group):
+                if allaxis[j] in axis:
+                    return dict((n, projcontent(j + 1, x)) for n, x in content.items())
+                else:
+                    return addall(j + 1, (projcontent(j + 1, x) for x in content.values()))
+            else:
+                return projarray(content)
 
-
-
-
-
+        outaxis = [x.relabel(x._original) for x in allaxis if x in axis]
+        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        if self._content is not None:
+            out._content = projcontent(0, self._content)
+        return out
 
     def select(self, expr, tolerance=1e-12):
         expr = histbook.expr.Expr.parse(expr, defs=self._defs)
@@ -198,15 +228,9 @@ class Projectable(object):
             else:
                 return content[tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))].copy()
 
-        # out = self.__class__.__new__(self.__class__)
-        # out.__dict__.update(self.__dict__)
-        # out._group = tuple(newaxis if x is cutaxis else x for x in self._group)
-        # out._fixed = tuple(y for y in [newaxis if x is cutaxis else x for x in self._fixed] if not isinstance(y, histbook.axis._nullaxis))
-        # out._shape = tuple([newaxis.totbins if x is cutaxis else x for x in out._fixed] + [self._shape[-1]])
-        # out._content = cutcontent(0, self._content)
-
         axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
         axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
         out = self.__class__(*axis, weight=self._weight, defs=self._defs)
-        out._content = cutcontent(0, self._content)
+        if self._content is not None:
+            out._content = cutcontent(0, self._content)
         return out
