@@ -399,6 +399,12 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
             for sumx, sumx2, axis in zip(axissumx, axissumx2, self._profile):
                 if indexes is None:
                     indexes = numpy.ma.zeros(len(sumx), dtype=histbook.calc.INDEXTYPE)
+                if weight2 is not None:
+                    selection = numpy.ma.getmask(indexes)
+                    if selection is not numpy.ma.nomask:
+                        selection = numpy.bitwise_not(selection)
+                        weight = weight[selection]
+                        weight2 = weight2[selection]
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwxindex], indexes.compressed(), sumx * weight)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, axis._sumwx2index], indexes.compressed(), sumx2 * weight)
 
@@ -408,26 +414,28 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
                 else:
                     numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
             else:
+                if indexes is None:
+                    indexes = numpy.ma.zeros(len(weight), dtype=histbook.calc.INDEXTYPE)
                 selection = numpy.ma.getmask(indexes)
                 if selection is not numpy.ma.nomask:
                     selection = numpy.bitwise_not(selection)
                     weight = weight[selection]
                     weight2 = weight2[selection]
-                if indexes is None:
-                    indexes = numpy.ma.zeros(len(weight), dtype=histbook.calc.INDEXTYPE)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumwindex], indexes.compressed(), weight)
                 numpy.add.at(content.reshape((-1, self._shape[-1]))[:, self._sumw2index], indexes.compressed(), weight2)
 
-        def filldict(j, content, indexes, axissumx, axissumx2, weight, weight2):
+        def filldict(j, content, indexes, axissumx, axissumx2, weight, weight2, allselection):
             if j == len(self._group):
                 fillblock(content, indexes, axissumx, axissumx2, weight, weight2)
 
             else:
                 uniques, inverse = self._destination[0][j]
                 for idx, unique in enumerate(uniques):
-                    selection = (inverse == idx)
-                    antiselection = numpy.bitwise_not(selection)
-
+                    if allselection is None:
+                        selection = (inverse == idx)
+                    else:
+                        selection = (inverse[allselection] == idx)
+                    
                     if unique not in content:
                         if j + 1 == len(self._group):
                             content[unique] = numpy.zeros(self._shape, dtype=COUNTTYPE)
@@ -438,8 +446,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
                     if indexes is None:
                         subindexes = numpy.ma.zeros(numpy.count_nonzero(selection), dtype=histbook.calc.INDEXTYPE)
                     else:
-                        numpy.bitwise_or(antiselection, numpy.ma.getmaskarray(indexes), antiselection)
-                        subindexes = numpy.ma.array(data=numpy.ma.getdata(indexes), mask=antiselection)
+                        subindexes = indexes[selection]
                     subaxissumx = [x[selection] for x in axissumx]
                     subaxissumx2 = [x[selection] for x in axissumx2]
                     if weight2 is None:
@@ -448,9 +455,15 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
                         subweight = weight[selection]
                         subweight2 = weight2[selection]
 
-                    filldict(j + 1, subcontent, subindexes, subaxissumx, subaxissumx2, subweight, subweight2)
+                    if allselection is None:
+                        suballselection = selection
+                    else:
+                        suballselection = allselection.copy()
+                        suballselection[inverse != idx] = False
 
-        filldict(0, self._content, indexes, axissumx, axissumx2, weight, weight2)
+                    filldict(j + 1, subcontent, subindexes, subaxissumx, subaxissumx2, subweight, subweight2, suballselection)
+
+        filldict(0, self._content, indexes, axissumx, axissumx2, weight, weight2, None)
             
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None

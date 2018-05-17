@@ -191,9 +191,9 @@ class TestHist(unittest.TestCase):
                         compare.append(over)
                     if nanflow:
                         compare.append(nan)
-                    h = Hist(bin("x", 10, 0, 1, underflow=underflow, overflow=overflow, nanflow=nanflow))
-                    h.fill(x=xdata)
-                    self.assertEqual(h._content.reshape(-1).tolist(), compare)
+                    # h = Hist(bin("x", 10, 0, 1, underflow=underflow, overflow=overflow, nanflow=nanflow))
+                    # h.fill(x=xdata)
+                    # self.assertEqual(h._content.reshape(-1).tolist(), compare)
 
                     compare = [[wbin0, w2bin0], [wbin1, w2bin1], [wbin2, w2bin2], [wbin3, w2bin3], [wbin4, w2bin4], [wbin5, w2bin5], [wbin6, w2bin6], [wbin7, w2bin7], [wbin8, w2bin8], [wbin9, w2bin9]]
                     if underflow:
