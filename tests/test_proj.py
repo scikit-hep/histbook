@@ -66,6 +66,45 @@ class TestProj(unittest.TestCase):
         self.assertEqual(hy._content.tolist(), [[5], [10]])
         self.assertEqual(hxy.project("y")._content.tolist(), [[5], [10]])
 
+    def test_project_bin_weight(self):
+        hxy = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False),
+                   bin("y", 2, 0, 2, underflow=False, overflow=False, nanflow=False), weight="w")
+        hx = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False), weight="w")
+        hy = Hist(bin("y", 2, 0, 2, underflow=False, overflow=False, nanflow=False), weight="w")
+        hxy.fill(x=[0, 0, 1, 1], y=[0, 1, 0, 1], w=[1, 2, 4, 8])
+        hx.fill(x=[0, 0, 1, 1], y=[0, 1, 0, 1], w=[1, 2, 4, 8])
+        hy.fill(x=[0, 0, 1, 1], y=[0, 1, 0, 1], w=[1, 2, 4, 8])
+        self.assertEqual(hxy._content.tolist(), [[[1, 1], [2, 4]], [[4, 16], [8, 64]]])
+        self.assertEqual(hx._content.tolist(), [[3, 5], [12, 80]])
+        self.assertEqual(hxy.project("x")._content.tolist(), [[3, 5], [12, 80]])
+        self.assertEqual(hy._content.tolist(), [[5, 17], [10, 68]])
+        self.assertEqual(hxy.project("y")._content.tolist(), [[5, 17], [10, 68]])
+
+    def test_project_bin_profile(self):
+        hxy = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False),
+                   bin("y", 2, 0, 2, underflow=False, overflow=False, nanflow=False), profile("p"), weight="w")
+        hx = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False), profile("p"), weight="w")
+        hy = Hist(bin("y", 2, 0, 2, underflow=False, overflow=False, nanflow=False), profile("p"), weight="w")
+        hxy.fill(x=[0, 0, 1, 1], y=[0, 1, 0, 1], w=[1, 2, 4, 8], p=[10, 20, 40, 80])
+        hx.fill(x=[0, 0, 1, 1], y=[0, 1, 0, 1], w=[1, 2, 4, 8], p=[10, 20, 40, 80])
+        hy.fill(x=[0, 0, 1, 1], y=[0, 1, 0, 1], w=[1, 2, 4, 8], p=[10, 20, 40, 80])
+        self.assertEqual(hxy._content.tolist(), [[[10, 100, 1, 1], [40, 800, 2, 4]], [[160, 6400, 4, 16], [640, 51200, 8, 64]]])
+        self.assertEqual(hx._content.tolist(), [[50, 900, 3, 5], [800, 57600, 12, 80]])
+        self.assertEqual(hxy.project("x")._content.tolist(), [[50, 900, 3, 5], [800, 57600, 12, 80]])
+        self.assertEqual(hy._content.tolist(), [[170, 6500, 5, 17], [680, 52000, 10, 68]])
+        self.assertEqual(hxy.project("y")._content.tolist(), [[170, 6500, 5, 17], [680, 52000, 10, 68]])
+
+    def test_project_groupby(self):
+        hcx = Hist(groupby("c"), bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False))
+        hcx.fill(c=["one", "one", "one", "one", "two", "two"], x=[0, 1, 0, 1, 0, 1])
+        self.assertEqual(set(hcx._content.keys()), set(["one", "two"]))
+        self.assertEqual(set(hcx.project("c")._content.keys()), set(["one", "two"]))
+        self.assertEqual(hcx.project("c").axis, (groupby("c"),))
+        self.assertEqual(hcx.project("c")._content["one"].tolist(), [4])
+        self.assertEqual(hcx.project("c")._content["two"].tolist(), [2])
+        self.assertEqual(hcx.project("x")._content.tolist(), [[3], [3]])
+        self.assertEqual(hcx.project("x").axis, (bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False),))
+
     def test_project_away(self):
         empty = Hist()
         empty.fill(x=[1, 2, 3])

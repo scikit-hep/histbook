@@ -80,15 +80,17 @@ class Projectable(object):
                 return right
             elif len(right) == 0:
                 return left
+            elif len(left) == 1 and len(right) == 1:
+                return addany(j, left[0], right[0])
             else:
-                return addany(j, addall(j, left), addall(j, right))
+                return addall(j, [addall(j, left)] + [addall(j, right)])
             
         def projcontent(j, content):
             if j < len(self._group):
                 if allaxis[j] in axis:
                     return dict((n, projcontent(j + 1, x)) for n, x in content.items())
                 else:
-                    return addall(j + 1, (projcontent(j + 1, x) for x in content.values()))
+                    return addall(j + 1, [projcontent(j + 1, x) for x in content.values()])
             else:
                 return projarray(content)
 
