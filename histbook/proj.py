@@ -244,6 +244,7 @@ class Projectable(object):
 
     def table(self, *profile, **opts):
         count = opts.pop("count", True)
+        effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
@@ -265,6 +266,8 @@ class Projectable(object):
             columns.append("count()")
             if error:
                 columns.append("err(count())")
+        if effcount:
+            columns.append("effcount()")
         for prof in profile:
             columns.append(str(prof.expr))
             if error:
@@ -287,19 +290,31 @@ class Projectable(object):
                         out[:, outindex] = numpy.sqrt(content[:, self._sumw2index])
                     outindex += 1
 
-            if len(profile) > 0:
+            if len(profile) > 0 or effcount:
+                good = numpy.nonzero(sumw)
+                sumw = sumw[good]
                 if self._weightparsed is None:
-                    sumeff = sumw
+                    effcnt = sumw
                 else:
-                    sumeff = numpy.square(sumw) / content[:, self._sumw2index]
+                    effcnt = numpy.square(sumw) / content[:, self._sumw2index]
+
+            if effcount:
+                out[good, outindex] = effcnt
+                outindex += 1
 
             for prof in profile:
-                out[:, outindex] = content[:, prof._sumwxindex] / sumw
+                out[good, outindex] = content[good, prof._sumwxindex] / sumw
                 outindex += 1
                 if error:
-                    out[:, outindex] = numpy.sqrt(((content[:, prof._sumwx2index] / sumw) - numpy.square(out[:, outindex - 1])) / sumeff)
+                    out[good, outindex] = numpy.sqrt(((content[good, prof._sumwx2index] / sumw) - numpy.square(out[good, outindex - 1])) / effcnt)
                     outindex += 1
 
             return out.view([(x, content.dtype) for x in columns]).reshape(self._shape[:-1])
 
-        return handlearray(self._content)
+        def handle(content):
+            if isinstance(content, dict):
+                return dict((n, handle(x)) for n, x in content.items())
+            else:
+                return handlearray(content)
+
+        return handle(self._content)
