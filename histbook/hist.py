@@ -41,6 +41,7 @@ import histbook.export
 import histbook.expr
 import histbook.proj
 import histbook.instr
+import histbook.vega
 
 class _ChainedDict(object):
     def __init__(self, one, two):
@@ -219,7 +220,7 @@ class Book(collections.MutableMapping, Fillable):
             out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
         return out
 
-class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable):
+class Hist(Fillable, histbook.proj.Projectable, histbook.vega.Facetable, histbook.export.Exportable):
     def weight(self, expr):
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
 

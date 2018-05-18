@@ -28,5 +28,48 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+class Facetable(object):
+    def overlay(self, axis):
+        return FacetChain(self, ("overlay", axis))
 
+    def stack(self, axis):
+        return FacetChain(self, ("stack", axis))
 
+    def columns(self, axis):
+        return FacetChain(self, ("columns", axis))
+
+    def rows(self, axis):
+        return FacetChain(self, ("rows", axis))
+
+    def steps(self, axis, profile=None):
+        return Plotable(self, ("steps", axis, profile))
+
+    def areas(self, axis, profile=None):
+        return Plotable(self, ("areas", axis, profile))
+
+    def lines(self, axis, profile=None, errors=False):
+        return Plotable(self, ("lines", axis, profile, errors))
+
+    def points(self, axis, profile=None, errors=True):
+        return Plotable(self, ("points", axis, profile, errors))
+
+class FacetChain(Facetable):
+    def __init__(self, source, item):
+        if isinstance(source, FacetChain):
+            self._source = source._source
+            self._chain = source._chain + (item,)
+        else:
+            self._source = source
+            self._chain = (item,)
+
+class Plotable(object):
+    def __init__(self, source, item):
+        if isinstance(source, FacetChain):
+            self._source = source._source
+            self._chain = source._chain + (item,)
+        else:
+            self._source = source
+            self._chain = (item,)
+
+    def vegalite(self):
+        raise NotImplementedError
