@@ -46,6 +46,34 @@ class AxisTuple(tuple):
                     return axis
             raise IndexError("no such axis: {0}".format(repr(str(expr))))
 
+    def _findbyclass(self, expr, cls, kwargs):
+        expr = histbook.expr.Expr.parse(expr, defs=self._defs)
+        for axis in self:
+            if isinstance(axis, cls) and all(hasattr(axis, n) and getattr(axis, n) == x for n, x in kwargs.items()):
+                return axis
+        raise IndexError("no such axis: {0}({1}{2})".format(cls.__name__, repr(str(expr)), "".join(", {0}={1}".format(n, kwargs[n]) for n in sorted(kwargs))))
+
+    def groupby(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.groupby, kwargs)
+
+    def groupbin(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.groupbin, kwargs)
+
+    def bin(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.bin, kwargs)
+
+    def intbin(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.intbin, kwargs)
+
+    def split(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.split, kwargs)
+
+    def cut(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.cut, kwargs)
+
+    def profile(self, expr, **kwargs):
+        return self._findbyclass(expr, histbook.axis.profile, kwargs)
+
 class Projectable(object):
     @property
     def axis(self):
@@ -57,7 +85,7 @@ class Projectable(object):
         raise NotImplementedError
 
     def project(self, *axis):
-        allaxis = self._group + self._fixed + self._profile
+        allaxis = self._group + self._fixed
 
         axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
         for x in axis:
@@ -99,7 +127,7 @@ class Projectable(object):
             else:
                 return projarray(content)
 
-        outaxis = [x.relabel(x._original) for x in allaxis if x in axis]
+        outaxis = [x.relabel(x._original) for x in allaxis if x in axis] + [x.relabel(x._original) for x in self._profile]
         out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
         if self._content is not None:
             out._content = projcontent(0, self._content)
@@ -251,7 +279,7 @@ class Projectable(object):
 
         self._prefill()
 
-        profile = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in profile]
+        profile = [x if isinstance(x, histbook.axis.Axis) else self.axis.profile(x) for x in profile]
         profileindex = []
         for prof in profile:
             if prof not in self._profile:
