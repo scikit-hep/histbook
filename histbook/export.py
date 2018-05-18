@@ -84,7 +84,17 @@ class Exportable(object):
                             index(j + 1, None, key + (pd.Interval(int(axis.max), float("inf"), closed="right"),))
 
                     elif isinstance(axis, histbook.axis.split):
-                        raise NotImplementedError
+                        closed = "left" if axis.closedlow else "right"
+                        if axis.underflow:
+                            index(j + 1, None, key + (pd.Interval(float("-inf"), axis.edges[0], closed=closed),))
+                        last = axis.edges[0]
+                        for this in axis.edges[1:]:
+                            index(j + 1, None, key + (pd.Interval(last, this, closed=closed),))
+                            last = this
+                        if axis.overflow:
+                            index(j + 1, None, key + (pd.Interval(last, float("inf"), closed=closed),))
+                        if axis.nanflow:
+                            index(j + 1, None, key + ("NaN",))
 
                     elif isinstance(axis, histbook.axis.cut):
                         raise NotImplementedError
