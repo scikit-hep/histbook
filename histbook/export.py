@@ -193,6 +193,7 @@ class Exportable(object):
 
             if profile is None:
                 out = ROOT.TH1D(name, title, xaxis.numbins, xaxis.low, xaxis.high)
+
                 data = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
                 data[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content["count()"][: (-1 if xaxis.nanflow else None)]
                 out.SetContent(data)
@@ -203,7 +204,15 @@ class Exportable(object):
                     out.SetError(data)
 
             else:
-                raise NotImplementedError("TProfile")
+                out = ROOT.TProfile(name, title, xaxis.numbins, xaxis.low, xaxis.high)
+
+                data = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                data[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[0]][: (-1 if xaxis.nanflow else None)]
+                out.SetContent(data)
+
+                errors = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                errors[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[1]][: (-1 if xaxis.nanflow else None)]
+                out.SetError(data)
 
         elif len(binaxis) == 2:
             if profile is None:
