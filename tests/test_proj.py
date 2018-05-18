@@ -406,8 +406,8 @@ class TestProj(unittest.TestCase):
         h = Hist(cut("p"))
         h.fill(p=[True, True, False])
         self.assertEqual(h._content.tolist(), [[1], [2]])
-        self.assertEqual(h.select("p")._content.tolist(), [[2]])
-        self.assertEqual(h.select("not p")._content.tolist(), [[1]])
+        self.assertEqual(h.select("p")._content.tolist(), [2])
+        self.assertEqual(h.select("not p")._content.tolist(), [1])
         self.assertEqual(h.select("p")._fixed, ())
         self.assertEqual(h.select("p")._shape, (1,))
         self.assertEqual(h.select("not p")._fixed, ())
@@ -416,7 +416,7 @@ class TestProj(unittest.TestCase):
         h = Hist(cut("x > 5"))
         h.fill(x=[8, 7, 3])
         self.assertEqual(h._content.tolist(), [[1], [2]])
-        self.assertEqual(h.select("x > 5")._content.tolist(), [[2]])
+        self.assertEqual(h.select("x > 5")._content.tolist(), [2])
 
     def test_select_groupby(self):
         h = Hist(groupby("c"))

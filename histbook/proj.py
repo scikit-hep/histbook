@@ -261,7 +261,11 @@ class Projectable(object):
                     return dict((n, cutcontent(i + 1, x)) for n, x in content.items())
 
             else:
-                return content[tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))].copy()
+                slc = tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))
+                out = content[slc].copy()
+                if isinstance(newaxis, histbook.axis._nullaxis):
+                    out.shape = tuple(sh for sh, sl in zip(out.shape, slc) if sl is not cutslice)
+                return out
 
         axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
         axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
