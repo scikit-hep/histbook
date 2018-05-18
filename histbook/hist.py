@@ -220,7 +220,15 @@ class Book(collections.MutableMapping, Fillable):
             out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
         return out
 
-class Hist(Fillable, histbook.proj.Projectable, histbook.vega.Facetable, histbook.export.Exportable):
+class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, histbook.vega.FacetChain):
+    @property
+    def _source(self):
+        return self
+
+    @property
+    def _chain(self):
+        return ()
+
     def weight(self, expr):
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
 

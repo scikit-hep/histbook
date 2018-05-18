@@ -28,32 +28,79 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-class Facetable(object):
-    def overlay(self, axis):
-        return FacetChain(self, ("overlay", axis))
+class Facet(object): pass
 
-    def stack(self, axis):
-        return FacetChain(self, ("stack", axis))
+class OverlayFacet(Facet):
+    def __init__(self, axis):
+        self.axis = axis
+    def __repr__(self):
+        return ".overlay({0})".format(self.axis)
 
-    def columns(self, axis):
-        return FacetChain(self, ("columns", axis))
+class StackFacet(Facet):
+    def __init__(self, axis):
+        self.axis = axis
+    def __repr__(self):
+        return ".stack({0})".format(self.axis)
 
-    def rows(self, axis):
-        return FacetChain(self, ("rows", axis))
+class ColumnsFacet(Facet):
+    def __init__(self, axis):
+        self.axis = axis
+    def __repr__(self):
+        return ".columns({0})".format(self.axis)
 
-    def steps(self, axis, profile=None):
-        return Plotable(self, ("steps", axis, profile))
+class RowsFacet(Facet):
+    def __init__(self, axis):
+        self.axis = axis
+    def __repr__(self):
+        return ".rows({0})".format(self.axis)
 
-    def areas(self, axis, profile=None):
-        return Plotable(self, ("areas", axis, profile))
+class StepsFacet(Facet):
+    def __init__(self, axis, profile):
+        self.axis = axis
+        self.profile = profile
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        return ".steps({0})".format("".join(args))
 
-    def lines(self, axis, profile=None, errors=False):
-        return Plotable(self, ("lines", axis, profile, errors))
+class AreasFacet(Facet):
+    def __init__(self, axis, profile):
+        self.axis = axis
+        self.profile = profile
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        return ".areas({0})".format("".join(args))
 
-    def points(self, axis, profile=None, errors=True):
-        return Plotable(self, ("points", axis, profile, errors))
+class LinesFacet(Facet):
+    def __init__(self, axis, profile, errors):
+        self.axis = axis
+        self.profile = profile
+        self.errors = errors
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        if self.errors is not False:
+            args.append("errors={0}".format(self.errors))
+        return ".lines({0})".format("".join(args))
 
-class FacetChain(Facetable):
+class PointsFacet(Facet):
+    def __init__(self, axis, profile, errors):
+        self.axis = axis
+        self.profile = profile
+        self.errors = errors
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        if self.errors is not True:
+            args.append("errors={0}".format(self.errors))
+        return ".points({0})".format("".join(args))
+
+class FacetChain(object):
     def __init__(self, source, item):
         if isinstance(source, FacetChain):
             self._source = source._source
@@ -61,6 +108,54 @@ class FacetChain(Facetable):
         else:
             self._source = source
             self._chain = (item,)
+
+    def __repr__(self):
+        return "".join(repr(x) for x in (self._source,) + self._chain)
+
+    def __str__(self, indent="\n     ", paren=True):
+        return ("(" if paren else "") + indent.join(repr(x) for x in (self._source,) + self._chain) + (")" if paren else "")
+
+    def overlay(self, axis):
+        if any(isinstance(x, OverlayFacet) for x in self._chain):
+            raise TypeError("cannot overlay an overlay")
+        return FacetChain(self, OverlayFacet(axis))
+
+    def stack(self, axis):
+        if any(isinstance(x, StackFacet) for x in self._chain):
+            raise TypeError("cannot stack a stack")
+        return FacetChain(self, StackFacet(axis))
+
+    def columns(self, axis):
+        if any(isinstance(x, ColumnsFacet) for x in self._chain):
+            raise TypeError("cannot split columns into columns")
+        return FacetChain(self, ColumnsFacet(axis))
+
+    def rows(self, axis):
+        if any(isinstance(x, RowsFacet) for x in self._chain):
+            raise TypeError("cannot split rows into rows")
+        return FacetChain(self, RowsFacet(axis))
+
+    def steps(self, axis, profile=None):
+        if any(isinstance(x, StackFacet) for x in self._chain):
+            raise TypeError("only areas can be stacked")
+        return Plotable(self, StepsFacet(axis, profile))
+
+    def areas(self, axis, profile=None):
+        return Plotable(self, AreasFacet(axis, profile))
+
+    def lines(self, axis, profile=None, errors=False):
+        if any(isinstance(x, StackFacet) for x in self._chain):
+            raise TypeError("only areas can be stacked")
+        if errors and any(isinstance(x, (ColumnsFacet, RowsFacet)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting into columns or rows (Vega-Lite bug?)")
+        return Plotable(self, LinesFacet(axis, profile, errors))
+
+    def points(self, axis, profile=None, errors=True):
+        if any(isinstance(x, StackFacet) for x in self._chain):
+            raise TypeError("only areas can be stacked")
+        if errors and any(isinstance(x, (ColumnsFacet, RowsFacet)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting into columns or rows (Vega-Lite bug?)")
+        return Plotable(self, PointsFacet(axis, profile, errors))
 
 class Plotable(object):
     def __init__(self, source, item):
@@ -71,5 +166,33 @@ class Plotable(object):
             self._source = source
             self._chain = (item,)
 
+    def __repr__(self):
+        return "".join(repr(x) for x in (self._source,) + self._chain)
+
+    def __str__(self, indent="\n     ", paren=True):
+        return ("(" if paren else "") + indent.join(repr(x) for x in (self._source,) + self._chain) + (")" if paren else "")
+
+    def vegalite(self):
+        raise NotImplementedError
+
+class Combination(object):
+    def __init__(self, *plotables):
+        self._plotables = plotables
+
+    def __repr__(self):
+        return "{0}({1})".format(self.__class__.__name__, ", ".join(repr(x) for x in self._plotables))
+
+    def __str__(self, indent="\n    ", paren=False):
+        return "{0}({1})".format(self.__class__.__name__, "".join(indent + x.__str__(indent + "    ", False) for x in self._plotables))
+
+class overlay(Combination):
+    def vegalite(self):
+        raise NotImplementedError
+
+class columns(Combination):
+    def vegalite(self):
+        raise NotImplementedError
+
+class rows(Combination):
     def vegalite(self):
         raise NotImplementedError
