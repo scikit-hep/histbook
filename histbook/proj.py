@@ -328,7 +328,7 @@ class Projectable(object):
                 if self._weightparsed is None:
                     effcnt = sumw
                 else:
-                    effcnt = numpy.square(sumw) / content[:, self._sumw2index]
+                    effcnt = numpy.square(sumw) / content[good, self._sumw2index]
 
             if effcount:
                 out[good, outindex] = effcnt

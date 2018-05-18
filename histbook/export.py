@@ -145,7 +145,7 @@ class Exportable(object):
         if profile is None:
             content = projected.table(count=True, error=(self._weightparsed is not None))
         else:
-            content = projected.table(profile, count=False, error=True)
+            content = projected.table(profile, count=True, error=True)
 
         if len(binaxis) == 0:
             raise TypeError("cannot present zero-axis data in ROOT")
@@ -194,25 +194,36 @@ class Exportable(object):
             if profile is None:
                 out = ROOT.TH1D(name, title, xaxis.numbins, xaxis.low, xaxis.high)
 
-                data = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
-                data[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content["count()"][: (-1 if xaxis.nanflow else None)]
-                out.SetContent(data)
+                entries = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                entries[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content["count()"][: (-1 if xaxis.nanflow else None)]
+                out.SetContent(entries)
+                out.SetEntries(entries.sum())
 
                 if "err(count())" in content.dtype.names:
                     errors = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
                     errors[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content["err(count())"][: (-1 if xaxis.nanflow else None)]
-                    out.SetError(data)
+                    out.SetError(errors)
 
             else:
                 out = ROOT.TProfile(name, title, xaxis.numbins, xaxis.low, xaxis.high)
 
-                data = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
-                data[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[0]][: (-1 if xaxis.nanflow else None)]
-                out.SetContent(data)
+                entries = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                entries[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[0]][: (-1 if xaxis.nanflow else None)]
+
+                contents = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                contents[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[2]][: (-1 if xaxis.nanflow else None)]
 
                 errors = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
-                errors[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[1]][: (-1 if xaxis.nanflow else None)]
-                out.SetError(data)
+                errors[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content[content.dtype.names[3]][: (-1 if xaxis.nanflow else None)]
+
+                # you have to do crazy things to set TProfile bins by hand
+                out.SetEntries(entries.sum())
+                rootcontents = contents * entries
+                rooterrors = numpy.sqrt(((errors**2 * entries) + contents**2) * entries)
+                for i in range(xaxis.numbins + 2):
+                    out.SetBinEntries(i, entries[i])
+                    out.SetBinContent(i, rootcontents[i])
+                    out.SetBinError(i, rooterrors[i])
 
         elif len(binaxis) == 2:
             if profile is None:
