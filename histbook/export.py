@@ -97,7 +97,8 @@ class Exportable(object):
                             index(j + 1, None, key + ("NaN",))
 
                     elif isinstance(axis, histbook.axis.cut):
-                        raise NotImplementedError
+                        index(j + 1, None, key + (False,))
+                        index(j + 1, None, key + (True,))
 
                     else:
                         raise AssertionError(axis)
