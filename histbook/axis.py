@@ -35,6 +35,57 @@ import histbook.instr
 
 import numpy
 
+class Interval(object):
+    def __init__(self, low, high, closedlow=True, closedhigh=False):
+        self._low = low
+        self._high = high
+        self._closedlow = closedlow
+        self._closedhigh = closedhigh
+
+    def __repr__(self):
+        args = [repr(self._low), repr(self._high)]
+        if self._closedlow is not True:
+            args.append("closedlow={0}".format(self._closedlow))
+        if self._closedhigh is not False:
+            args.append("closedhigh={0}".format(self._closedhigh))
+        return "Interval({0})".format(", ".join(args))
+
+    def __str__(self):
+        return "{0}{1}, {2}{3}".format(("[" if self._closedlow else "("), str(self._low), str(self._high), ("]" if self._closedhigh else ")"))
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._low == other._low and self._high == other._high and self._closedlow == other._closedlow and self._closedhigh == other._closedhigh
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.__class__, self._low, self._high, self._closedlow, self._closedhigh))
+
+class IntervalNaN(Interval):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return "IntervalNaN()"
+
+    def __str__(self):
+        return "[NaN]"
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__
+
+    def __hash__(self):
+        return hash((self.__class__,))
+
+class IntervalTuple(tuple):
+    def __repr__(self):
+        return "({0}{1})".format(", ".join(str(x) for x in self), ("," if len(self) == 1 else ""))
+
+class IntervalPair(tuple):
+    def __repr__(self):
+        return "({0}, {1})".format(str(self[0]), repr(self[1]))
+
 class Axis(object):
     @staticmethod
     def _int(x, n):
@@ -68,7 +119,13 @@ class Axis(object):
         return not self.__eq__(other)
 
 class GroupAxis(Axis): pass
-class FixedAxis(Axis): pass
+class FixedAxis(Axis):
+    def items(self, content):
+        keys = self.keys()
+        if len(keys) != len(content):
+            raise ValueError("len(keys) is {0} but len(content) is {1}", len(keys), len(content))
+        return [IntervalPair(x) for x in zip(keys, content)]
+
 class ProfileAxis(Axis): pass
 class NumericalAxis(object): pass
 
@@ -116,6 +173,14 @@ class groupby(GroupAxis):
             return self, lambda x: x not in value, None, False
         else:
             raise AssertionError(cmp)
+
+    def keys(self, content):
+        return [n for n, x in self.iteritems(content)]
+
+    def items(self, content):
+        if not isinstance(content, dict):
+            raise TypeError("groupby content must be a dict")
+        return [IntervalPair(n, content[n]) for n in sorted(content)]
 
 class groupbin(GroupAxis, NumericalAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
@@ -187,6 +252,14 @@ class groupbin(GroupAxis, NumericalAxis):
                 return None, None, close, False
         else:
             return None, None, None, False
+
+    def keys(self, content):
+        return IntervalTuple(n for n, x in self.iteritems(content))
+
+    def items(self, content):
+        if not isinstance(content, dict):
+            raise TypeError("groupbin content must be a dict")
+        return [IntervalPair(n, content[n]) for n in sorted(content)]
 
 class bin(FixedAxis, NumericalAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -316,6 +389,12 @@ class bin(FixedAxis, NumericalAxis):
                 return None, None, close, False
         else:
             return None, None, None, False
+
+    def keys(self, content=None):
+        return IntervalTuple(([Interval(float("-inf"), float(self._low), closedlow=True, closedhigh=(not self._closedlow))] if self.underflow else []) +
+                             [Interval((float(i) / float(self._numbins)) * float(self._high - self._low) + float(self._low), closedlow=self._closedlow, closedhigh=(not self._closedlow)) for i in range(self._numbins)] +
+                             ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
+                             ([IntervalNaN()] if self.nanflow else []))
             
 class intbin(FixedAxis, NumericalAxis):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
@@ -425,6 +504,11 @@ class intbin(FixedAxis, NumericalAxis):
                 return None, None, round(value), False
         else:
             return None, None, None, False
+
+    def keys(self, content=None):
+        return IntervalTuple(([Interval(float("-inf"), int(self._min), closedlow=True, closedhigh=False)] if self.underflow else []) +
+                             [i for i in range(self._min, self._max + 1)] +
+                             ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
 class split(FixedAxis, NumericalAxis):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -550,6 +634,12 @@ class split(FixedAxis, NumericalAxis):
         else:
             return None, None, None, False
 
+    def keys(self, content=None):
+        return IntervalTuple(([Interval(float("-inf"), float(self._edges[0]), closedlow=True, closedhigh=(not self._closedlow))] if self.underflow else []) +
+                             [Interval(float(low), float(high), closedlow=self._closedlow, closedhigh=(not self._closedlow)) for low, high in zip(self._edges[:-1], self._edges[1:])] +
+                             ([Interval(float(self._edges[-1]), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
+                             ([IntervalNaN()] if self.nanflow else []))
+
 class cut(FixedAxis):
     def __init__(self, expr):
         self._expr = expr
@@ -595,7 +685,10 @@ class cut(FixedAxis):
                 return None, None, None, True
         else:
             return None, None, None, False
-            
+
+    def keys(self, content=None):
+        return [False, True]
+
 class _nullaxis(FixedAxis):
     def __repr__(self):
         return "_nullaxis()"
@@ -626,6 +719,9 @@ class _nullaxis(FixedAxis):
 
     def _select(self, cmp, value, tolerance):
         return None, None, None, False
+
+    def keys(self):
+        return []
 
 class profile(ProfileAxis, NumericalAxis):
     def __init__(self, expr):

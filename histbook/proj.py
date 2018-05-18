@@ -279,7 +279,7 @@ class Projectable(object):
         effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
         if len(opts) > 0:
-            raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
+            raise TypeError("unrecognized options for Hist.table: {0}".format(" ".join(opts)))
 
         self._prefill()
 

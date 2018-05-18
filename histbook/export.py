@@ -113,3 +113,106 @@ class Exportable(object):
         return pd.DataFrame(index=pd.MultiIndex.from_arrays(keys, names=names),
                             columns=arrays.dtype.names,
                             data=arrays.view(arrays.dtype[arrays.dtype.names[0]]).reshape(len(keys[0]), -1))
+
+    def root(self, *axis, **opts):
+        import ROOT
+
+        cache = opts.pop("cache", {})
+        if len(opts) > 0:
+            raise TypeError("unrecognized options for Hist.root: {0}".format(" ".join(opts)))
+
+        if len(axis) == 0:
+            axis = self._group + self._fixed
+        axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
+        for x in axis:
+            if x not in self._group + self._fixed + self._profile:
+                raise IndexError("no such axis: {0}".format(x))
+
+        binaxis = []
+        profile = None
+        for x in axis:
+            if isinstance(x, histbook.axis.ProfileAxis):
+                if profile is None:
+                    profile = x
+                else:
+                    raise ValueError("only one profile axis allowed: {0}, {1}".format(profile, x))
+            else:
+                binaxis.append(x)
+
+        projected = self.project(*binaxis)
+        if profile is None:
+            content = projected.table(count=True, error=(self._weightprofile is not None))
+        else:
+            content = projected.table(profile, count=False, error=True)
+
+        if len(binaxis) == 0:
+            raise TypeError("cannot present zero-axis data in ROOT")
+
+        elif len(binaxis) == 1 and isinstance(binaxis[0], histbook.axis.groupby):
+            if profile is None:
+                raise NotImplementedError("TH1 with string-labeled x-axis")
+
+            else:
+                raise NotImplementedError("TProfile with string-labeled x-axis")
+
+        elif len(binaxis) == 2 and isinstance(binaxis[0], histbook.axis.groupby) and isinstance(binaxis[1], histbook.axis.groupby):
+            if profile is None:
+                raise NotImplementedError("TH2 with string-labeled x-axis and y-axis")
+
+            else:
+                raise NotImplementedError("TProfile2 with string-labeled x-axis and y-axis")
+
+        elif len(binaxis) == 2 and isinstance(binaxis[0], histbook.axis.groupby):
+            if profile is None:
+                raise NotImplementedError("TH2 with string-labeled x-axis only")
+
+            else:
+                raise NotImplementedError("TProfile2 with string-labeled x-axis only")
+
+        elif len(binaxis) == 2 and isinstance(binaxis[1], histbook.axis.groupby):
+            if profile is None:
+                raise NotImplementedError("TH2 with string-labeled y-axis only")
+
+            else:
+                raise NotImplementedError("TProfile2 with string-labeled y-axis only")
+
+        elif any(isinstance(x, histbook.axis.groupby) for x in binaxis):
+            raise TypeError("cannot present more than two categorical axes in ROOT")
+
+        elif any(isinstance(x, histbook.axis.groupbin) for x in binaxis):
+            if profile is None:
+                raise NotImplementedError("THnSparse with fixed axes converted to sparse")
+
+            else:
+                raise TypeError("cannot present sparsely binned profile plots in ROOT")
+
+        elif len(binaxis) == 1:
+            if profile is None:
+                raise NotImplementedError("TH1")
+
+            else:
+                raise NotImplementedError("TProfile")
+
+        elif len(binaxis) == 2:
+            if profile is None:
+                raise NotImplementedError("TH2")
+
+            else:
+                raise NotImplementedError("TProfile2D")
+
+        elif len(binaxis) == 3:
+            if profile is None:
+                raise NotImplementedError("TH3")
+
+            else:
+                raise NotImplementedError("TProfile3D")
+
+        else:
+            if profile is None:
+                raise NotImplementedError("THn")
+
+            else:
+                raise TypeError("cannot present more than 3-dimensional profile plots in ROOT")
+
+        cache[out.GetName()] = out
+        return out
