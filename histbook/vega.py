@@ -28,6 +28,12 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import numbers
+
+import numpy
+
+import histbook.axis
+
 class Facet(object): pass
 
 class OverlayFacet(Facet):
@@ -172,8 +178,69 @@ class Plotable(object):
     def __str__(self, indent="\n     ", paren=True):
         return ("(" if paren else "") + indent.join(repr(x) for x in (self._source,) + self._chain) + (")" if paren else "")
 
+    _varname = "d"
+
+    def _data(self, prefix=()):
+        errors = getattr(self._chain[-1], "errors", False)
+        profile = self._chain[-1].profile
+        if profile is None:
+            profiles = ()
+        else:
+            profiles = (profile,)
+
+        projected = self._source.project(*(x.axis for x in self._chain))
+        table = projected.table(*profiles, count=(profile is None), errors=errors)
+
+        axis = projected.axis
+        dep = table[table.dtype.names[0]]
+        if errors:
+            deperr = table[table.dtype.names[1]]
+        
+        data = []
+        def recurse(j, content, row):
+            if j == len(axis):
+                data.append(dict(zip([self._varname + str(i) for i in range(j)], row)))
+
+            else:
+                for n, x in axis[j].items(content):
+                    if isinstance(n, histbook.axis.Interval):
+                        if numpy.isfinite(n.low) and numpy.isfinite(n.high):
+                            recurse(j + 1, x, row + (str(n),))
+
+                    elif isinstance(n, (numbers.Integral, numpy.integer)):
+                        recurse(j + 1, x, row + (n,))
+
+                    else:
+                        recurse(j + 1, x, row + (str(n),))
+
+        recurse(0, table, prefix)
+        return axis, data
+
     def vegalite(self):
-        raise NotImplementedError
+        axis, data = self._data()
+
+        if isinstance(self._chain[-1], StepsFacet):
+            mark = {"type": "line", "interpolate": "step-before"}
+
+        elif isinstance(self._chain[-1], AreasFacet):
+            mark = {"type": "area", "interpolate": "step-before"}
+
+        elif isinstance(self._chain[-1], LinesFacet):
+            mark = {"type": "line", "interpolate": "step-before"}
+
+        elif isinstance(self._chain[-1], PointsFacet):
+            mark = {"type": "points", "interpolate": "step-before"}
+
+        else:
+            raise AssertionError(self._chain[-1])
+
+        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                "data": data,
+                "mark": mark,
+                "encoding": encoding}
+
+    def to(self, fcn):
+        return fcn(self.vegalite())
 
 class Combination(object):
     def __init__(self, *plotables):
@@ -184,6 +251,9 @@ class Combination(object):
 
     def __str__(self, indent="\n    ", paren=False):
         return "{0}({1})".format(self.__class__.__name__, "".join(indent + x.__str__(indent + "    ", False) for x in self._plotables))
+
+    def to(self, fcn):
+        return fcn(self.vegalite())
 
 class overlay(Combination):
     def vegalite(self):

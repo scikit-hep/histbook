@@ -259,7 +259,7 @@ class groupbin(GroupAxis, NumericalAxis):
     def items(self, content):
         if not isinstance(content, dict):
             raise TypeError("groupbin content must be a dict")
-        return [IntervalPair(n, content[n]) for n in sorted(content)]
+        return [IntervalPair(Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n]) for n in sorted(content)]
 
 class bin(FixedAxis, NumericalAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
@@ -507,7 +507,7 @@ class intbin(FixedAxis, NumericalAxis):
 
     def keys(self, content=None):
         return IntervalTuple(([Interval(float("-inf"), int(self._min), closedlow=True, closedhigh=False)] if self.underflow else []) +
-                             [i for i in range(self._min, self._max + 1)] +
+                             [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
 class split(FixedAxis, NumericalAxis):
