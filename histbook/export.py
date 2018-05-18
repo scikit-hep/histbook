@@ -118,6 +118,8 @@ class Exportable(object):
         import ROOT
 
         cache = opts.pop("cache", {})
+        name = opts.pop("name", "")
+        title = opts.pop("title", "")
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist.root: {0}".format(" ".join(opts)))
 
@@ -141,7 +143,7 @@ class Exportable(object):
 
         projected = self.project(*binaxis)
         if profile is None:
-            content = projected.table(count=True, error=(self._weightprofile is not None))
+            content = projected.table(count=True, error=(self._weightparsed is not None))
         else:
             content = projected.table(profile, count=False, error=True)
 
@@ -187,8 +189,18 @@ class Exportable(object):
                 raise TypeError("cannot present sparsely binned profile plots in ROOT")
 
         elif len(binaxis) == 1:
+            xaxis = binaxis[0]
+
             if profile is None:
-                raise NotImplementedError("TH1")
+                out = ROOT.TH1D(name, title, xaxis.numbins, xaxis.low, xaxis.high)
+                data = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                data[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content["count()"][: (-1 if xaxis.nanflow else None)]
+                out.SetContent(data)
+
+                if "err(count())" in content.dtype.names:
+                    errors = numpy.zeros(xaxis.numbins + 2, dtype=numpy.float64)
+                    errors[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1)] = content["err(count())"][: (-1 if xaxis.nanflow else None)]
+                    out.SetError(data)
 
             else:
                 raise NotImplementedError("TProfile")
