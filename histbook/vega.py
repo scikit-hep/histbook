@@ -69,6 +69,9 @@ class StepFacet(Facet):
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
         return ".step({0})".format("".join(args))
+    @property
+    def error(self):
+        return False
 
 class AreaFacet(Facet):
     def __init__(self, axis, profile):
@@ -79,6 +82,9 @@ class AreaFacet(Facet):
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
         return ".area({0})".format("".join(args))
+    @property
+    def error(self):
+        return False
 
 class LineFacet(Facet):
     def __init__(self, axis, profile, error):
@@ -121,26 +127,6 @@ class FacetChain(object):
     def __str__(self, indent="\n     ", paren=True):
         return ("(" if paren else "") + indent.join(repr(x) for x in (self._source,) + self._chain) + (")" if paren else "")
 
-    def overlay(self, axis):
-        if any(isinstance(x, OverlayFacet) for x in self._chain):
-            raise TypeError("cannot overlay an overlay")
-        return FacetChain(self, OverlayFacet(axis))
-
-    def stack(self, axis):
-        if any(isinstance(x, StackFacet) for x in self._chain):
-            raise TypeError("cannot stack a stack")
-        return FacetChain(self, StackFacet(axis))
-
-    def beside(self, axis):
-        if any(isinstance(x, BesideFacet) for x in self._chain):
-            raise TypeError("cannot split plots beside each other that are already split with beside (can do beside and below)")
-        return FacetChain(self, BesideFacet(axis))
-
-    def below(self, axis):
-        if any(isinstance(x, BelowFacet) for x in self._chain):
-            raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
-        return FacetChain(self, BelowFacet(axis))
-
     def _singleaxis(self, axis):
         if axis is None:
             if len(self._source._group + self._source._fixed) == 1:
@@ -149,27 +135,55 @@ class FacetChain(object):
                 raise TypeError("histogram has more than one axis; one must be specified for plotting")
         return axis
 
+    def _asaxis(self, axis):
+        if axis is None:
+            return None
+        elif isinstance(axis, histbook.axis.Axis):
+            return axis
+        else:
+            return self._source.axis[axis]
+
+    def overlay(self, axis):
+        if any(isinstance(x, OverlayFacet) for x in self._chain):
+            raise TypeError("cannot overlay an overlay")
+        return FacetChain(self, OverlayFacet(self._asaxis(axis)))
+
+    def stack(self, axis):
+        if any(isinstance(x, StackFacet) for x in self._chain):
+            raise TypeError("cannot stack a stack")
+        return FacetChain(self, StackFacet(self._asaxis(axis)))
+
+    def beside(self, axis):
+        if any(isinstance(x, BesideFacet) for x in self._chain):
+            raise TypeError("cannot split plots beside each other that are already split with beside (can do beside and below)")
+        return FacetChain(self, BesideFacet(self._asaxis(axis)))
+
+    def below(self, axis):
+        if any(isinstance(x, BelowFacet) for x in self._chain):
+            raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
+        return FacetChain(self, BelowFacet(self._asaxis(axis)))
+        
     def step(self, axis=None, profile=None):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only area can be stacked")
-        return Plotable(self, StepFacet(self._singleaxis(axis), profile))
+        return Plotable(self, StepFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile)))
 
     def area(self, axis=None, profile=None):
-        return Plotable(self, AreaFacet(self._singleaxis(axis), profile))
+        return Plotable(self, AreaFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile)))
 
     def line(self, axis=None, profile=None, error=False):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only area can be stacked")
         if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below (Vega-Lite bug?)")
-        return Plotable(self, LineFacet(self._singleaxis(axis), profile, error))
+        return Plotable(self, LineFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def marker(self, axis=None, profile=None, error=True):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only area can be stacked")
         if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below (Vega-Lite bug?)")
-        return Plotable(self, MarkerFacet(self._singleaxis(axis), profile, error))
+        return Plotable(self, MarkerFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
 class Plotable(object):
     def __init__(self, source, item):
@@ -186,52 +200,53 @@ class Plotable(object):
     def __str__(self, indent="\n     ", paren=True):
         return ("(" if paren else "") + indent.join(repr(x) for x in (self._source,) + self._chain) + (")" if paren else "")
 
+    @property
+    def _last(self):
+        return self._chain[-1]
+
     def _varname(self, i):
         return "d" + str(i)
 
     def _data(self, prefix=(), baseline=False):
-        error = getattr(self._chain[-1], "error", False)
-        profile = self._chain[-1].profile
+        error = getattr(self._last, "error", False)
+        profile = self._last.profile
         if profile is None:
             profiles = ()
         else:
             profiles = (profile,)
 
         projected = self._source.project(*(x.axis for x in self._chain))
-        table = projected.table(*profiles, count=(profile is None), error=error)
+        table = projected.table(*profiles, count=(profile is None), error=error, recarray=False)
 
-        axis = projected.axis
-        dep = table[table.dtype.names[0]]
-        if error:
-            deperr = table[table.dtype.names[1]]
-        
+        projectedorder = projected.axis
+        lastj = projectedorder.index(self._last.axis)
+
         data = []
         def recurse(i, j, content, row):
-            if j == len(axis):
+            if j == len(projectedorder):
                 if i is None:
-                    if error:
-                        row = row + (0.0, 0.0)
-                    else:
-                        row = row + (0.0,)
+                    row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
-                    if error:
-                        row = row + (dep[i], deperr[i])
-                    else:
-                        row = row + (dep[i],)
+                    row = row + tuple(content)
                 data.append(dict(zip([self._varname(i) for i in range(len(row))], row)))
 
             else:
-                for i, (n, x) in enumerate(axis[j].items(content)):
+                axis = projectedorder[j]
+                for i, (n, x) in enumerate(axis.items(content)):
                     if isinstance(n, histbook.axis.Interval):
                         if numpy.isfinite(n.low) and numpy.isfinite(n.high):
-                            if baseline and j == len(axis) - 1 and isinstance(axis[j], histbook.axis.bin) and n.low == axis[j].low:
-                                recurse(None, j + 1, x, row + (n.low,))
-                                recurse(i, j + 1, x, row + (n.low + 1e-10*(axis[j].high - axis[j].low),))
-                            else:
-                                recurse(i, j + 1, x, row + (n.low,))
+                            if j == lastj:
+                                if baseline and isinstance(axis, histbook.axis.bin) and n.low == axis.low:
+                                    recurse(None, j + 1, x, row + (n.low,))
+                                    recurse(i, j + 1, x, row + (n.low + 1e-10*(axis.high - axis.low),))
+                                else:
+                                    recurse(i, j + 1, x, row + (n.low,))
 
-                            if baseline and j == len(axis) - 1 and isinstance(axis[j], histbook.axis.bin) and n.high == axis[j].high:
-                                recurse(None, j + 1, x, row + (n.high,))
+                                if baseline and isinstance(axis, histbook.axis.bin) and n.high == axis.high:
+                                    recurse(None, j + 1, x, row + (n.high,))
+
+                            else:
+                                recurse(i, j + 1, x, row + (str(n),))
 
                     elif isinstance(n, (numbers.Integral, numpy.integer)):
                         recurse(i, j + 1, x, row + (n,))
@@ -240,34 +255,64 @@ class Plotable(object):
                         recurse(i, j + 1, x, row + (str(n),))
 
         recurse(0, 0, table, prefix)
-        return axis, data
+        return projectedorder, data
 
     def vegalite(self):
-        axis, data = self._data(baseline=True)
+        axis, data = self._data(baseline=isinstance(self._last, (StepFacet, AreaFacet)))
 
-        if isinstance(self._chain[-1], StepFacet):
+        if isinstance(self._last, StepFacet):
             mark = {"type": "line", "interpolate": "step-before"}
-
-        elif isinstance(self._chain[-1], AreaFacet):
+        elif isinstance(self._last, AreaFacet):
             mark = {"type": "area", "interpolate": "step-before"}
+        elif isinstance(self._last, LineFacet):
+            mark = {"type": "line"}
+        elif isinstance(self._last, MarkerFacet):
+            mark = {"type": "point"}
+        else:
+            raise AssertionError(self._last)
 
-        elif isinstance(self._chain[-1], LineFacet):
-            mark = {"type": "line", "interpolate": "step-before"}
+        xtitle = self._last.axis.expr
+        if self._last.profile is None:
+            ytitle = "entries per bin"
+        else:
+            ytitle = self._last.profile.expr
 
-        elif isinstance(self._chain[-1], MarkerFacet):
-            mark = {"type": "marker", "interpolate": "step-before"}
+        encoding = {"x": {"field": self._varname(axis.index(self._last.axis)), "type": "quantitative", "scale": {"zero": False}, "axis": {"title": xtitle}},
+                    "y": {"field": self._varname(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
+        for facet in self._chain[:-1]:
+            if isinstance(facet, OverlayFacet):
+                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}}
+
+            elif isinstance(facet, StackFacet):
+                raise NotImplementedError
+
+            elif isinstance(facet, BesideFacet):
+                raise NotImplementedError
+
+            elif isinstance(facet, BelowFacet):
+                raise NotImplementedError
+
+            else:
+                raise AssertionError(facet)
+
+        if self._last.error:
+            encoding2 = {"x": {"field": self._varname(axis.index(self._last.axis)), "type": "quantitative"},
+                         "y": {"field": "error-down", "type": "quantitative"},
+                         "y2": {"field": "error-up", "type": "quantitative"}}
+            return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                    "data": {"values": data},
+                    "layer": [
+                        {"mark": mark, "encoding": encoding},
+                        {"mark": "rule", "encoding": encoding2,
+                         "transform": [
+                             {"calculate": "datum.{0} - datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-down"},
+                             {"calculate": "datum.{0} + datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-up"}]}]}
 
         else:
-            raise AssertionError(self._chain[-1])
-
-        encoding = {}
-        encoding["y"] = {"field": self._varname(len(axis)), "type": "quantitative"}
-        encoding["x"] = {"field": self._varname(axis.index(self._chain[-1].axis)), "type": "quantitative", "scale": {"zero": False}}
-
-        return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                "data": {"values": data},
-                "mark": mark,
-                "encoding": encoding}
+            return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                    "data": {"values": data},
+                    "mark": mark,
+                    "encoding": encoding}
 
     def to(self, fcn):
         return fcn(self.vegalite())

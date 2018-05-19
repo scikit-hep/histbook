@@ -278,6 +278,7 @@ class Projectable(object):
         count = opts.pop("count", True)
         effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
+        recarray = opts.pop("recarray", True)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist.table: {0}".format(" ".join(opts)))
 
@@ -341,7 +342,10 @@ class Projectable(object):
                     out[good, outindex] = numpy.sqrt(((content[good, prof._sumwx2index] / sumw) - numpy.square(out[good, outindex - 1])) / effcnt)
                     outindex += 1
 
-            return out.view([(x, content.dtype) for x in columns]).reshape(self._shape[:-1])
+            if recarray:
+                return out.view([(x, content.dtype) for x in columns]).reshape(self._shape[:-1])
+            else:
+                return out.reshape(self._shape[:-1] + (outindex,))
 
         def handle(content):
             if isinstance(content, dict):
