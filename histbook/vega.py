@@ -141,27 +141,35 @@ class FacetChain(object):
             raise TypeError("cannot split rows into rows")
         return FacetChain(self, RowsFacet(axis))
 
-    def steps(self, axis, profile=None):
+    def _singleaxis(self, axis):
+        if axis is None:
+            if len(self._source._group + self._source._fixed) == 1:
+                axis, = self._source._group + self._source._fixed
+            else:
+                raise TypeError("histogram has more than one axis; one must be specified for plotting")
+        return axis
+
+    def steps(self, axis=None, profile=None):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only areas can be stacked")
-        return Plotable(self, StepsFacet(axis, profile))
+        return Plotable(self, StepsFacet(self._singleaxis(axis), profile))
 
-    def areas(self, axis, profile=None):
-        return Plotable(self, AreasFacet(axis, profile))
+    def areas(self, axis=None, profile=None):
+        return Plotable(self, AreasFacet(self._singleaxis(axis), profile))
 
-    def lines(self, axis, profile=None, errors=False):
+    def lines(self, axis=None, profile=None, errors=False):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only areas can be stacked")
         if errors and any(isinstance(x, (ColumnsFacet, RowsFacet)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting into columns or rows (Vega-Lite bug?)")
-        return Plotable(self, LinesFacet(axis, profile, errors))
+        return Plotable(self, LinesFacet(self._singleaxis(axis), profile, errors))
 
-    def points(self, axis, profile=None, errors=True):
+    def points(self, axis=None, profile=None, errors=True):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only areas can be stacked")
         if errors and any(isinstance(x, (ColumnsFacet, RowsFacet)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting into columns or rows (Vega-Lite bug?)")
-        return Plotable(self, PointsFacet(axis, profile, errors))
+        return Plotable(self, PointsFacet(self._singleaxis(axis), profile, errors))
 
 class Plotable(object):
     def __init__(self, source, item):
@@ -178,9 +186,10 @@ class Plotable(object):
     def __str__(self, indent="\n     ", paren=True):
         return ("(" if paren else "") + indent.join(repr(x) for x in (self._source,) + self._chain) + (")" if paren else "")
 
-    _varname = "d"
+    def _varname(self, i):
+        return "d" + str(i)
 
-    def _data(self, prefix=()):
+    def _data(self, prefix=(), baseline=False):
         errors = getattr(self._chain[-1], "errors", False)
         profile = self._chain[-1].profile
         if profile is None:
@@ -189,7 +198,7 @@ class Plotable(object):
             profiles = (profile,)
 
         projected = self._source.project(*(x.axis for x in self._chain))
-        table = projected.table(*profiles, count=(profile is None), errors=errors)
+        table = projected.table(*profiles, count=(profile is None), error=errors)
 
         axis = projected.axis
         dep = table[table.dtype.names[0]]
@@ -197,27 +206,44 @@ class Plotable(object):
             deperr = table[table.dtype.names[1]]
         
         data = []
-        def recurse(j, content, row):
+        def recurse(i, j, content, row):
             if j == len(axis):
-                data.append(dict(zip([self._varname + str(i) for i in range(j)], row)))
+                if i is None:
+                    if errors:
+                        row = row + (0.0, 0.0)
+                    else:
+                        row = row + (0.0,)
+                else:
+                    if errors:
+                        row = row + (dep[i], deperr[i])
+                    else:
+                        row = row + (dep[i],)
+                data.append(dict(zip([self._varname(i) for i in range(len(row))], row)))
 
             else:
-                for n, x in axis[j].items(content):
+                for i, (n, x) in enumerate(axis[j].items(content)):
                     if isinstance(n, histbook.axis.Interval):
                         if numpy.isfinite(n.low) and numpy.isfinite(n.high):
-                            recurse(j + 1, x, row + (str(n),))
+                            if baseline and j == len(axis) - 1 and isinstance(axis[j], histbook.axis.bin) and n.low == axis[j].low:
+                                recurse(None, j + 1, x, row + (n.low,))
+                                recurse(i, j + 1, x, row + (n.low + 1e-12,))
+                            else:
+                                recurse(i, j + 1, x, row + (n.low,))
+
+                            if baseline and j == len(axis) - 1 and isinstance(axis[j], histbook.axis.bin) and n.high == axis[j].high:
+                                recurse(None, j + 1, x, row + (n.high,))
 
                     elif isinstance(n, (numbers.Integral, numpy.integer)):
-                        recurse(j + 1, x, row + (n,))
+                        recurse(i, j + 1, x, row + (n,))
 
                     else:
-                        recurse(j + 1, x, row + (str(n),))
+                        recurse(i, j + 1, x, row + (str(n),))
 
-        recurse(0, table, prefix)
+        recurse(0, 0, table, prefix)
         return axis, data
 
     def vegalite(self):
-        axis, data = self._data()
+        axis, data = self._data(baseline=True)
 
         if isinstance(self._chain[-1], StepsFacet):
             mark = {"type": "line", "interpolate": "step-before"}
@@ -234,8 +260,12 @@ class Plotable(object):
         else:
             raise AssertionError(self._chain[-1])
 
+        encoding = {}
+        encoding["y"] = {"field": self._varname(len(axis)), "type": "quantitative"}
+        encoding["x"] = {"field": self._varname(axis.index(self._chain[-1].axis)), "type": "quantitative", "scale": {"zero": False}}
+
         return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                "data": data,
+                "data": {"values": data},
                 "mark": mark,
                 "encoding": encoding}
 

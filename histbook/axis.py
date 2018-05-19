@@ -50,6 +50,22 @@ class Interval(object):
             args.append("closedhigh={0}".format(self._closedhigh))
         return "Interval({0})".format(", ".join(args))
 
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    @property
+    def closedlow(self):
+        return self._closedlow
+
+    @property
+    def closedhigh(self):
+        return self._closedhigh
+
     def __str__(self):
         return "{0}{1}, {2}{3}".format(("[" if self._closedlow else "("), str(self._low), str(self._high), ("]" if self._closedhigh else ")"))
 
@@ -68,6 +84,22 @@ class IntervalNaN(Interval):
 
     def __repr__(self):
         return "IntervalNaN()"
+
+    @property
+    def low(self):
+        return float("nan")
+
+    @property
+    def high(self):
+        return float("nan")
+
+    @property
+    def closedlow(self):
+        return True
+
+    @property
+    def closedhigh(self):
+        return True
 
     def __str__(self):
         return "[NaN]"
@@ -391,8 +423,10 @@ class bin(FixedAxis, NumericalAxis):
             return None, None, None, False
 
     def keys(self, content=None):
+        def i2x(i):
+            return (float(i) / float(self._numbins)) * float(self._high - self._low) + float(self._low)
         return IntervalTuple(([Interval(float("-inf"), float(self._low), closedlow=True, closedhigh=(not self._closedlow))] if self.underflow else []) +
-                             [Interval((float(i) / float(self._numbins)) * float(self._high - self._low) + float(self._low), closedlow=self._closedlow, closedhigh=(not self._closedlow)) for i in range(self._numbins)] +
+                             [Interval(i2x(i), i2x(i + 1), closedlow=self._closedlow, closedhigh=(not self._closedlow)) for i in range(self._numbins)] +
                              ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
             
