@@ -222,9 +222,9 @@ class Plotable(object):
         lastj = projectedorder.index(self._last.axis)
 
         data = []
-        def recurse(i, j, content, row):
+        def recurse(j, content, row, base):
             if j == len(projectedorder):
-                if i is None:
+                if base:
                     row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
                     row = row + tuple(content)
@@ -234,27 +234,27 @@ class Plotable(object):
                 axis = projectedorder[j]
                 for i, (n, x) in enumerate(axis.items(content)):
                     if isinstance(n, histbook.axis.Interval):
-                        if numpy.isfinite(n.low) and numpy.isfinite(n.high):
-                            if j == lastj:
+                        if j == lastj:
+                            if numpy.isfinite(n.low) and numpy.isfinite(n.high):
                                 if baseline and isinstance(axis, histbook.axis.bin) and n.low == axis.low:
-                                    recurse(None, j + 1, x, row + (n.low,))
-                                    recurse(i, j + 1, x, row + (n.low + 1e-10*(axis.high - axis.low),))
+                                    recurse(j + 1, x, row + (n.low,), True)
+                                    recurse(j + 1, x, row + (n.low + 1e-10*(axis.high - axis.low),), base)
                                 else:
-                                    recurse(i, j + 1, x, row + (n.low,))
+                                    recurse(j + 1, x, row + (n.low,), base)
 
                                 if baseline and isinstance(axis, histbook.axis.bin) and n.high == axis.high:
-                                    recurse(None, j + 1, x, row + (n.high,))
+                                    recurse(j + 1, x, row + (n.high,), True)
 
-                            else:
-                                recurse(i, j + 1, x, row + (str(n),))
+                        else:
+                            recurse(j + 1, x, row + (str(n),), base)
 
                     elif isinstance(n, (numbers.Integral, numpy.integer)):
-                        recurse(i, j + 1, x, row + (n,))
+                        recurse(j + 1, x, row + (n,), base)
 
                     else:
-                        recurse(i, j + 1, x, row + (str(n),))
+                        recurse(j + 1, x, row + (str(n),), base)
 
-        recurse(0, 0, table, prefix)
+        recurse(0, table, prefix, False)
         return projectedorder, data
 
     def vegalite(self):
