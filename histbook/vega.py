@@ -48,19 +48,19 @@ class StackFacet(Facet):
     def __repr__(self):
         return ".stack({0})".format(self.axis)
 
-class ColumnsFacet(Facet):
+class BesideFacet(Facet):
     def __init__(self, axis):
         self.axis = axis
     def __repr__(self):
-        return ".columns({0})".format(self.axis)
+        return ".beside({0})".format(self.axis)
 
-class RowsFacet(Facet):
+class BelowFacet(Facet):
     def __init__(self, axis):
         self.axis = axis
     def __repr__(self):
-        return ".rows({0})".format(self.axis)
+        return ".below({0})".format(self.axis)
 
-class StepsFacet(Facet):
+class StepFacet(Facet):
     def __init__(self, axis, profile):
         self.axis = axis
         self.profile = profile
@@ -68,9 +68,9 @@ class StepsFacet(Facet):
         args = [repr(self.axis)]
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
-        return ".steps({0})".format("".join(args))
+        return ".step({0})".format("".join(args))
 
-class AreasFacet(Facet):
+class AreaFacet(Facet):
     def __init__(self, axis, profile):
         self.axis = axis
         self.profile = profile
@@ -78,33 +78,33 @@ class AreasFacet(Facet):
         args = [repr(self.axis)]
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
-        return ".areas({0})".format("".join(args))
+        return ".area({0})".format("".join(args))
 
-class LinesFacet(Facet):
-    def __init__(self, axis, profile, errors):
+class LineFacet(Facet):
+    def __init__(self, axis, profile, error):
         self.axis = axis
         self.profile = profile
-        self.errors = errors
+        self.error = error
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
-        if self.errors is not False:
-            args.append("errors={0}".format(self.errors))
-        return ".lines({0})".format("".join(args))
+        if self.error is not False:
+            args.append("error={0}".format(self.error))
+        return ".line({0})".format("".join(args))
 
-class PointsFacet(Facet):
-    def __init__(self, axis, profile, errors):
+class MarkerFacet(Facet):
+    def __init__(self, axis, profile, error):
         self.axis = axis
         self.profile = profile
-        self.errors = errors
+        self.error = error
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
-        if self.errors is not True:
-            args.append("errors={0}".format(self.errors))
-        return ".points({0})".format("".join(args))
+        if self.error is not True:
+            args.append("error={0}".format(self.error))
+        return ".marker({0})".format("".join(args))
 
 class FacetChain(object):
     def __init__(self, source, item):
@@ -131,15 +131,15 @@ class FacetChain(object):
             raise TypeError("cannot stack a stack")
         return FacetChain(self, StackFacet(axis))
 
-    def columns(self, axis):
-        if any(isinstance(x, ColumnsFacet) for x in self._chain):
-            raise TypeError("cannot split columns into columns")
-        return FacetChain(self, ColumnsFacet(axis))
+    def beside(self, axis):
+        if any(isinstance(x, BesideFacet) for x in self._chain):
+            raise TypeError("cannot split plots beside each other that are already split with beside (can do beside and below)")
+        return FacetChain(self, BesideFacet(axis))
 
-    def rows(self, axis):
-        if any(isinstance(x, RowsFacet) for x in self._chain):
-            raise TypeError("cannot split rows into rows")
-        return FacetChain(self, RowsFacet(axis))
+    def below(self, axis):
+        if any(isinstance(x, BelowFacet) for x in self._chain):
+            raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
+        return FacetChain(self, BelowFacet(axis))
 
     def _singleaxis(self, axis):
         if axis is None:
@@ -149,27 +149,27 @@ class FacetChain(object):
                 raise TypeError("histogram has more than one axis; one must be specified for plotting")
         return axis
 
-    def steps(self, axis=None, profile=None):
+    def step(self, axis=None, profile=None):
         if any(isinstance(x, StackFacet) for x in self._chain):
-            raise TypeError("only areas can be stacked")
-        return Plotable(self, StepsFacet(self._singleaxis(axis), profile))
+            raise TypeError("only area can be stacked")
+        return Plotable(self, StepFacet(self._singleaxis(axis), profile))
 
-    def areas(self, axis=None, profile=None):
-        return Plotable(self, AreasFacet(self._singleaxis(axis), profile))
+    def area(self, axis=None, profile=None):
+        return Plotable(self, AreaFacet(self._singleaxis(axis), profile))
 
-    def lines(self, axis=None, profile=None, errors=False):
+    def line(self, axis=None, profile=None, error=False):
         if any(isinstance(x, StackFacet) for x in self._chain):
-            raise TypeError("only areas can be stacked")
-        if errors and any(isinstance(x, (ColumnsFacet, RowsFacet)) for x in self._chain):
-            raise NotImplementedError("error bars are currently incompatible with splitting into columns or rows (Vega-Lite bug?)")
-        return Plotable(self, LinesFacet(self._singleaxis(axis), profile, errors))
+            raise TypeError("only area can be stacked")
+        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below (Vega-Lite bug?)")
+        return Plotable(self, LineFacet(self._singleaxis(axis), profile, error))
 
-    def points(self, axis=None, profile=None, errors=True):
+    def marker(self, axis=None, profile=None, error=True):
         if any(isinstance(x, StackFacet) for x in self._chain):
-            raise TypeError("only areas can be stacked")
-        if errors and any(isinstance(x, (ColumnsFacet, RowsFacet)) for x in self._chain):
-            raise NotImplementedError("error bars are currently incompatible with splitting into columns or rows (Vega-Lite bug?)")
-        return Plotable(self, PointsFacet(self._singleaxis(axis), profile, errors))
+            raise TypeError("only area can be stacked")
+        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below (Vega-Lite bug?)")
+        return Plotable(self, MarkerFacet(self._singleaxis(axis), profile, error))
 
 class Plotable(object):
     def __init__(self, source, item):
@@ -190,7 +190,7 @@ class Plotable(object):
         return "d" + str(i)
 
     def _data(self, prefix=(), baseline=False):
-        errors = getattr(self._chain[-1], "errors", False)
+        error = getattr(self._chain[-1], "error", False)
         profile = self._chain[-1].profile
         if profile is None:
             profiles = ()
@@ -198,23 +198,23 @@ class Plotable(object):
             profiles = (profile,)
 
         projected = self._source.project(*(x.axis for x in self._chain))
-        table = projected.table(*profiles, count=(profile is None), error=errors)
+        table = projected.table(*profiles, count=(profile is None), error=error)
 
         axis = projected.axis
         dep = table[table.dtype.names[0]]
-        if errors:
+        if error:
             deperr = table[table.dtype.names[1]]
         
         data = []
         def recurse(i, j, content, row):
             if j == len(axis):
                 if i is None:
-                    if errors:
+                    if error:
                         row = row + (0.0, 0.0)
                     else:
                         row = row + (0.0,)
                 else:
-                    if errors:
+                    if error:
                         row = row + (dep[i], deperr[i])
                     else:
                         row = row + (dep[i],)
@@ -226,7 +226,7 @@ class Plotable(object):
                         if numpy.isfinite(n.low) and numpy.isfinite(n.high):
                             if baseline and j == len(axis) - 1 and isinstance(axis[j], histbook.axis.bin) and n.low == axis[j].low:
                                 recurse(None, j + 1, x, row + (n.low,))
-                                recurse(i, j + 1, x, row + (n.low + 1e-12,))
+                                recurse(i, j + 1, x, row + (n.low + 1e-10*(axis[j].high - axis[j].low),))
                             else:
                                 recurse(i, j + 1, x, row + (n.low,))
 
@@ -245,17 +245,17 @@ class Plotable(object):
     def vegalite(self):
         axis, data = self._data(baseline=True)
 
-        if isinstance(self._chain[-1], StepsFacet):
+        if isinstance(self._chain[-1], StepFacet):
             mark = {"type": "line", "interpolate": "step-before"}
 
-        elif isinstance(self._chain[-1], AreasFacet):
+        elif isinstance(self._chain[-1], AreaFacet):
             mark = {"type": "area", "interpolate": "step-before"}
 
-        elif isinstance(self._chain[-1], LinesFacet):
+        elif isinstance(self._chain[-1], LineFacet):
             mark = {"type": "line", "interpolate": "step-before"}
 
-        elif isinstance(self._chain[-1], PointsFacet):
-            mark = {"type": "points", "interpolate": "step-before"}
+        elif isinstance(self._chain[-1], MarkerFacet):
+            mark = {"type": "marker", "interpolate": "step-before"}
 
         else:
             raise AssertionError(self._chain[-1])
@@ -289,10 +289,10 @@ class overlay(Combination):
     def vegalite(self):
         raise NotImplementedError
 
-class columns(Combination):
+class beside(Combination):
     def vegalite(self):
         raise NotImplementedError
 
-class rows(Combination):
+class below(Combination):
     def vegalite(self):
         raise NotImplementedError
