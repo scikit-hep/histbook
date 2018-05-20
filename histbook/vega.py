@@ -281,7 +281,7 @@ class Plotable(object):
                     "y": {"field": self._varname(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
         for facet in self._chain[:-1]:
             if isinstance(facet, OverlayFacet):
-                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}}
+                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": [str(x) for x in facet.axis.keys()]}}
 
             elif isinstance(facet, StackFacet):
                 raise NotImplementedError

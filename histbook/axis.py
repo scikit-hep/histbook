@@ -66,8 +66,11 @@ class Interval(object):
     def closedhigh(self):
         return self._closedhigh
 
+    def _num(self, n):
+        return "{0:4g}".format(n).strip()
+
     def __str__(self):
-        return "{0}{1}, {2}{3}".format(("[" if self._closedlow else "("), str(self._low), str(self._high), ("]" if self._closedhigh else ")"))
+        return "{0}{1}, {2}{3}".format(("[" if self._closedlow else "("), self._num(self._low), self._num(self._high), ("]" if self._closedhigh else ")"))
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self._low == other._low and self._high == other._high and self._closedlow == other._closedlow and self._closedhigh == other._closedhigh
@@ -102,7 +105,7 @@ class IntervalNaN(Interval):
         return True
 
     def __str__(self):
-        return "[NaN]"
+        return "{NaN}"
 
     def __eq__(self, other):
         return self.__class__ == other.__class__
