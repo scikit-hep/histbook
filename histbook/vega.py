@@ -277,6 +277,15 @@ class Plotable(object):
         else:
             ytitle = self._last.profile.expr
 
+        transform = []
+        def makeorder(i, var, values):
+            if len(values) == 1:
+                return "if(datum.{0} === {1}, {2}, {3})".format(var, repr(values[0]), i, i + 1)
+            elif len(values) > 1:
+                return "if(datum.{0} === {1}, {2}, {3})".format(var, repr(values[0]), i, makeorder(i + 1, var, values[1:]))
+            else:
+                raise AssertionError(values)
+
         encoding = {"x": {"field": self._varname(axis.index(self._last.axis)), "type": "quantitative", "scale": {"zero": False}, "axis": {"title": xtitle}},
                     "y": {"field": self._varname(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
         for facet in self._chain[:-1]:
@@ -284,7 +293,11 @@ class Plotable(object):
                 encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": [str(x) for x in facet.axis.keys()]}}
 
             elif isinstance(facet, StackFacet):
-                raise NotImplementedError
+                stackorder = [str(x) for x in facet.axis.keys()]
+                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
+                encoding["y"]["aggregate"] = "sum"
+                encoding["order"] = {"field": "stackorder", "type": "nominal"}
+                transform.append({"calculate": makeorder(0, self._varname(axis.index(facet.axis)), stackorder), "as": "stackorder"})
 
             elif isinstance(facet, BesideFacet):
                 raise NotImplementedError
@@ -306,13 +319,16 @@ class Plotable(object):
                         {"mark": "rule", "encoding": encoding2,
                          "transform": [
                              {"calculate": "datum.{0} - datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-down"},
-                             {"calculate": "datum.{0} + datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-up"}]}]}
+                             {"calculate": "datum.{0} + datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-up"}]
+                             + transform
+                         }]}
 
         else:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                     "data": {"values": data},
                     "mark": mark,
-                    "encoding": encoding}
+                    "encoding": encoding,
+                    "transform": transform}
 
     def to(self, fcn):
         return fcn(self.vegalite())
