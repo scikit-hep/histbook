@@ -222,6 +222,8 @@ class Plotable(object):
         lastj = projectedorder.index(self._last.axis)
 
         data = []
+        domains = {}
+
         def recurse(j, content, row, base):
             if j == len(projectedorder):
                 if base:
@@ -232,6 +234,11 @@ class Plotable(object):
 
             else:
                 axis = projectedorder[j]
+                if isinstance(axis, histbook.axis.GroupAxis):
+                    if axis not in domains:
+                        domains[axis] = set()
+                    domains[axis].update(axis.keys(content))
+
                 for i, (n, x) in enumerate(axis.items(content)):
                     if isinstance(n, histbook.axis.Interval):
                         if j == lastj:
@@ -255,10 +262,10 @@ class Plotable(object):
                         recurse(j + 1, x, row + (str(n),), base)
 
         recurse(0, table, prefix, False)
-        return projectedorder, data
+        return projectedorder, data, domains
 
     def vegalite(self):
-        axis, data = self._data(baseline=isinstance(self._last, (StepFacet, AreaFacet)))
+        axis, data, domains = self._data(baseline=isinstance(self._last, (StepFacet, AreaFacet)))
 
         if isinstance(self._last, StepFacet):
             mark = {"type": "line", "interpolate": "step-before"}
@@ -290,20 +297,23 @@ class Plotable(object):
                     "y": {"field": self._varname(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
         for facet in self._chain[:-1]:
             if isinstance(facet, OverlayFacet):
-                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": [str(x) for x in facet.axis.keys()]}}
+                overlayorder = [str(x) for x in sorted(domains[facet.axis])]
+                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": overlayorder}}
 
             elif isinstance(facet, StackFacet):
-                stackorder = [str(x) for x in facet.axis.keys()]
+                stackorder = [str(x) for x in sorted(domains[facet.axis])]
                 encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
                 encoding["y"]["aggregate"] = "sum"
                 encoding["order"] = {"field": "stackorder", "type": "nominal"}
                 transform.append({"calculate": makeorder(0, self._varname(axis.index(facet.axis)), stackorder), "as": "stackorder"})
 
             elif isinstance(facet, BesideFacet):
-                raise NotImplementedError
+                # FIXME: sorting doesn't work???
+                encoding["column"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
 
             elif isinstance(facet, BelowFacet):
-                raise NotImplementedError
+                # FIXME: sorting doesn't work???
+                encoding["row"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
 
             else:
                 raise AssertionError(facet)

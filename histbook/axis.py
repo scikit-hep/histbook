@@ -75,8 +75,34 @@ class Interval(object):
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self._low == other._low and self._high == other._high and self._closedlow == other._closedlow and self._closedhigh == other._closedhigh
 
+    def __lt__(self, other):
+        if isinstance(other, Interval):
+            if isinstance(other, IntervalNaN):
+                return True
+            else:
+                return self._low < other._low
+        else:
+            return self.__class__ < other.__class__
+
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __ge__(self, other):
+        return not self.__lt__(other)
+
+    def __gt__(self, other):
+        return not self.__lt__(other) and not self.__eq__(other)
+
+    def __le__(self, other):
+        return self.__lt__(other) or self.__eq__(other)
+
+    def __cmp__(self, other):
+        if self.__eq__(other):
+            return 0
+        elif self.__lt__(other):
+            return -1
+        else:
+            return 1
 
     def __hash__(self):
         return hash((self.__class__, self._low, self._high, self._closedlow, self._closedhigh))
@@ -109,6 +135,12 @@ class IntervalNaN(Interval):
 
     def __eq__(self, other):
         return self.__class__ == other.__class__
+
+    def __lt__(self, other):
+        if isinstance(other, Interval):
+            return isinstance(other, IntervalNaN)
+        else:
+            return self.__class__ < other.__class__
 
     def __hash__(self):
         return hash((self.__class__,))
@@ -210,12 +242,12 @@ class groupby(GroupAxis):
             raise AssertionError(cmp)
 
     def keys(self, content):
-        return [n for n, x in self.iteritems(content)]
+        return [n for n, x in self.items(content)]
 
     def items(self, content):
         if not isinstance(content, dict):
             raise TypeError("groupby content must be a dict")
-        return [IntervalPair(n, content[n]) for n in sorted(content)]
+        return [IntervalPair((n, content[n])) for n in sorted(content)]
 
 class groupbin(GroupAxis, NumericalAxis):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
@@ -289,12 +321,12 @@ class groupbin(GroupAxis, NumericalAxis):
             return None, None, None, False
 
     def keys(self, content):
-        return IntervalTuple(n for n, x in self.iteritems(content))
+        return IntervalTuple(n for n, x in self.items(content))
 
     def items(self, content):
         if not isinstance(content, dict):
             raise TypeError("groupbin content must be a dict")
-        return [IntervalPair(Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n]) for n in sorted(content)]
+        return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
 
 class bin(FixedAxis, NumericalAxis):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
