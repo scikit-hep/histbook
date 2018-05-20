@@ -34,63 +34,51 @@ import numpy
 
 import histbook.axis
 
-class Facet(object): pass
-
-class OverlayFacet(Facet):
+class Facet(object):
     def __init__(self, axis):
         self.axis = axis
+
+class OverlayFacet(Facet):
     def __repr__(self):
         return ".overlay({0})".format(self.axis)
 
 class StackFacet(Facet):
-    def __init__(self, axis):
-        self.axis = axis
     def __repr__(self):
         return ".stack({0})".format(self.axis)
 
 class BesideFacet(Facet):
-    def __init__(self, axis):
-        self.axis = axis
     def __repr__(self):
         return ".beside({0})".format(self.axis)
 
 class BelowFacet(Facet):
-    def __init__(self, axis):
-        self.axis = axis
     def __repr__(self):
         return ".below({0})".format(self.axis)
 
-class StepFacet(Facet):
-    def __init__(self, axis, profile):
-        self.axis = axis
-        self.profile = profile
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        return ".step({0})".format("".join(args))
-    @property
-    def error(self):
-        return False
-
-class AreaFacet(Facet):
-    def __init__(self, axis, profile):
-        self.axis = axis
-        self.profile = profile
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        return ".area({0})".format("".join(args))
-    @property
-    def error(self):
-        return False
-
-class LineFacet(Facet):
+class TerminalFacet(Facet):
     def __init__(self, axis, profile, error):
         self.axis = axis
         self.profile = profile
         self.error = error
+
+class StepFacet(TerminalFacet):
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        if self.error is not False:
+            args.append("error={0}".format(self.error))
+        return ".step({0})".format("".join(args))
+
+class AreaFacet(TerminalFacet):
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        if self.error is not False:
+            args.append("error={0}".format(self.error))
+        return ".area({0})".format("".join(args))
+
+class LineFacet(TerminalFacet):
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
@@ -99,11 +87,7 @@ class LineFacet(Facet):
             args.append("error={0}".format(self.error))
         return ".line({0})".format("".join(args))
 
-class MarkerFacet(Facet):
-    def __init__(self, axis, profile, error):
-        self.axis = axis
-        self.profile = profile
-        self.error = error
+class MarkerFacet(TerminalFacet):
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
@@ -163,26 +147,30 @@ class FacetChain(object):
             raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
         return FacetChain(self, BelowFacet(self._asaxis(axis)))
         
-    def step(self, axis=None, profile=None):
+    def step(self, axis=None, profile=None, error=False):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only area can be stacked")
-        return Plotable(self, StepFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile)))
+        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
+        return Plotable(self, StepFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
-    def area(self, axis=None, profile=None):
-        return Plotable(self, AreaFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile)))
+    def area(self, axis=None, profile=None, error=False):
+        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
+        return Plotable(self, AreaFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def line(self, axis=None, profile=None, error=False):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only area can be stacked")
         if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
-            raise NotImplementedError("error bars are currently incompatible with splitting beside or below (Vega-Lite bug?)")
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, LineFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def marker(self, axis=None, profile=None, error=True):
         if any(isinstance(x, StackFacet) for x in self._chain):
             raise TypeError("only area can be stacked")
         if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
-            raise NotImplementedError("error bars are currently incompatible with splitting beside or below (Vega-Lite bug?)")
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, MarkerFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
 class Plotable(object):
@@ -208,7 +196,6 @@ class Plotable(object):
         return "d" + str(i)
 
     def _data(self, prefix=(), baseline=False):
-        error = getattr(self._last, "error", False)
         profile = self._last.profile
         if profile is None:
             profiles = ()
@@ -216,18 +203,20 @@ class Plotable(object):
             profiles = (profile,)
 
         projected = self._source.project(*(x.axis for x in self._chain))
-        table = projected.table(*profiles, count=(profile is None), error=error, recarray=False)
+        table = projected.table(*profiles, count=(profile is None), error=self._last.error, recarray=False)
 
         projectedorder = projected.axis
         lastj = projectedorder.index(self._last.axis)
 
         data = []
         domains = {}
+        if self._last.error and baseline:
+            shifts = {}
 
         def recurse(j, content, row, base):
             if j == len(projectedorder):
                 if base:
-                    row = row + ((0.0, 0.0) if error else (0.0,))
+                    row = row + ((0.0, 0.0) if self._last.error else (0.0,))
                 else:
                     row = row + tuple(content)
                 data.append(dict(zip([self._varname(i) for i in range(len(row))], row)))
@@ -243,11 +232,15 @@ class Plotable(object):
                     if isinstance(n, histbook.axis.Interval):
                         if j == lastj:
                             if numpy.isfinite(n.low) and numpy.isfinite(n.high):
+                                low = n.low
                                 if baseline and isinstance(axis, histbook.axis.bin) and n.low == axis.low:
                                     recurse(j + 1, x, row + (n.low,), True)
-                                    recurse(j + 1, x, row + (n.low + 1e-10*(axis.high - axis.low),), base)
-                                else:
-                                    recurse(j + 1, x, row + (n.low,), base)
+                                    low += 1e-10*(axis.high - axis.low)
+
+                                recurse(j + 1, x, row + (low,), base)
+
+                                if self._last.error and baseline:
+                                    shifts[low] = 0.5*(n.low + n.high)
 
                                 if baseline and isinstance(axis, histbook.axis.bin) and n.high == axis.high:
                                     recurse(j + 1, x, row + (n.high,), True)
@@ -262,6 +255,12 @@ class Plotable(object):
                         recurse(j + 1, x, row + (str(n),), base)
 
         recurse(0, table, prefix, False)
+        if self._last.error and baseline:
+            print "shifts", shifts
+
+            for x in data:
+                x[self._varname(lastj) + "c"] = shifts.get(x[self._varname(lastj)], x[self._varname(lastj)])
+
         return projectedorder, data, domains
 
     def vegalite(self):
@@ -308,18 +307,23 @@ class Plotable(object):
                 transform.append({"calculate": makeorder(0, self._varname(axis.index(facet.axis)), stackorder), "as": "stackorder"})
 
             elif isinstance(facet, BesideFacet):
-                # FIXME: sorting doesn't work???
+                # FIXME: sorting doesn't work??? https://github.com/vega/vega-lite/issues/2176
                 encoding["column"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
 
             elif isinstance(facet, BelowFacet):
-                # FIXME: sorting doesn't work???
+                # FIXME: sorting doesn't work??? https://github.com/vega/vega-lite/issues/2176
                 encoding["row"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
 
             else:
                 raise AssertionError(facet)
 
         if self._last.error:
-            encoding2 = {"x": {"field": self._varname(axis.index(self._last.axis)), "type": "quantitative"},
+            if self._last.error and isinstance(self._last, (StepFacet, AreaFacet)):
+                errx = self._varname(axis.index(self._last.axis)) + "c"
+            else:
+                errx = self._varname(axis.index(self._last.axis))
+
+            encoding2 = {"x": {"field": errx, "type": "quantitative"},
                          "y": {"field": "error-down", "type": "quantitative"},
                          "y2": {"field": "error-up", "type": "quantitative"}}
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
