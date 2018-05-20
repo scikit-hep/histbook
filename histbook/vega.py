@@ -256,8 +256,6 @@ class Plotable(object):
 
         recurse(0, table, prefix, False)
         if self._last.error and baseline:
-            print "shifts", shifts
-
             for x in data:
                 x[self._varname(lastj) + "c"] = shifts.get(x[self._varname(lastj)], x[self._varname(lastj)])
 
