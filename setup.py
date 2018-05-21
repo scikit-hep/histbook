@@ -39,13 +39,19 @@ def get_version():
     exec(open(os.path.join("histbook", "version.py")).read(), g)
     return g["__version__"]
 
+def get_description():
+    description = open("README.rst",'rb').read().decode('utf8', 'ignore')    
+    start = description.index(".. inclusion-marker-1-5-do-not-remove")
+    stop = description.index(".. inclusion-marker-5-do-not-remove")
+    return description[start:stop].strip()
+
 setup(name = "histbook",
       version = get_version(),
       packages = find_packages(exclude = ["tests"]),
       scripts = [],
       data_files = ["README.rst"],
       description = "Histogram library with better separation between aggregation and plotting.",
-      long_description = "Histogram library with better separation between aggregation and plotting.",
+      long_description = get_description(),
       author = "Jim Pivarski (DIANA-HEP)",
       author_email = "pivarski@fnal.gov",
       maintainer = "Jim Pivarski (DIANA-HEP)",
