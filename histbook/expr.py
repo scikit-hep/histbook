@@ -98,7 +98,7 @@ class Expr(object):
             elif isinstance(fcn, ast.Lambda):
                 pyast = fcn.body.value
                 label = meta.dump_python_source(pyast).strip()
-            params = expression.__code__.co_varnames[expression.__code__.co_argcount]
+            params = expression.__code__.co_varnames[:expression.__code__.co_argcount]
 
         elif (sys.version_info[0] < 3 and isinstance(expression, basestring)) or (sys.version_info[0] >= 3 and isinstance(expression, str)):
             mod = ast.parse(expression)
@@ -319,9 +319,19 @@ class Expr(object):
 
             elif isinstance(node, ast.Call):
                 fcn = Expr.recognized.get(resolve(node.func), None)
+
+                print "fcn", fcn, fcn in Expr.recognized
+
                 if fcn is None and node.func.id in Expr.recognized.values():
                     fcn = node.func.id
-                else:
+
+                elif fcn is not None:
+                    for n, x in Expr.recognized.items():
+                        if fcn is n:
+                            fcn = x
+                            break
+                    
+                if fcn is None:
                     raise ExpressionError("unhandled function in expression: {0}".format(meta.dump_python_source(node).strip()))
                 return Call(fcn, *(recurse(x) for x in node.args))
 

@@ -128,11 +128,14 @@ This example was deliberately simple. We can extend the binning to two dimension
 
 .. image:: docs/source/intro-2.png
 
+Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not 
 
+.. code-block:: python
 
-
-
-
+    >>> import math
+    >>> r = lambda x, y: math.sqrt(x**2 + y**2)
+    >>> phi = lambda y, x: math.atan2(y, x)
+    >>> beside(hist.step(r), hist.step(phi)).to(canvas)
 
 .. inclusion-marker-4-do-not-remove
 
