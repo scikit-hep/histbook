@@ -43,7 +43,7 @@ class TestExpr(unittest.TestCase):
         self.assertEqual(Expr.parse("1"), Const(1))
         self.assertEqual(Expr.parse("'hello'"), Const('hello'))
         self.assertEqual(Expr.parse("{}"), Const(set()))
-        self.assertEqual(Expr.parse("{1, 2, 3}"), Const({1, 2, 3}))
+        self.assertEqual(Expr.parse("{1, 2, 3}"), Const(set([1, 2, 3])))
 
     def test_name(self):
         self.assertEqual(Expr.parse("hello"), Name("hello"))
@@ -62,9 +62,9 @@ class TestExpr(unittest.TestCase):
         self.assertEqual(Expr.parse("0 >= x"), Relation("<=", Name("x"), Const(0)))
         self.assertEqual(Expr.parse("x >= 0"), Relation("<=", Const(0), Name("x")))
         self.assertEqual(Expr.parse("x in {}"), Relation("in", Name("x"), Const(set())))
-        self.assertEqual(Expr.parse("x in {1, 2, 3}"), Relation("in", Name("x"), Const({1, 2, 3})))
+        self.assertEqual(Expr.parse("x in {1, 2, 3}"), Relation("in", Name("x"), Const(set([1, 2, 3]))))
         self.assertEqual(Expr.parse("x not in {}"), Relation("not in", Name("x"), Const(set())))
-        self.assertEqual(Expr.parse("x not in {1, 2, 3}"), Relation("not in", Name("x"), Const({1, 2, 3})))
+        self.assertEqual(Expr.parse("x not in {1, 2, 3}"), Relation("not in", Name("x"), Const(set([1, 2, 3]))))
 
     def test_unary_plusminus(self):
         self.assertEqual(Expr.parse("+x"), Name("x"))
