@@ -241,7 +241,10 @@ Notice that the three subfigures are labeled by ``atan2(y, x)`` bin. This "trell
 
     >>> import random
     >>> labels = "one", "two", "three"
-    >>> hist = Hist(groupby("a"), cut("b > 1"), split("c", (-3, 0, 1, 2, 3)), bin("d", 50, -3, 3))
+    >>> hist = Hist(groupby("a"),
+    ...             cut("b > 1"),
+    ...             split("c", (-3, 0, 1, 2, 3)),
+    ...             bin("d", 50, -3, 3))
     >>> hist.fill(a=[random.choice(labels) for i in range(1000000)],
     ...           b=numpy.random.normal(0, 1, 1000000),
     ...           c=numpy.random.normal(0, 1, 1000000),
@@ -251,11 +254,47 @@ Notice that the three subfigures are labeled by ``atan2(y, x)`` bin. This "trell
 
 .. image:: docs/source/intro-8.png
 
-In the above, we created a four-dimensional histogram in which the first axis is categorical: ``one``, ``two``, ``three``, the second axis is a cut: ``b > 1``, the third axis is irregularly split into bins (number of edges + 1 + another for nanflow), and the last is split into 50 regularly split bins.
+In the above, we created a four-dimensional histogram in which the first axis is categorical: ``one``, ``two``, ``three``, the second axis is a cut: ``b > 1``, the third axis is irregularly split into bins at edges −3, 0, 1, 2, 3, and the last is split into 50 regularly split bins.
 
-Only the last line is involved in drawing. Vega-Lite takes a "`grammar of graphics <https://cfss.uchicago.edu/dataviz_grammar_of_graphics.html>`__" approach to visualization, in which plots are made by matching data attributes with visual facets such as overlay, stack, and placement. histbook extends this mapping to pre-aggregated data.
+Only the last line is involved in drawing. Vega-Lite takes a "`grammar of graphics <https://cfss.uchicago.edu/dataviz_grammar_of_graphics.html>`__" approach to visualization, in which plots are made by matching data attributes with visual facets such as overlay, stack, and placement, instead of manually drawing over drawings. histbook extends this mapping to aggregated bin data.
+
+In practice, you probably won't be making histograms with many dimensions, in part because of the memory use, but also because it becomes cumbersome to visualize. However, many of the "groups of histograms" particle physicists make are actually ``groupby``, ``cut``, or ``split`` dimensions in disguise. histbook puts them on the same footing as regular binning, providing flexibility to delay some decisions until you're ready to plot.
+
+Axis constructors
+-----------------
+
+histbook currently recognizes the following axis constructors:
+
+- ``groupby(expr)`` groups by unique Python objects, usually strings or integers
+- ``groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)``
 
 
+profile
+
+
+Creating a book
+---------------
+
+
+
+Manipulation methods
+--------------------
+
+
+
+
+
+
+
+Plotting methods
+----------------
+
+
+
+Tabular output
+--------------
+
+fraction, weights
 
 
 
