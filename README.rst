@@ -64,24 +64,24 @@ Then start a Jupyter notebook (vega) or Python prompt (vegascope),
 
 .. code-block:: python
 
-    from histbook import *
-    import numpy
+    >>> from histbook import *
+    >>> import numpy
 
 and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`_ graphics.
 
 .. code-block:: python
 
-    from vega import VegaLite as canvas                    # for vega in Jupyter
-    import vegascope; canvas = vegascope.LocalCanvas()     # for vegascope
+    >>> from vega import VegaLite as canvas                    # for vega in Jupyter
+    >>> import vegascope; canvas = vegascope.LocalCanvas()     # for vegascope
 
 Let's start by histogramming a simple array of data.
 
 .. code-block:: python
 
-    array = numpy.random.normal(0, 1, 1000000)
-    histogram = Hist(bin("data", 10, -5, 5))
-    histogram.fill(data=array)
-    histogram.step("data").to(canvas)
+    >>> array = numpy.random.normal(0, 1, 1000000)
+    >>> histogram = Hist(bin("data", 10, -5, 5))
+    >>> histogram.fill(data=array)
+    >>> histogram.step("data").to(canvas)
 
 .. image:: docs/source/intro-1.png
 
@@ -96,7 +96,7 @@ We could also access the data as a table, as a Pandas DataFrame:
 
 .. code-block:: python
 
-    histogram.pandas()
+    >>> histogram.pandas()
 
 .. code-block::
 
