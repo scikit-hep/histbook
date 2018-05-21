@@ -869,7 +869,7 @@ class _nullaxis(FixedAxis):
 
     @property
     def expr(self):
-        return histbook.expr.Const(None)
+        return histbook.expr.Name("???")
 
     def relabel(self, label):
         return self

@@ -260,11 +260,14 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
         newaxis = []
         for old in axis:
-            expr, label = histbook.expr.Expr.parse(old._expr, defs=defs, returnlabel=True)
-            new = old.relabel(label)
-            new._original = old._expr
-            new._parsed = expr
-            newaxis.append(new)
+            if isinstance(old, histbook.axis._nullaxis):
+                newaxis.append(old)
+            else:
+                expr, label = histbook.expr.Expr.parse(old._expr, defs=defs, returnlabel=True)
+                new = old.relabel(label)
+                new._original = old._expr
+                new._parsed = expr
+                newaxis.append(new)
 
         self._goals = set()
         self._destination = [[]]
@@ -291,7 +294,8 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
                 self._fixed.append(new)
                 new._shapeindex = len(self._shape)
                 self._shape.append(new.totbins)
-                dest(new._goals(new._parsed))
+                if not isinstance(new, histbook.axis._nullaxis):
+                    dest(new._goals(new._parsed))
 
         self._shape.append(0)
         for new in newaxis:

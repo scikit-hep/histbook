@@ -33,11 +33,22 @@ import numpy
 import histbook.axis
 
 class Exportable(object):
-    def pandas(self, *profile, **opts):
+    def pandas(self, *axis, **opts):
         import pandas as pd
 
-        content = self.table(*profile, **opts)
-        allaxis = self._group + self._fixed
+        axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
+
+        opts["recarray"] = True
+        if all(isinstance(x, histbook.axis.ProfileAxis) for x in axis):
+            content = self.table(*axis, **opts)
+            allaxis = self._group + self._fixed
+
+        elif all(isinstance(x, histbook.axis.cut) for x in axis):
+            content, denomhist = self._fraction(axis, opts, True)
+            allaxis = denomhist._group + denomhist._fixed
+
+        else:
+            raise TypeError("selected axis must be all profiles (for table) or all cuts (for fraction)")
 
         names = [None for x in allaxis]
         arrays = []
@@ -73,7 +84,7 @@ class Exportable(object):
                         if axis.overflow:
                             index(j + 1, None, key + (pd.Interval(axis.high, float("inf"), closed=closed),))
                         if axis.nanflow:
-                            index(j + 1, None, key + ("NaN",))
+                            index(j + 1, None, key + ("{NaN}",))
 
                     elif isinstance(axis, histbook.axis.intbin):
                         if axis.underflow:
@@ -94,11 +105,14 @@ class Exportable(object):
                         if axis.overflow:
                             index(j + 1, None, key + (pd.Interval(last, float("inf"), closed=closed),))
                         if axis.nanflow:
-                            index(j + 1, None, key + ("NaN",))
+                            index(j + 1, None, key + ("{NaN}",))
 
                     elif isinstance(axis, histbook.axis.cut):
                         index(j + 1, None, key + (False,))
                         index(j + 1, None, key + (True,))
+
+                    elif isinstance(axis, histbook.axis._nullaxis):
+                        index(j + 1, None, key + ("",))
 
                     else:
                         raise AssertionError(axis)

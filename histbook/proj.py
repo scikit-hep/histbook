@@ -28,6 +28,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import math
 import numbers
 
 import numpy
@@ -49,7 +50,7 @@ class AxisTuple(tuple):
     def _findbyclass(self, expr, cls, kwargs):
         expr = histbook.expr.Expr.parse(expr, defs=self._defs)
         for axis in self:
-            if isinstance(axis, cls) and all(hasattr(axis, n) and getattr(axis, n) == x for n, x in kwargs.items()):
+            if isinstance(axis, cls) and axis._parsed == expr and all(hasattr(axis, n) and getattr(axis, n) == x for n, x in kwargs.items()):
                 return axis
         raise IndexError("no such axis: {0}({1}{2})".format(cls.__name__, repr(str(expr)), "".join(", {0}={1}".format(n, kwargs[n]) for n in sorted(kwargs))))
 
@@ -83,6 +84,36 @@ class Projectable(object):
 
     def rebin(self, axis, to):
         raise NotImplementedError
+
+    def drop(self, *profile):
+        profile = [x if isinstance(x, histbook.axis.Axis) else self.axis.profile(x) for x in profile]
+        for prof in profile:
+            if prof not in self._profile:
+                raise IndexError("no such profile axis: {0}".format(prof))
+
+        axis = []
+        index = []
+        for i, prof in enumerate(self._profile):
+            if prof not in profile:
+                axis.append(prof)
+                index.append(i)
+
+        index.append(self._sumwindex)
+        if self._weight is not None:
+            index.append(self._sumw2index)
+
+        slc = (slice(None),) * (len(self._shape) - 1) + (index,)
+
+        def dropcontent(content):
+            if isinstance(content, dict):
+                return dict((n, dropcontent(x)) for n, x in content.items())
+            else:
+                return content[slc]
+
+        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weight, defs=self._defs)
+        if self._content is not None:
+            out._content = dropcontent(self._content)
+        return out
 
     def project(self, *axis):
         allaxis = self._group + self._fixed
@@ -249,7 +280,12 @@ class Projectable(object):
                 raise ValueError("no axis can select {0} (axis {1} has an edge at {2})".format(repr(str(expr)), closestaxis, repr(closest)))
             else:
                 raise ValueError("no axis can select {0}".format(repr(str(expr))))
-            
+
+        return self._selectaxis(cutaxis, newaxis, cutslice, True)
+
+    def _selectaxis(self, cutaxis, newaxis, cutslice, dropnull):
+        allaxis = self._group + self._fixed
+
         def cutcontent(i, content):
             if content is None:
                 return None
@@ -263,12 +299,13 @@ class Projectable(object):
             else:
                 slc = tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))
                 out = content[slc].copy()
-                if isinstance(newaxis, histbook.axis._nullaxis):
+                if dropnull and isinstance(newaxis, histbook.axis._nullaxis):
                     out.shape = tuple(sh for sh, sl in zip(out.shape, slc) if sl is not cutslice)
                 return out
 
         axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
-        axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
+        if dropnull:
+            axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
         out = self.__class__(*axis, weight=self._weight, defs=self._defs)
         if self._content is not None:
             out._content = cutcontent(0, self._content)
@@ -354,3 +391,135 @@ class Projectable(object):
                 return handlearray(content)
 
         return handle(self._content)
+
+    def fraction(self, *cut, **opts):
+        return self._fraction(cut, opts, False)
+
+    def _fraction(self, cut, opts, return_denomhist):
+        count = opts.pop("count", True)
+        error = opts.pop("error", "normal")
+        levels = opts.pop("level", math.erf(math.sqrt(0.5)))
+        if isinstance(levels, (numbers.Real, numpy.floating, numpy.integer)):
+            levels = (levels,)
+        recarray = opts.pop("recarray", True)
+        if len(opts) > 0:
+            raise TypeError("unrecognized options for Hist.table: {0}".format(" ".join(opts)))
+
+        self._prefill()
+
+        cut = [x if isinstance(x, histbook.axis.Axis) else self.axis.cut(x) for x in cut]
+
+        cutindex = []
+        for c in cut:
+            if c not in self._fixed or not isinstance(c, histbook.axis.cut):
+                raise IndexError("no such cut axis: {0}".format(c))
+            else:
+                cutindex.append(self._fixed.index(c))
+        cut = [self._fixed[i] for i in cutindex]
+
+        noprofiles = self.drop(*self._profile)
+        denomhist = noprofiles.project(*[x for x in self._group + self._fixed if x not in cut])
+        cuthist = []
+        for c in cut:
+            proj = noprofiles.project(*[x for x in self._group + self._fixed if x is c or x not in cut])
+            for cutaxis in proj._fixed:
+                if isinstance(cutaxis, histbook.axis.cut) and c._parsed == cutaxis._parsed:
+                    break
+            else:
+                raise AssertionError(proj._fixed)
+            cuthist.append(proj._selectaxis(cutaxis, histbook.axis._nullaxis(), slice(1, 2), False))
+
+        columns = []
+        if count:
+            columns.append("count()")
+        for c in cut:
+            columns.append(str(c.expr))
+            if error:
+                for level in levels:
+                    if level == math.erf(math.sqrt(0.5)):
+                        columns.append("err({0})".format(str(c.expr)))
+                    else:
+                        columns.append("err({0}, {1:3g})".format(str(c.expr), level))
+
+        def level2sigmas(level):
+            try:
+                from scipy.special import erfinv
+            except ImportError:
+                a3 = math.pi / 12.0
+                a5 = math.pi**2 * 7.0/480.0
+                a7 = math.pi**3 * 127.0/40320.0
+                a9 = math.pi**4 * 4369.0/5806080.0
+                a11 = math.pi**5 * 34807.0/182476800.0
+                return 0.5*math.sqrt(math.pi)*(level + a3*level**3 + a5*level**5 + a7*level**7 + a9*level**9 + a11*level**11)
+            else:
+                return float(erfinv(level) * math.sqrt(2))
+
+        def handlearray(denomcontent, cutcontent):
+            denomcontent = denomcontent.reshape((-1, denomhist._shape[-1]))
+
+            out = numpy.zeros((denomcontent.shape[0], len(columns)), dtype=numpy.float64)
+            outindex = 0
+
+            sumw = denomcontent[:, denomhist._sumwindex]
+            if count:
+                out[:, outindex] = sumw
+                outindex += 1
+
+            good = numpy.nonzero(sumw)
+            denom = sumw[good]
+            # if denomhist._weight is not None:
+            #     denomw2 = denomcontent[good, denomhist._sumw2index]
+
+            for i in range(len(cut)):
+                cc = cutcontent[i].reshape((-1, cuthist[i]._shape[-1]))
+                p = out[good, outindex] = cc[good, cuthist[i]._sumwindex] / denom
+                outindex += 1
+
+                if not error:
+                    pass
+
+                # https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval
+                # https://root.cern.ch/root/html602/src/TEfficiency.cxx.html
+
+                elif error == "clopper-pearson":    # recommended by PDG; FIXME: should be the default
+                    raise NotImplementedError
+
+                elif error == "normal":
+                    for level in levels:
+                        out[good, outindex] = level2sigmas(level) * numpy.sqrt(p*(1.0 - p) / denom)
+                        outindex += 1
+
+                elif error == "wilson":
+                    for level in levels:
+                        z = level2sigmas(level)
+                        out[good, outindex] = (p + 0.5*z**2/denom + z*numpy.sqrt(p*(1.0 - p)/denom + 0.25*z**2/numpy.square(denom))) / (1.0 + z**2/denom)
+                        outindex += 1
+
+                elif error == "agresti-coull":
+                    raise NotImplementedError
+
+                elif error == "feldman-cousins":
+                    raise NotImplementedError
+
+                elif error == "jeffrey":
+                    raise NotImplementedError
+
+                elif error == "bayesian-uniform":
+                    raise NotImplementedError
+
+            if recarray:
+                return out.view([(x, numpy.dtype(numpy.float64)) for x in columns]).reshape(denomhist._shape[:-1])
+            else:
+                return out.reshape(denomhist._shape[:-1] + (outindex,))
+
+        def handle(denomcontent, cutcontent):
+            if isinstance(denomcontent, dict):
+                return dict((n, handle(x, [cc[n] for cc in cutcontent])) for n, x in denomcontent.items())
+            else:
+                return handlearray(denomcontent, cutcontent)
+
+        out = handle(denomhist._content, [x._content for x in cuthist])
+        if return_denomhist:
+            return out, denomhist
+        else:
+            return out
