@@ -220,7 +220,7 @@ class Book(collections.MutableMapping, Fillable):
             out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
         return out
 
-class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, histbook.vega.FacetChain):
+class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, histbook.vega.PlottingChain):
     @property
     def _source(self):
         return self

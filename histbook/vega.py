@@ -34,33 +34,33 @@ import numpy
 
 import histbook.axis
 
-class Facet(object):
+class Channel(object):
     def __init__(self, axis):
         self.axis = axis
 
-class OverlayFacet(Facet):
+class OverlayChannel(Channel):
     def __repr__(self):
         return ".overlay({0})".format(self.axis)
 
-class StackFacet(Facet):
+class StackChannel(Channel):
     def __repr__(self):
         return ".stack({0})".format(self.axis)
 
-class BesideFacet(Facet):
+class BesideChannel(Channel):
     def __repr__(self):
         return ".beside({0})".format(self.axis)
 
-class BelowFacet(Facet):
+class BelowChannel(Channel):
     def __repr__(self):
         return ".below({0})".format(self.axis)
 
-class TerminalFacet(Facet):
+class TerminalChannel(Channel):
     def __init__(self, axis, profile, error):
         self.axis = axis
         self.profile = profile
         self.error = error
 
-class StepFacet(TerminalFacet):
+class StepChannel(TerminalChannel):
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
@@ -69,7 +69,7 @@ class StepFacet(TerminalFacet):
             args.append("error={0}".format(self.error))
         return ".step({0})".format("".join(args))
 
-class AreaFacet(TerminalFacet):
+class AreaChannel(TerminalChannel):
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
@@ -78,7 +78,7 @@ class AreaFacet(TerminalFacet):
             args.append("error={0}".format(self.error))
         return ".area({0})".format("".join(args))
 
-class LineFacet(TerminalFacet):
+class LineChannel(TerminalChannel):
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
@@ -87,7 +87,7 @@ class LineFacet(TerminalFacet):
             args.append("error={0}".format(self.error))
         return ".line({0})".format("".join(args))
 
-class MarkerFacet(TerminalFacet):
+class MarkerChannel(TerminalChannel):
     def __repr__(self):
         args = [repr(self.axis)]
         if self.profile is not None:
@@ -96,9 +96,9 @@ class MarkerFacet(TerminalFacet):
             args.append("error={0}".format(self.error))
         return ".marker({0})".format("".join(args))
 
-class FacetChain(object):
+class PlottingChain(object):
     def __init__(self, source, item):
-        if isinstance(source, FacetChain):
+        if isinstance(source, PlottingChain):
             self._source = source._source
             self._chain = source._chain + (item,)
         else:
@@ -128,54 +128,54 @@ class FacetChain(object):
             return self._source.axis[axis]
 
     def overlay(self, axis):
-        if any(isinstance(x, OverlayFacet) for x in self._chain):
+        if any(isinstance(x, OverlayChannel) for x in self._chain):
             raise TypeError("cannot overlay an overlay")
-        return FacetChain(self, OverlayFacet(self._asaxis(axis)))
+        return PlottingChain(self, OverlayChannel(self._asaxis(axis)))
 
     def stack(self, axis):
-        if any(isinstance(x, StackFacet) for x in self._chain):
+        if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("cannot stack a stack")
-        return FacetChain(self, StackFacet(self._asaxis(axis)))
+        return PlottingChain(self, StackChannel(self._asaxis(axis)))
 
     def beside(self, axis):
-        if any(isinstance(x, BesideFacet) for x in self._chain):
+        if any(isinstance(x, BesideChannel) for x in self._chain):
             raise TypeError("cannot split plots beside each other that are already split with beside (can do beside and below)")
-        return FacetChain(self, BesideFacet(self._asaxis(axis)))
+        return PlottingChain(self, BesideChannel(self._asaxis(axis)))
 
     def below(self, axis):
-        if any(isinstance(x, BelowFacet) for x in self._chain):
+        if any(isinstance(x, BelowChannel) for x in self._chain):
             raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
-        return FacetChain(self, BelowFacet(self._asaxis(axis)))
+        return PlottingChain(self, BelowChannel(self._asaxis(axis)))
         
     def step(self, axis=None, profile=None, error=False):
-        if any(isinstance(x, StackFacet) for x in self._chain):
+        if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area can be stacked")
-        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+        if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, StepFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def area(self, axis=None, profile=None, error=False):
-        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+        if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, AreaFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, AreaChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def line(self, axis=None, profile=None, error=False):
-        if any(isinstance(x, StackFacet) for x in self._chain):
+        if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area can be stacked")
-        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+        if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, LineFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def marker(self, axis=None, profile=None, error=True):
-        if any(isinstance(x, StackFacet) for x in self._chain):
+        if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area can be stacked")
-        if error and any(isinstance(x, (BesideFacet, BelowFacet)) for x in self._chain):
+        if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, MarkerFacet(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
 class Plotable(object):
     def __init__(self, source, item):
-        if isinstance(source, FacetChain):
+        if isinstance(source, PlottingChain):
             self._source = source._source
             self._chain = source._chain + (item,)
         else:
@@ -194,7 +194,7 @@ class Plotable(object):
 
     def _data(self, prefix, varname):
         error = self._last.error
-        baseline = isinstance(self._last, (StepFacet, AreaFacet))
+        baseline = isinstance(self._last, (StepChannel, AreaChannel))
 
         profile = self._last.profile
         if profile is None:
@@ -262,15 +262,15 @@ class Plotable(object):
 
     def _vegalite(self, axis, domains, varname):
         error = self._last.error
-        baseline = isinstance(self._last, (StepFacet, AreaFacet))
+        baseline = isinstance(self._last, (StepChannel, AreaChannel))
 
-        if isinstance(self._last, StepFacet):
+        if isinstance(self._last, StepChannel):
             mark = {"type": "line", "interpolate": "step-before"}
-        elif isinstance(self._last, AreaFacet):
+        elif isinstance(self._last, AreaChannel):
             mark = {"type": "area", "interpolate": "step-before"}
-        elif isinstance(self._last, LineFacet):
+        elif isinstance(self._last, LineChannel):
             mark = {"type": "line"}
-        elif isinstance(self._last, MarkerFacet):
+        elif isinstance(self._last, MarkerChannel):
             mark = {"type": "point"}
         else:
             raise AssertionError(self._last)
@@ -292,28 +292,28 @@ class Plotable(object):
 
         encoding = {"x": {"field": varname + str(axis.index(self._last.axis)), "type": "quantitative", "scale": {"zero": False}, "axis": {"title": xtitle}},
                     "y": {"field": varname + str(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
-        for facet in self._chain[:-1]:
-            if isinstance(facet, OverlayFacet):
-                overlayorder = [str(x) for x in sorted(domains[facet.axis])]
-                encoding["color"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": overlayorder}}
+        for channel in self._chain[:-1]:
+            if isinstance(channel, OverlayChannel):
+                overlayorder = [str(x) for x in sorted(domains[channel.axis])]
+                encoding["color"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "legend": {"title": channel.axis.expr}, "scale": {"domain": overlayorder}}
 
-            elif isinstance(facet, StackFacet):
-                stackorder = [str(x) for x in sorted(domains[facet.axis])]
-                encoding["color"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
+            elif isinstance(channel, StackChannel):
+                stackorder = [str(x) for x in sorted(domains[channel.axis])]
+                encoding["color"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "legend": {"title": channel.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
                 encoding["y"]["aggregate"] = "sum"
                 encoding["order"] = {"field": "stackorder", "type": "nominal"}
-                transform.append({"calculate": makeorder(0, varname + str(axis.index(facet.axis)), stackorder), "as": "stackorder"})
+                transform.append({"calculate": makeorder(0, varname + str(axis.index(channel.axis)), stackorder), "as": "stackorder"})
 
-            elif isinstance(facet, BesideFacet):
+            elif isinstance(channel, BesideChannel):
                 # FIXME: sorting doesn't work??? https://github.com/vega/vega-lite/issues/2176
-                encoding["column"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
+                encoding["column"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "header": {"title": channel.axis.expr}}
 
-            elif isinstance(facet, BelowFacet):
+            elif isinstance(channel, BelowChannel):
                 # FIXME: sorting doesn't work??? https://github.com/vega/vega-lite/issues/2176
-                encoding["row"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
+                encoding["row"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "header": {"title": channel.axis.expr}}
 
             else:
-                raise AssertionError(facet)
+                raise AssertionError(channel)
 
         if not error:
             return [mark], [encoding], [transform]
@@ -416,7 +416,7 @@ class overlay(Combination):
 class beside(Combination):
     def __init__(self, *plotables):
         super(beside, self).__init__(*plotables)
-        if any(isinstance(x, BesideFacet) for x in self._plotables):
+        if any(isinstance(x, BesideChannel) for x in self._plotables):
             raise TypeError("cannot place plots beside each other that are already split with beside (can do beside and below)")
 
     def vegalite(self):
@@ -450,7 +450,7 @@ class beside(Combination):
 class below(Combination):
     def __init__(self, *plotables):
         super(below, self).__init__(*plotables)
-        if any(isinstance(x, BelowFacet) for x in self._plotables):
+        if any(isinstance(x, BelowChannel) for x in self._plotables):
             raise TypeError("cannot place plots below each other that are already split with below (can do beside and below)")
 
     def vegalite(self):
