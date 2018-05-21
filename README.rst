@@ -122,13 +122,14 @@ This example was deliberately simple. We can extend the binning to two dimension
 
 .. code-block:: python
 
-    >>> hist = Hist(bin("sqrt(x**2 + y**2)", 10, 0, 1), bin("atan2(y, x)", 10, 0, 1))
+    >>> import math
+    >>> hist = Hist(bin("sqrt(x**2 + y**2)", 5, 0, 1), bin("atan2(y, x)", 3, -math.pi, math.pi))
     >>> hist.fill(x=numpy.random.normal(0, 1, 1000000), y=numpy.random.normal(0, 1, 1000000))
     >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("atan2(y,x)")).to(canvas)
 
 .. image:: docs/source/intro-2.png
 
-Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not 
+Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically. They could even be entered as Python functions:
 
 .. code-block:: python
 
@@ -136,6 +137,69 @@ Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it
     >>> r = lambda x, y: math.sqrt(x**2 + y**2)
     >>> phi = lambda y, x: math.atan2(y, x)
     >>> beside(hist.step(r), hist.step(phi)).to(canvas)
+
+The data contained in ``hist`` is two-dimensional, which you can see by printing
+
+.. code-block:: python
+
+    >>> hist.pandas()
+
+.. code-block::
+
+                                                        count()  err(count())
+    sqrt(x**2 + y**2) atan2(y, x)                                            
+    [-inf, 0.0)       [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)       0.0      0.000000
+                      [-1.0471975512, 1.0471975512)         0.0      0.000000
+                      [1.0471975512, 3.14159265359)         0.0      0.000000
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    [0.0, 0.2)        [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)    6704.0     81.877958
+                      [-1.0471975512, 1.0471975512)      6595.0     81.209605
+                      [1.0471975512, 3.14159265359)      6409.0     80.056230
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    [0.2, 0.4)        [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)   19008.0    137.869504
+                      [-1.0471975512, 1.0471975512)     19312.0    138.967622
+                      [1.0471975512, 3.14159265359)     19137.0    138.336546
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    [0.4, 0.6)        [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)   29266.0    171.073084
+                      [-1.0471975512, 1.0471975512)     29163.0    170.771778
+                      [1.0471975512, 3.14159265359)     29293.0    171.151979
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    [0.6, 0.8)        [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)   36289.0    190.496719
+                      [-1.0471975512, 1.0471975512)     36227.0    190.333917
+                      [1.0471975512, 3.14159265359)     36145.0    190.118384
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    [0.8, 1.0)        [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)   39931.0    199.827426
+                      [-1.0471975512, 1.0471975512)     39769.0    199.421664
+                      [1.0471975512, 3.14159265359)     39752.0    199.379036
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    [1.0, inf)        [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)  202393.0    449.881095
+                      [-1.0471975512, 1.0471975512)    202686.0    450.206619
+                      [1.0471975512, 3.14159265359)    201921.0    449.356206
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+    {NaN}             [-inf, -3.14159265359)                0.0      0.000000
+                      [-3.14159265359, -1.0471975512)       0.0      0.000000
+                      [-1.0471975512, 1.0471975512)         0.0      0.000000
+                      [1.0471975512, 3.14159265359)         0.0      0.000000
+                      [3.14159265359, inf)                  0.0      0.000000
+                      {NaN}                                 0.0      0.000000
+
+
+
+
 
 .. inclusion-marker-4-do-not-remove
 
