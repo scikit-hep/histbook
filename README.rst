@@ -272,8 +272,8 @@ histbook currently recognizes the following axis constructors:
 profile
 
 
-Creating a book
----------------
+Books of histograms
+-------------------
 
 
 
