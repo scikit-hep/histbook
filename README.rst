@@ -116,7 +116,7 @@ We could also access the data as a table, as a `Pandas DataFrame <https://pandas
     [5.0, inf)         0.0      0.000000
     {NaN}              0.0      0.000000
 
-including underflow (``[-inf, -5.0)``), overflow (``[5.0, inf)``), and nanflow (``{NaN}``), the number of values that escape the [-5, 5) range (none in this case). In the absence of weights, the error in the count is the square root of the count.
+including underflow (``[-inf, -5.0)``), overflow (``[5.0, inf)``), and nanflow (``{NaN}``), the number of values that escape the [-5, 5) range (none in this case). In the absence of weights, the error in the count is the square root of the count (approximation of `Poisson statistics <https://en.wikipedia.org/wiki/Poisson_distribution>`__).
 
 This example was deliberately simple. We can extend the binning to two dimensions and use expressions in the axis labels, rather than simple names:
 
@@ -197,7 +197,7 @@ The data contained in ``hist`` is two-dimensional, which you can see by printing
                       [3.14159265359, inf)                  0.0      0.000000
                       {NaN}                                 0.0      0.000000
 
-With multiple dimensions, we can project it out different ways. Overlay draws all the bins of one axis as separate lines in the projection of the other.
+With multiple dimensions, we can project it out different ways. The ``overlay`` method draws all the bins of one axis as separate lines in the projection of the other.
 
 .. code-block:: python
 
@@ -205,7 +205,7 @@ With multiple dimensions, we can project it out different ways. Overlay draws al
 
 .. image:: docs/source/intro-3.png
 
-Stack draws them cumulatively, though it only works with the ``area`` (filled) rendering.
+The ``stack`` method draws them cumulatively, though it only works with the ``area`` (filled) rendering.
 
 .. code-block:: python
 
@@ -234,6 +234,25 @@ We can also split side-by-side and top-down:
     >>> hist.select("-pi <= atan2(y, x) < pi").below(phi).marker(r, error=False).to(canvas)
 
 .. image:: docs/source/intro-7.png
+
+Notice that the three subfigures are labeled by ``atan2(y, x)`` bin. This "trellis plot" formed with ``beside`` and ``below`` is splitting data just as ``overlay`` and ``stack`` split data. Using all but one together, we could visualize four dimensions at once:
+
+.. code-block:: python
+
+    import random
+    labels = "one", "two", "three"
+    hist = Hist(groupby("a"), cut("b > 1"), split("c", (-3, 0, 1, 2, 3)), bin("d", 50, -3, 3))
+    hist.fill(a=[random.choice(labels) for i in range(1000000)],
+              b=numpy.random.normal(0, 1, 1000000),
+              c=numpy.random.normal(0, 1, 1000000),
+              d=numpy.random.normal(0, 1, 1000000))
+    hist.beside("a").below("b > 1").overlay("c").step("d").to(canvas)
+
+.. image:: docs/source/intro-8.png
+
+In the above, we created a four-dimensional histogram in which the first axis is categorical: ``one``, ``two``, ``three``, the second axis is a cut: ``b > 1``, the third axis is irregularly split into bins (number of edges + 1 + another for nanflow), and the last is split into 50 regularly split bins.
+
+
 
 .. inclusion-marker-4-do-not-remove
 
