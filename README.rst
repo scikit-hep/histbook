@@ -9,7 +9,7 @@ Versitile, high-performance histogram toolkit for Numpy.
 
 A histogram is a way to visualize the distribution of a dataset via aggregation: rather than plotting data points individually, we count how many fall within a set of abutting intervals and plot those totals. The resulting plot approximates the distribution from which the data were derived (`see Wikipedia for details <https://en.wikipedia.org/wiki/Histogram>`__).
 
-The **histbook** package defines, fills, and visualizes histograms of Numpy data. Its capabilities extend considerably beyond the `numpy.histogram <https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html>`_ function included in Numpy, as it was designed to serve the needs of particle physicists. Particle physicists have been analyzing data with histograms for decades and have strict requirements on a histogramming package:
+The **histbook** package defines, fills, and visualizes histograms of Numpy data. Its capabilities extend considerably beyond the `numpy.histogram <https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html>`__ function included in Numpy, as it was designed to serve the needs of particle physicists. Particle physicists have been analyzing data with histograms for decades and have strict requirements on a histogramming package:
 
 - It must be able to declare an empty histogram as a container to be filled, iteratively or in parallel, allowing results to be combined from multiple sources.
 - It must be able to fill many histograms in a single pass over huge datasets.
@@ -17,7 +17,7 @@ The **histbook** package defines, fills, and visualizes histograms of Numpy data
 - It must create "profile plots" (average of one variable, binned in another) in addition to plain histograms.
 - It must handle weighted data, including negative weights.
 
-**histbook** implements the define-fill-visualize cycle established by `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`_ in the 1970's, but in a new way: there is only one histogram class, ``Hist``, an n-dimensional hypercube of aggregated data, from which one and two-dimensional views may be projected. A histogram ``Book`` combines many histograms into an object that may be filled and combined as a single unit.
+**histbook** implements the define-fill-visualize cycle established by `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`__ in the 1970's, but in a new way: there is only one histogram class, ``Hist``, an n-dimensional hypercube of aggregated data, from which one and two-dimensional views may be projected. A histogram ``Book`` combines many histograms into an object that may be filled and combined as a single unit.
 
 Finally, each axis of a ``Hist`` is actually a symbolic expression that histbook optimizes to minimize passes over the data. For example, if many histograms contain a subexpression "``pt*sinh(eta)``", this subexpression will be computed only once per ``Book``. The data analyst can therefore copy-paste or generate hundreds of variations on a basic histogram without worrying about inefficiency. This is especially relevant for data selections, such as "``pt > 50``", which can be used as a 2-bin axis in the n-dimensional hypercube instead of creating histograms with and without the selection manually.
 
@@ -37,17 +37,17 @@ or similar (use ``sudo``, ``virtualenv``, or ``conda`` if you wish).
 Strict dependencies:
 ====================
 
-- `Python <http://docs.python-guide.org/en/latest/starting/installation/>`_ (2.7+, 3.4+)
-- `Numpy <https://scipy.org/install.html>`_ (1.8.0+)
-- `meta <https://pypi.org/project/meta/>`_
+- `Python <http://docs.python-guide.org/en/latest/starting/installation/>`__ (2.7+, 3.4+)
+- `Numpy <https://scipy.org/install.html>`__ (1.8.0+)
+- `meta <https://pypi.org/project/meta/>`__
 
 Recommended dependencies:
 =========================
 
-- `Pandas <https://pandas.pydata.org/>`_ for more convenient programmatic access to bin contents
-- `vega <https://pypi.org/project/vega/>`_ to view plots in a Jupyter notebook or `vegascope <https://pypi.org/project/vegascope/>`_ to view them in a browser window without Jupyter.
+- `Pandas <https://pandas.pydata.org/>`__ for more convenient programmatic access to bin contents
+- `vega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter notebook or `vegascope <https://pypi.org/project/vegascope/>`__ to view them in a browser window without Jupyter.
 - `ROOT <https://root.cern/>`__ to analyze histograms in a complete statistical toolkit
-- `uproot <https://pypi.org/project/uproot/>`_ to access ROOT files without the full ROOT framework
+- `uproot <https://pypi.org/project/uproot/>`__ to access ROOT files without the full ROOT framework
 
 .. inclusion-marker-3-do-not-remove
 
@@ -67,7 +67,7 @@ Then start a Jupyter notebook (vega) or Python prompt (vegascope),
     >>> from histbook import *
     >>> import numpy
 
-and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`_ graphics.
+and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ graphics.
 
 .. code-block:: python
 
@@ -239,18 +239,23 @@ Notice that the three subfigures are labeled by ``atan2(y, x)`` bin. This "trell
 
 .. code-block:: python
 
-    import random
-    labels = "one", "two", "three"
-    hist = Hist(groupby("a"), cut("b > 1"), split("c", (-3, 0, 1, 2, 3)), bin("d", 50, -3, 3))
-    hist.fill(a=[random.choice(labels) for i in range(1000000)],
-              b=numpy.random.normal(0, 1, 1000000),
-              c=numpy.random.normal(0, 1, 1000000),
-              d=numpy.random.normal(0, 1, 1000000))
-    hist.beside("a").below("b > 1").overlay("c").step("d").to(canvas)
+    >>> import random
+    >>> labels = "one", "two", "three"
+    >>> hist = Hist(groupby("a"), cut("b > 1"), split("c", (-3, 0, 1, 2, 3)), bin("d", 50, -3, 3))
+    >>> hist.fill(a=[random.choice(labels) for i in range(1000000)],
+    ...           b=numpy.random.normal(0, 1, 1000000),
+    ...           c=numpy.random.normal(0, 1, 1000000),
+    ...           d=numpy.random.normal(0, 1, 1000000))
+    ... 
+    >>> hist.beside("a").below("b > 1").overlay("c").step("d").to(canvas)
 
 .. image:: docs/source/intro-8.png
 
 In the above, we created a four-dimensional histogram in which the first axis is categorical: ``one``, ``two``, ``three``, the second axis is a cut: ``b > 1``, the third axis is irregularly split into bins (number of edges + 1 + another for nanflow), and the last is split into 50 regularly split bins.
+
+Only the last line is involved in drawing. Vega-Lite takes a "`grammar of graphics <https://cfss.uchicago.edu/dataviz_grammar_of_graphics.html>`__" approach to visualization, in which plots are made by matching data attributes with visual facets such as overlay, stack, and placement. histbook extends this mapping to pre-aggregated data.
+
+
 
 
 
