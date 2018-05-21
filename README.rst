@@ -138,7 +138,7 @@ Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it
     >>> phi = lambda y, x: math.atan2(y, x)
     >>> beside(hist.step(r), hist.step(phi)).to(canvas)
 
-The data contained in ``hist`` is two-dimensional, which you can see by printing
+The data contained in ``hist`` is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)
 
 .. code-block:: python
 
