@@ -129,7 +129,7 @@ This example was deliberately simple. We can extend the binning to two dimension
 
 .. image:: docs/source/intro-2.png
 
-Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically. They could even be entered as Python functions:
+Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically. They could even be entered as Python functions because the language is a declarative subset of Python (functions that return one output for each input in an array).
 
 .. code-block:: python
 
@@ -197,9 +197,43 @@ The data contained in ``hist`` is two-dimensional, which you can see by printing
                       [3.14159265359, inf)                  0.0      0.000000
                       {NaN}                                 0.0      0.000000
 
+With multiple dimensions, we can project it out different ways. Overlay draws all the bins of one axis as separate lines in the projection of the other.
 
+.. code-block:: python
 
+    >>> hist.overlay("atan2(y, x)").step("sqrt(x**2+y**2)").to(canvas)
 
+.. image:: docs/source/intro-3.png
+
+Stack draws them cumulatively, though it only works with the ``area`` (filled) rendering.
+
+.. code-block:: python
+
+    >>> hist.stack("atan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
+
+.. image:: docs/source/intro-4.png
+
+The underflow, overflow, and nanflow curves are zero. Let's exclude them with a post-aggregation selection. You can select at any bin boundary of any axis, as long as the inequalities match (e.g. ``<=`` for left edges and ``<`` for right edges for an axis with ``closedlow=True``).
+
+.. code-block:: python
+
+    >>> hist.select("-pi <= atan2(y, x) < pi").stack(phi).area(r).to(canvas)
+
+.. image:: docs/source/intro-5.png
+
+We can also split side-by-side and top-down:
+
+.. code-block:: python
+
+    >>> hist.select("-pi <= atan2(y, x) < pi").beside(phi).line(r).to(canvas)
+
+.. image:: docs/source/intro-6.png
+
+.. code-block:: python
+
+    >>> hist.select("-pi <= atan2(y, x) < pi").below(phi).marker(r, error=False).to(canvas)
+
+.. image:: docs/source/intro-7.png
 
 .. inclusion-marker-4-do-not-remove
 
