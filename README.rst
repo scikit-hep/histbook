@@ -92,6 +92,31 @@ Let's start by histogramming a simple array of data.
 - The third line incremented histogram bins by counting the number of values that lie within each of the 10 subintervals.
 - The fourth line projected the hypercube onto steps in the ``data`` axis and passed the Vega-Lite visualization to ``canvas``.
 
+We could also access the data as a table, as a Pandas DataFrame:
+
+.. code-block:: python
+
+    histogram.pandas()
+
+.. code-block::
+
+                   count()  err(count())
+    data                                
+    [-inf, -5.0)       0.0      0.000000
+    [-5.0, -4.0)      33.0      5.744563
+    [-4.0, -3.0)    1247.0     35.312887
+    [-3.0, -2.0)   21260.0    145.808093
+    [-2.0, -1.0)  136067.0    368.872607
+    [-1.0, 0.0)   341355.0    584.255937
+    [0.0, 1.0)    341143.0    584.074482
+    [1.0, 2.0)    136072.0    368.879384
+    [2.0, 3.0)     21474.0    146.540097
+    [3.0, 4.0)      1320.0     36.331804
+    [4.0, 5.0)        29.0      5.385165
+    [5.0, inf)         0.0      0.000000
+    {NaN}              0.0      0.000000
+
+including underflow (``[-inf, -5.0)``), overflow (``[5.0, inf)``), and nanflow (``{NaN}``), the number of values that escape the [-5, 5) range (none in this case). In the absence of weights, the error in the count is the square root of the count.
 
 
 
