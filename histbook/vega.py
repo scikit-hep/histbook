@@ -192,10 +192,10 @@ class Plotable(object):
     def _last(self):
         return self._chain[-1]
 
-    def _varname(self, i):
-        return "d" + str(i)
+    def _data(self, prefix, varname):
+        error = self._last.error
+        baseline = isinstance(self._last, (StepFacet, AreaFacet))
 
-    def _data(self, prefix=(), baseline=False):
         profile = self._last.profile
         if profile is None:
             profiles = ()
@@ -203,23 +203,23 @@ class Plotable(object):
             profiles = (profile,)
 
         projected = self._source.project(*(x.axis for x in self._chain))
-        table = projected.table(*profiles, count=(profile is None), error=self._last.error, recarray=False)
+        table = projected.table(*profiles, count=(profile is None), error=error, recarray=False)
 
         projectedorder = projected.axis
         lastj = projectedorder.index(self._last.axis)
 
         data = []
         domains = {}
-        if self._last.error and baseline:
+        if error and baseline:
             shifts = {}
 
         def recurse(j, content, row, base):
             if j == len(projectedorder):
                 if base:
-                    row = row + ((0.0, 0.0) if self._last.error else (0.0,))
+                    row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
                     row = row + tuple(content)
-                data.append(dict(zip([self._varname(i) for i in range(len(row))], row)))
+                data.append(dict(prefix + tuple(zip([varname + str(i) for i in range(len(row))], row))))
 
             else:
                 axis = projectedorder[j]
@@ -238,7 +238,7 @@ class Plotable(object):
 
                                 recurse(j + 1, x, row + (low,), base)
 
-                                if self._last.error and baseline:
+                                if error and baseline:
                                     shifts[low] = 0.5*(n.low + n.high)
 
                                 if baseline and isinstance(axis, histbook.axis.bin) and n.high == axis.high:
@@ -253,14 +253,17 @@ class Plotable(object):
                     else:
                         recurse(j + 1, x, row + (str(n),), base)
 
-        recurse(0, table, prefix, False)
-        if self._last.error and baseline:
+        recurse(0, table, (), False)
+        if error and baseline:
             for x in data:
-                x[self._varname(lastj) + "c"] = shifts.get(x[self._varname(lastj)], x[self._varname(lastj)])
+                x[varname + str(lastj) + "c"] = shifts.get(x[varname + str(lastj)], x[varname + str(lastj)])
 
         return projectedorder, data, domains
 
-    def _vegalite(self, axis, data, domains):
+    def _vegalite(self, axis, domains, varname):
+        error = self._last.error
+        baseline = isinstance(self._last, (StepFacet, AreaFacet))
+
         if isinstance(self._last, StepFacet):
             mark = {"type": "line", "interpolate": "step-before"}
         elif isinstance(self._last, AreaFacet):
@@ -287,53 +290,52 @@ class Plotable(object):
             else:
                 raise AssertionError(values)
 
-        encoding = {"x": {"field": self._varname(axis.index(self._last.axis)), "type": "quantitative", "scale": {"zero": False}, "axis": {"title": xtitle}},
-                    "y": {"field": self._varname(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
+        encoding = {"x": {"field": varname + str(axis.index(self._last.axis)), "type": "quantitative", "scale": {"zero": False}, "axis": {"title": xtitle}},
+                    "y": {"field": varname + str(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
         for facet in self._chain[:-1]:
             if isinstance(facet, OverlayFacet):
                 overlayorder = [str(x) for x in sorted(domains[facet.axis])]
-                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": overlayorder}}
+                encoding["color"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": overlayorder}}
 
             elif isinstance(facet, StackFacet):
                 stackorder = [str(x) for x in sorted(domains[facet.axis])]
-                encoding["color"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
+                encoding["color"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "legend": {"title": facet.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
                 encoding["y"]["aggregate"] = "sum"
                 encoding["order"] = {"field": "stackorder", "type": "nominal"}
-                transform.append({"calculate": makeorder(0, self._varname(axis.index(facet.axis)), stackorder), "as": "stackorder"})
+                transform.append({"calculate": makeorder(0, varname + str(axis.index(facet.axis)), stackorder), "as": "stackorder"})
 
             elif isinstance(facet, BesideFacet):
                 # FIXME: sorting doesn't work??? https://github.com/vega/vega-lite/issues/2176
-                encoding["column"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
+                encoding["column"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
 
             elif isinstance(facet, BelowFacet):
                 # FIXME: sorting doesn't work??? https://github.com/vega/vega-lite/issues/2176
-                encoding["row"] = {"field": self._varname(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
+                encoding["row"] = {"field": varname + str(axis.index(facet.axis)), "type": "nominal", "header": {"title": facet.axis.expr}}
 
             else:
                 raise AssertionError(facet)
 
-        if not self._last.error:
+        if not error:
             return [mark], [encoding], [transform]
 
         else:
-            if self._last.error and isinstance(self._last, (StepFacet, AreaFacet)):
-                errx = self._varname(axis.index(self._last.axis)) + "c"
+            if error and baseline:
+                errx = varname + str(axis.index(self._last.axis)) + "c"
             else:
-                errx = self._varname(axis.index(self._last.axis))
+                errx = varname + str(axis.index(self._last.axis))
 
             encoding2 = {"x": {"field": errx, "type": "quantitative"},
                          "y": {"field": "error-down", "type": "quantitative"},
                          "y2": {"field": "error-up", "type": "quantitative"}}
 
-            transform2 = [{"calculate": "datum.{0} - datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-down"},
-                          {"calculate": "datum.{0} + datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-up"}]
+            transform2 = [{"calculate": "datum.{0} - datum.{1}".format(varname + str(len(axis)), varname + str(len(axis) + 1)), "as": "error-down"},
+                          {"calculate": "datum.{0} + datum.{1}".format(varname + str(len(axis)), varname + str(len(axis) + 1)), "as": "error-up"}]
 
             return [mark, "rule"], [encoding, encoding2], [transform, transform2]
         
     def vegalite(self):
-        axis, data, domains = self._data(baseline=isinstance(self._last, (StepFacet, AreaFacet)))
-
-        marks, encodings, transforms = self._vegalite(axis, data, domains)
+        axis, data, domains = self._data((), "a")
+        marks, encodings, transforms = self._vegalite(axis, domains, "a")
 
         if len(marks) == 1:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
@@ -352,7 +354,16 @@ class Plotable(object):
 
 class Combination(object):
     def __init__(self, *plotables):
-        self._plotables = plotables
+        self._plotables = []
+        for arg in plotables:           # first level: for varargs
+            try:
+                iter(arg)
+            except:
+                arg = [arg]
+            for plotable in arg:        # second level: for iterators
+                if not isinstance(plotable, Plotable):
+                    raise TypeError("only Plotables can be combined with {0}".format(self.__class__.__name__))
+                self._plotables.append(plotable)
 
     def __repr__(self):
         return "{0}({1})".format(self.__class__.__name__, ", ".join(repr(x) for x in self._plotables))
@@ -360,12 +371,47 @@ class Combination(object):
     def __str__(self, indent="\n    ", paren=False):
         return "{0}({1})".format(self.__class__.__name__, "".join(indent + x.__str__(indent + "    ", False) for x in self._plotables))
 
+    def _varname(self, i):
+        out = []
+        while i > 0:
+            out.append("abcdefghijklmnopqrstuvwxyz"[i % 26])
+            i //= 26
+        return "".join(reversed(out))
+
     def to(self, fcn):
         return fcn(self.vegalite())
 
 class overlay(Combination):
     def vegalite(self):
-        raise NotImplementedError
+        allaxis = []
+        alldata = []
+        alldomains = []
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            axis, data, domains = plotable._data((("id", varname),), varname)
+            allaxis.append(axis)
+            alldata.extend(data)
+            alldomains.append(domains)
+
+        out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+               "data": {"values": alldata},
+               "layer": []}
+
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+            thislayer = [{"filter": {"field": "id", "equal": varname}}]
+            
+            if len(marks) == 1:
+                out["layer"].append({"mark": marks[0],
+                                     "encoding": encodings[0],
+                                     "transform": transforms[0] + thislayer})
+
+            else:
+                for m, e, t in zip(marks, encodings, transforms):
+                    out["layer"].append({"mark": m, "encoding": e, "transform": t + thislayer})
+
+        return out
 
 class beside(Combination):
     def vegalite(self):
