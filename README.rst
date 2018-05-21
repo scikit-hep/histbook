@@ -15,6 +15,7 @@ The **histbook** package defines, fills, and visualizes histograms of Numpy data
 - It must be able to fill many histograms in a single pass over huge datasets.
 - The data analyst must be able to access bin contents programmatically, not just visually.
 - It must create "profile plots" (average of one variable, binned in another) in addition to plain histograms.
+- It must handle weighted data, including negative weights.
 
 **histbook** implements the define-fill-visualize cycle established by `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`_ in the 1970's, but in a new way: there is only one histogram class, ``Hist``, an n-dimensional hypercube of aggregated data, from which one and two-dimensional views may be projected. A histogram ``Book`` combines many histograms into an object that may be filled and combined as a single unit.
 
@@ -84,7 +85,15 @@ Let's start by histogramming a simple array of data.
 
 .. image:: docs/source/intro-1.png
 
-What just happened here? 
+*What just happened here?*
+
+- The first line created a million-element Numpy ``array``.
+- The second created a one-dimensional ``histogram``, splitting ``data`` into 10 bins from −5 to 5.
+- The third line incremented histogram bins by counting the number of values that lie within each of the 10 subintervals.
+- The fourth line projected the hypercube onto steps in the ``data`` axis and passed the Vega-Lite visualization to ``canvas``.
+
+
+
 
 
 
