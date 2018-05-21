@@ -414,9 +414,69 @@ class overlay(Combination):
         return out
 
 class beside(Combination):
+    def __init__(self, *plotables):
+        super(beside, self).__init__(*plotables)
+        if any(isinstance(x, BesideFacet) for x in self._plotables):
+            raise TypeError("cannot place plots beside each other that are already split with beside (can do beside and below)")
+
     def vegalite(self):
-        raise NotImplementedError
+        allaxis = []
+        alldata = []
+        alldomains = []
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            axis, data, domains = plotable._data((("id", varname),), varname)
+            allaxis.append(axis)
+            alldata.extend(data)
+            alldomains.append(domains)
+
+        out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+               "data": {"values": alldata},
+               "hconcat": []}
+
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+            thislayer = [{"filter": {"field": "id", "equal": varname}}]
+
+            if len(marks) == 1:
+                out["hconcat"].append({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer})
+
+            else:
+                out["hconcat"].append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
+
+        return out
 
 class below(Combination):
+    def __init__(self, *plotables):
+        super(below, self).__init__(*plotables)
+        if any(isinstance(x, BelowFacet) for x in self._plotables):
+            raise TypeError("cannot place plots below each other that are already split with below (can do beside and below)")
+
     def vegalite(self):
-        raise NotImplementedError
+        allaxis = []
+        alldata = []
+        alldomains = []
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            axis, data, domains = plotable._data((("id", varname),), varname)
+            allaxis.append(axis)
+            alldata.extend(data)
+            alldomains.append(domains)
+
+        out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+               "data": {"values": alldata},
+               "vconcat": []}
+
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+            thislayer = [{"filter": {"field": "id", "equal": varname}}]
+
+            if len(marks) == 1:
+                out["vconcat"].append({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer})
+
+            else:
+                out["vconcat"].append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
+
+        return out
