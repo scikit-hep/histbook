@@ -71,8 +71,8 @@ and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`_ gra
 
 .. code-block:: python
 
-    from vega import VegaLite as canvas                 # for vega
-    import vegascope; canvas = vegascope.LocalCanvas()  # for vegascope
+    from vega import VegaLite as canvas                    # for vega in Jupyter
+    import vegascope; canvas = vegascope.LocalCanvas()     # for vegascope
 
 Let's start by histogramming a simple array of data.
 
