@@ -65,7 +65,6 @@ Then start a Jupyter notebook (vega) or Python prompt (vegascope),
 
     from histbook import *
     import numpy
-    import vega       # or vegascope
 
 and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`_ graphics.
 
@@ -84,6 +83,9 @@ Let's start by histogramming a simple array of data.
     histogram.step("data").to(canvas)
 
 .. image:: docs/source/intro-1.png
+
+What just happened here? 
+
 
 
 
