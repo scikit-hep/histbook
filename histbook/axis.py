@@ -302,7 +302,28 @@ class groupbin(GroupAxis, NumericalAxis):
         return hash((self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow))
 
     def _select(self, cmp, value, tolerance):
-        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
+        if value == float("-inf") and cmp == ">=":
+            return self, lambda x: True, None, False
+
+        elif value == float("-inf") and cmp == ">":
+            return self, lambda x: True, None, False
+
+        elif value == float("-inf") and cmp == "!=":
+            return self, lambda x: True, None, False
+
+        elif value == float("inf") and cmp == "<=":
+            return self, lambda x: True, None, False
+
+        elif value == float("inf") and cmp == "<":
+            return self, lambda x: True, None, False
+
+        elif value == float("inf") and cmp == "!=":
+            return self, lambda x: True, None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "!=":
+            return self, lambda x: True, None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             close = round((value - float(self._origin)) / float(self._binwidth)) * float(self._binwidth) + float(self._origin)
             if abs(value - close) < tolerance:
                 if self._closedlow and cmp == "<":
@@ -409,7 +430,35 @@ class bin(FixedAxis, NumericalAxis):
         return hash((self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow))
 
     def _select(self, cmp, value, tolerance):
-        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
+        if value == float("-inf") and cmp == ">=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif value == float("inf") and cmp == "<=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "!=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "==":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0), self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + 1), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             scale = float(self._numbins) / float(self._high - self._low)
             edgenum = int(round((value - float(self._low)) * scale))
             close = min(self._numbins, max(0, edgenum)) / scale + float(self._low)
@@ -529,7 +578,35 @@ class intbin(FixedAxis, NumericalAxis):
         return hash((self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow))
 
     def _select(self, cmp, value, tolerance):
-        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
+        if value == float("-inf") and cmp == ">=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif value == float("-inf") and cmp == ">":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif value == float("inf") and cmp == "<=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif value == float("inf") and cmp == "<":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             if value + tolerance < self._min:
                 return None, None, self._min, False
             if value - tolerance > self._max:
@@ -659,7 +736,35 @@ class split(FixedAxis, NumericalAxis):
         return hash((self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow))
             
     def _select(self, cmp, value, tolerance):
-        if isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
+        if value == float("-inf") and cmp == ">=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif value == float("inf") and cmp == "<=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "!=":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(0, len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "==":
+            out = self.__class__.__new__(self.__class__)
+            out.__dict__.update(self.__dict__)
+            out._nanflow = False
+            out._checktot()
+            return out, slice(len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0), len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0) + 1), None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             dist, edgex, edgei = sorted((abs(value - x), x, i) for i, x in enumerate(self._edges))[0]
 
             if dist < tolerance:

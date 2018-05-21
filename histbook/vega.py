@@ -223,10 +223,9 @@ class Plotable(object):
 
             else:
                 axis = projectedorder[j]
-                if isinstance(axis, histbook.axis.GroupAxis):
-                    if axis not in domains:
-                        domains[axis] = set()
-                    domains[axis].update(axis.keys(content))
+                if axis not in domains:
+                    domains[axis] = set()
+                domains[axis].update(axis.keys(content))
 
                 for i, (n, x) in enumerate(axis.items(content)):
                     if isinstance(n, histbook.axis.Interval):
@@ -261,9 +260,7 @@ class Plotable(object):
 
         return projectedorder, data, domains
 
-    def vegalite(self):
-        axis, data, domains = self._data(baseline=isinstance(self._last, (StepFacet, AreaFacet)))
-
+    def _vegalite(self, axis, data, domains):
         if isinstance(self._last, StepFacet):
             mark = {"type": "line", "interpolate": "step-before"}
         elif isinstance(self._last, AreaFacet):
@@ -315,7 +312,10 @@ class Plotable(object):
             else:
                 raise AssertionError(facet)
 
-        if self._last.error:
+        if not self._last.error:
+            return [mark], [encoding], [transform]
+
+        else:
             if self._last.error and isinstance(self._last, (StepFacet, AreaFacet)):
                 errx = self._varname(axis.index(self._last.axis)) + "c"
             else:
@@ -324,23 +324,28 @@ class Plotable(object):
             encoding2 = {"x": {"field": errx, "type": "quantitative"},
                          "y": {"field": "error-down", "type": "quantitative"},
                          "y2": {"field": "error-up", "type": "quantitative"}}
+
+            transform2 = [{"calculate": "datum.{0} - datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-down"},
+                          {"calculate": "datum.{0} + datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-up"}]
+
+            return [mark, "rule"], [encoding, encoding2], [transform, transform2]
+        
+    def vegalite(self):
+        axis, data, domains = self._data(baseline=isinstance(self._last, (StepFacet, AreaFacet)))
+
+        marks, encodings, transforms = self._vegalite(axis, data, domains)
+
+        if len(marks) == 1:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                     "data": {"values": data},
-                    "layer": [
-                        {"mark": mark, "encoding": encoding},
-                        {"mark": "rule", "encoding": encoding2,
-                         "transform": [
-                             {"calculate": "datum.{0} - datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-down"},
-                             {"calculate": "datum.{0} + datum.{1}".format(self._varname(len(axis)), self._varname(len(axis) + 1)), "as": "error-up"}]
-                             + transform
-                         }]}
+                    "mark": marks[0],
+                    "encoding": encodings[0],
+                    "transform": transforms[0]}
 
         else:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                     "data": {"values": data},
-                    "mark": mark,
-                    "encoding": encoding,
-                    "transform": transform}
+                    "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]}
 
     def to(self, fcn):
         return fcn(self.vegalite())

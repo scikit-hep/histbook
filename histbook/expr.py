@@ -72,7 +72,7 @@ class Expr(object):
 
     @staticmethod
     def parse(expression, defs=None, returnlabel=False):
-        _defs = {"pi": Const(math.pi), "e": Const(math.e)}
+        _defs = {"pi": Const(math.pi), "e": Const(math.e), "inf": Const(float("inf")), "nan": Const(float("nan"))}
         if defs is not None:
             for n, x in defs.items():
                 if isinstance(x, Expr):
