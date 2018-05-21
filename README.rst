@@ -11,7 +11,7 @@ A histogram is a way to visualize the distribution of a dataset via aggregation:
 
 The **histbook** package defines, fills, and visualizes histograms of Numpy data. Its capabilities extend considerably beyond the `numpy.histogram <https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html>`_ function included in Numpy, as it was designed to serve the needs of particle physicists. Particle physicists have been analyzing data with histograms for decades and have strict requirements on a histogramming package:
 
-- It must be able to declare an empty histogram as a container to be filled, iteratively or in parallel, combining results from multiple sources.
+- It must be able to declare an empty histogram as a container to be filled, iteratively or in parallel, allowing results to be combined from multiple sources.
 - It must be able to fill many histograms in a single pass over huge datasets.
 - The data analyst must be able to access bin contents programmatically, not just visually.
 - It must create "profile plots" (average of one variable, binned in another) in addition to plain histograms.
