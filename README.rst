@@ -58,7 +58,7 @@ Install histbook, pandas, uproot, and your choice of vega or vegascope (above).
 
 .. code-block:: bash
 
-    pip install histbook pandas uproot vega --user
+    pip install histbook pandas vega --user
 
 Then start a Jupyter notebook (vega) or Python prompt (vegascope),
 
@@ -92,7 +92,7 @@ Let's start by histogramming a simple array of data.
 - The third line incremented histogram bins by counting the number of values that lie within each of the 10 subintervals.
 - The fourth line projected the hypercube onto steps in the ``data`` axis and passed the Vega-Lite visualization to ``canvas``.
 
-We could also access the data as a table, as a Pandas DataFrame:
+We could also access the data as a table, as a `Pandas DataFrame <https://pandas.pydata.org/pandas-docs/stable/dsintro.html>`__:
 
 .. code-block:: python
 
@@ -117,6 +117,17 @@ We could also access the data as a table, as a Pandas DataFrame:
     {NaN}              0.0      0.000000
 
 including underflow (``[-inf, -5.0)``), overflow (``[5.0, inf)``), and nanflow (``{NaN}``), the number of values that escape the [-5, 5) range (none in this case). In the absence of weights, the error in the count is the square root of the count.
+
+This example was deliberately simple. We can extend the binning to two dimensions and use expressions in the axis labels, rather than simple names:
+
+.. code-block:: python
+
+    >>> hist = Hist(bin("sqrt(x**2 + y**2)", 10, 0, 1), bin("atan2(y, x)", 10, 0, 1))
+    >>> hist.fill(x=numpy.random.normal(0, 1, 1000000),
+    ...           y=numpy.random.normal(0, 1, 1000000))
+    >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("atan2(y,x)")).to(canvas)
+
+.. image:: docs/source/intro-2.png
 
 
 
