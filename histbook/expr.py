@@ -320,8 +320,6 @@ class Expr(object):
             elif isinstance(node, ast.Call):
                 fcn = Expr.recognized.get(resolve(node.func), None)
 
-                print "fcn", fcn, fcn in Expr.recognized
-
                 if fcn is None and node.func.id in Expr.recognized.values():
                     fcn = node.func.id
 
