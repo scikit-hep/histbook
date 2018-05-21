@@ -201,7 +201,7 @@ class Expr(object):
                 return Relation(cmp, left, right)
 
             elif relations and isinstance(node, ast.Compare) and len(node.ops) > 1:
-                raise NotImplementedError
+                return recurse(ast.BoolOp(ast.And(), [ast.Compare(node.left if i == 0 else node.comparators[i - 1], [node.ops[i]], [node.comparators[i]]) for i in range(len(node.ops))]), relations=True)
 
             elif isinstance(node, ast.Compare):
                 raise ExpressionError("comparison operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
