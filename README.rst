@@ -7,7 +7,7 @@ Versitile, high-performance histogram toolkit for Numpy.
 
 .. inclusion-marker-1-5-do-not-remove
 
-A histogram is a way to visualize the distribution of a dataset via aggregation: rather than plotting data points individually, we count how many fall within a set of abutting intervals and plot those counts. The resulting plot approximates the distribution from which the data were derived (`see Wikipedia <https://en.wikipedia.org/wiki/Histogram>`_ for details).
+A histogram is a way to visualize the distribution of a dataset via aggregation: rather than plotting data points individually, we count how many fall within a set of abutting intervals and plot those totals. The resulting plot approximates the distribution from which the data were derived (`see Wikipedia for details <https://en.wikipedia.org/wiki/Histogram>`__).
 
 The **histbook** package defines, fills, and visualizes histograms of Numpy data. Its capabilities extend considerably beyond the `numpy.histogram <https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html>`_ function included in Numpy, as it was designed to serve the needs of particle physicists. Particle physicists have been analyzing data with histograms for decades and have strict requirements on a histogramming package:
 
@@ -16,9 +16,9 @@ The **histbook** package defines, fills, and visualizes histograms of Numpy data
 - The data analyst must be able to access bin contents programmatically, not just visually.
 - It must create "profile plots" (average of one variable, binned in another) in addition to plain histograms.
 
-**histbook** implements the define-fill-visualize cycle established by `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`_ in the 1970's, but in a new way: there is only one histogram class, ``Hist``, an n-dimensional hypercube of aggregated data, from which one and two-dimensional views can be projected. Histograms can be collected into a ``Book`` that is filled and combined as a single unit.
+**histbook** implements the define-fill-visualize cycle established by `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`_ in the 1970's, but in a new way: there is only one histogram class, ``Hist``, an n-dimensional hypercube of aggregated data, from which one and two-dimensional views may be projected. A histogram ``Book`` combines many histograms into an object that may be filled and combined as a single unit.
 
-Finally, each axis of a ``Hist`` is actually a symbolic expression that histbook optimizes to minimize passes over the data. For example, if ``pt*sinh(eta)`` is an axis of hundreds of histograms, binned several different ways throughout a ``Book``, it will be computed once and its discretization will be computed once per bin specification. Data filters like ``pt > 50``, which is actually a 2-bin axis in the n-dimensional hypercube, can be freely sprinkled throughout a histogram ``Book`` declaration without fear of inefficiency.
+Finally, each axis of a ``Hist`` is actually a symbolic expression that histbook optimizes to minimize passes over the data. For example, if many histograms contain a subexpression "``pt*sinh(eta)``", this subexpression will be computed only once per ``Book``. The data analyst can therefore copy-paste or generate hundreds of variations on a basic histogram without worrying about inefficiency. This is especially relevant for data selections, such as "``pt > 50``", which can be used as a 2-bin axis in the n-dimensional hypercube instead of creating histograms with and without the selection manually.
 
 .. inclusion-marker-2-do-not-remove
 
