@@ -66,10 +66,21 @@ Table of contents:
 * `Axis constructors <#axis-constructors>`__
 
   - `groupby <#groupby>`__
+  - `groupbin <#groupbin>`__
+  - `bin <#bin>`__
+  - `intbin <#intbin>`__
+  - `split <#split>`__
+  - `cut <#cut>`__
+  - `profile <#profile>`__
 
 * `Weighted data <#weighted-data>`__
 * `Books of histograms <#books-of-histograms>`__
 * `Manipulation methods <#manipulation-methods>`__
+
+  - `select <#select>`__
+  - `project <#project>`__
+  - `rebin, rebinby <>`__
+
 * `Plotting methods <#plotting-methods>`__
 * `Tabular output <#tabular-output>`__
 * `Exporting to ROOT <#exporting-to-root>`__
@@ -497,6 +508,18 @@ project
 rebin, rebinby
 """"""""""""""
 
+drop
+""""
+
+
+Tabular output
+--------------
+
+table
+"""""
+
+fraction
+""""""""
 
 
 
@@ -505,10 +528,6 @@ Plotting methods
 
 
 
-Tabular output
---------------
-
-fraction
 
 
 Exporting to ROOT
