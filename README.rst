@@ -303,10 +303,9 @@ histbook currently recognizes the following axis constructors:
 
 - ``cut(expr)`` splits a boolean dimension into true ("pass") and false ("fail"). This differs from ``split`` with one edge because it can include boolean logic (and/or/not).
 
-- ``profile(expr)`` collects 
+- ``profile(expr)`` collects statistics to view the mean and error in the mean of ``expr`` in bins of the other dimensions (same statistical treatment as ROOT).
 
-
-
+For example, we can profile "``y``" and "``z``" or as many distributions as we want in a single ``Hist`` object.
 
 .. code-block:: python
 
@@ -318,17 +317,16 @@ histbook currently recognizes the following axis constructors:
     >>> h.fill(x=x, y=y, z=z)
     >>> beside(h.marker("x", "y"), h.marker("x", "z")).to(canvas)
 
-
 .. image:: docs/source/intro-12.png
 
-
-
-
-
-
+Although each non-profile axis multiplies the number of bins and therefore its memory use, profiles merely add to the number of bins. In fact, they share some statistics, making it 33% (unweighted) to 50% (weighted) more efficient to combine profiles with the same binning. Perhaps more importantly, it's an organizational aid.
 
 Books of histograms
 -------------------
+
+
+
+
 
 
 
