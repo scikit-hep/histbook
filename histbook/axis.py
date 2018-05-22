@@ -306,8 +306,10 @@ class groupbin(GroupAxis, RebinFactor):
         assert factor > 0
 
         newaxis = groupbin(self._expr, float(self._binwidth) / float(factor), origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
-        newaxis._original = self._original
-        newaxis._parsed = self._parsed
+        if hasattr(self, "_original"):
+            newaxis._original = self._original
+        if hasattr(self, "_parsed"):
+            newaxis._parsed = self._parsed
 
         def recurse(j, content):
             if j == index:
@@ -464,6 +466,14 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
     def totbins(self):
         return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
+    def split(self):
+        splitaxis = split(self._expr, [(float(i) / float(self._numbins)) * (self._high - self._low) + self._low for i in range(self._numbins)] + [self._high], underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+        if hasattr(self, "_original"):
+            splitaxis._original = self._original
+        if hasattr(self, "_parsed"):
+            splitaxis._parsed = self._parsed
+        return splitaxis
+
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
@@ -476,10 +486,7 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
         return hash((self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow))
 
     def _rebinsplit(self, edges, content, index):
-        splitaxis = split(self._expr, [(float(i) / float(self._numbins)) * (self._high - self._low) + self._low for i in range(self._numbins)] + [self._high], underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
-        splitaxis._original = self._original
-        splitaxis._parsed = self._parsed
-        return splitaxis._rebinsplit(edges, content, index)
+        return self.split()._rebinsplit(edges, content, index)
 
     def _rebinfactor(self, factor, content, index):
         assert factor > 0
@@ -622,6 +629,17 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)
 
+    def bin(self):
+        binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
+        if hasattr(self, "_original"):
+            binaxis._original = self._original
+        if hasattr(self, "_parsed"):
+            binaxis._parsed = self._parsed
+        return binaxis
+
+    def split(self):
+        return self.bin().split()
+
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
@@ -634,16 +652,10 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
         return hash((self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow))
 
     def _rebinsplit(self, edges, content, index):
-        binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
-        binaxis._original = self._original
-        binaxis._parsed = self._parsed
-        return binaxis._rebinsplit(edges, content, index)
+        return self.bin()._rebinsplit(edges, content, index)
 
     def _rebinfactor(self, factor, content, index):
-        binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
-        binaxis._original = self._original
-        binaxis._parsed = self._parsed
-        return binaxis._rebinfactor(edges, content, index)
+        return self.bin()._rebinfactor(edges, content, index)
 
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":
@@ -781,6 +793,14 @@ class split(FixedAxis, RebinFactor, RebinSplit):
     def closedlow(self):
         return self._closedlow
 
+    @property
+    def low(self):
+        return self._edges[0]
+
+    @property
+    def high(self):
+        return self._edges[-1]
+
     def relabel(self, label):
         return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
@@ -809,8 +829,10 @@ class split(FixedAxis, RebinFactor, RebinSplit):
                 raise ValueError("cannot rebin: edge {0} is not in the original edges {1}".format(x, self._edges))
 
         newaxis = split(self._expr, edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
-        newaxis._original = self._original
-        newaxis._parsed = self._parsed
+        if hasattr(self, "_original"):
+            newaxis._original = self._original
+        if hasattr(self, "_parsed"):
+            newaxis._parsed = self._parsed
         
         numbins = len(newaxis._edges) - 1 + (1 if newaxis._underflow else 0) + (1 if newaxis._overflow else 0) + (1 if newaxis._nanflow else 0)
 

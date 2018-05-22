@@ -218,7 +218,7 @@ class Plotable(object):
                 if base:
                     row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
-                    row = row + tuple(content)
+                    row = row + tuple(float(x) for x in content)
                 data.append(dict(prefix + tuple(zip([varname + str(i) for i in range(len(row))], row))))
 
             else:
@@ -227,12 +227,15 @@ class Plotable(object):
                     domains[axis] = set()
                 domains[axis].update(axis.keys(content))
 
+                if isinstance(axis, histbook.axis.intbin):
+                    axis = axis.bin()
+
                 for i, (n, x) in enumerate(axis.items(content)):
                     if isinstance(n, histbook.axis.Interval):
                         if j == lastj:
                             if numpy.isfinite(n.low) and numpy.isfinite(n.high):
                                 low = n.low
-                                if baseline and isinstance(axis, histbook.axis.bin) and n.low == axis.low:
+                                if baseline and isinstance(axis, (histbook.axis.bin, histbook.axis.split)) and n.low == axis.low:
                                     recurse(j + 1, x, row + (n.low,), True)
                                     low += 1e-10*(axis.high - axis.low)
 
@@ -241,14 +244,14 @@ class Plotable(object):
                                 if error and baseline:
                                     shifts[low] = 0.5*(n.low + n.high)
 
-                                if baseline and isinstance(axis, histbook.axis.bin) and n.high == axis.high:
+                                if baseline and isinstance(axis, (histbook.axis.bin, histbook.axis.split)) and n.high == axis.high:
                                     recurse(j + 1, x, row + (n.high,), True)
 
                         else:
                             recurse(j + 1, x, row + (str(n),), base)
 
-                    elif isinstance(n, (numbers.Integral, numpy.integer)):
-                        recurse(j + 1, x, row + (n,), base)
+                    elif isinstance(n, (bool, numpy.bool_, numpy.bool)):
+                        recurse(j + 1, x, row + ("pass" if n else "fail",), base)
 
                     else:
                         recurse(j + 1, x, row + (str(n),), base)
@@ -264,10 +267,21 @@ class Plotable(object):
         error = self._last.error
         baseline = isinstance(self._last, (StepChannel, AreaChannel))
 
+        if isinstance(self._last.axis, (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
+            xtype = "quantitative"
+        else:
+            xtype = "nominal"
+
         if isinstance(self._last, StepChannel):
-            mark = {"type": "line", "interpolate": "step-before"}
+            if xtype == "nominal":
+                mark = "bar"
+            else:
+                mark = {"type": "line", "interpolate": "step-before"}
         elif isinstance(self._last, AreaChannel):
-            mark = {"type": "area", "interpolate": "step-before"}
+            if xtype == "nominal":
+                mark = "bar"
+            else:
+                mark = {"type": "area", "interpolate": "step-before"}
         elif isinstance(self._last, LineChannel):
             mark = {"type": "line"}
         elif isinstance(self._last, MarkerChannel):
@@ -290,7 +304,7 @@ class Plotable(object):
             else:
                 raise AssertionError(values)
 
-        encoding = {"x": {"field": varname + str(axis.index(self._last.axis)), "type": "quantitative", "scale": {"zero": False}, "axis": {"title": xtitle}},
+        encoding = {"x": {"field": varname + str(axis.index(self._last.axis)), "type": xtype, "scale": {"zero": False}, "axis": {"title": xtitle}},
                     "y": {"field": varname + str(len(axis)), "type": "quantitative", "axis": {"title": ytitle}}}
         for channel in self._chain[:-1]:
             if isinstance(channel, OverlayChannel):
