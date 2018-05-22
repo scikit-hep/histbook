@@ -305,40 +305,69 @@ class groupbin(GroupAxis, RebinFactor):
     def _rebinfactor(self, factor, content, index):
         assert factor > 0
 
-        newaxis = groupbin(self._expr, self._binwidth // factor, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
+        newaxis = groupbin(self._expr, float(self._binwidth) / float(factor), origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
         newaxis._original = self._original
         newaxis._parsed = self._parsed
 
+        def recurse(j, content):
+            if j == index:
+                out = {}
+                for n, x in content.items():
+                    if n == "NaN":
+                        out[n] = recurse(j + 1, x)
 
+                    else:
+                        index = (n - float(self._origin)) / float(self._binwidth)
+                        if self._closedlow:
+                            index = int(numpy.floor(index))
+                        else:
+                            index = int(numpy.ceil(index)) - 1
 
+                        index = index // int(factor)
 
+                        n = index * float(newindex._binwidth) + float(newaxis._origin)
+                        if n not in out:
+                            out[n] = recurse(j + 1, x)
+                        else:
+                            out[n] += recurse(j + 1, x)
+
+                return out
+                        
+            elif isinstance(content, dict):
+                return dict((n, recurse(j + 1, x)) for n, x in content.items())
+
+            else:
+                return content
 
         if content is None:
             return newaxis, None
         else:
-            return newaxis, recurse(content)
+            return newaxis, recurse(0, content)
 
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
 
         elif value == float("-inf") and cmp == ">":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
 
         elif value == float("-inf") and cmp == "!=":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
 
         elif value == float("inf") and cmp == "<=":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
 
         elif value == float("inf") and cmp == "<":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
 
         elif value == float("inf") and cmp == "!=":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
 
         elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "!=":
-            return self, lambda x: True, None, False
+            return self, lambda x: x != "NaN", None, False
+
+        elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)) and numpy.isnan(value) and cmp == "==":
+            return self, lambda x: x == "NaN", None, False
 
         elif isinstance(value, (numbers.Real, numpy.floating, numpy.integer)):
             close = round((value - float(self._origin)) / float(self._binwidth)) * float(self._binwidth) + float(self._origin)

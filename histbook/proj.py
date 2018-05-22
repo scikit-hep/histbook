@@ -108,7 +108,32 @@ class Projectable(object):
         return out
 
     def rebinby(self, axis, factor):
-        raise NotImplementedError
+        if not isinstance(factor, (numbers.Integral, numpy.integer)) or factor <= 0:
+            raise TypeError("factor must be a positive integer")
+
+        if not isinstance(axis, histbook.axis.Axis):
+            expr = histbook.expr.Expr.parse(axis, defs=self._defs)
+            for x in self._group + self._fixed:
+                if isinstance(x, histbook.axis.RebinFactor) and expr == x._parsed:
+                    axis = x
+                    break
+
+        for index, x in enumerate(self._group + self._fixed):
+            if isinstance(x, histbook.axis.RebinFactor) and axis == x:
+                axis = x
+                break
+        else:
+            raise IndexError("no such rebinnable axis: {0}".format(axis))
+
+        if isinstance(axis, histbook.axis.GroupAxis):
+            newaxis, newcontent = axis._rebinsplit(factor, self._content, index)
+        else:
+            newaxis, newcontent = axis._rebinsplit(factor, self._content, index - len(self._group))
+
+        outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
+        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out._content = newcontent
+        return out
 
     def drop(self, *profile):
         profile = [x if isinstance(x, histbook.axis.Axis) else self.axis.profile(x) for x in profile]
