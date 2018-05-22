@@ -594,3 +594,32 @@ class TestProj(unittest.TestCase):
 
         h7 = h.rebin("y", (3,))
         self.assertEqual(h7._content.tolist(), [[[7], [7]], [[8], [8]], [[16], [16]]])
+
+    def test_rebin_split_groupby(self):
+        def tolist(obj):
+            if isinstance(obj, dict):
+                return dict((n, tolist(x)) for n, x in obj.items())
+            else:
+                return obj.tolist()
+
+        h = Hist(groupby("c"), split("x", (1, 2, 3)))
+        h.fill(c=["one"]*(1+2+4+8+16) + ["two"]*(1+2+4+8+16), x=([0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)*2)
+        self.assertEqual(tolist(h._content), {"one": [[1], [2], [4], [8], [16]], "two": [[1], [2], [4], [8], [16]]})
+
+        h2 = h.rebin("x", (2, 3))
+        self.assertEqual(tolist(h2._content), {"one": [[3], [4], [8], [16]], "two": [[3], [4], [8], [16]]})
+
+        h3 = h.rebin("x", (1, 3))
+        self.assertEqual(tolist(h3._content), {"one": [[1], [6], [8], [16]], "two": [[1], [6], [8], [16]]})
+
+        h4 = h.rebin("x", (1, 2))
+        self.assertEqual(tolist(h4._content), {"one": [[1], [2], [12], [16]], "two": [[1], [2], [12], [16]]})
+
+        h5 = h.rebin("x", (1,))
+        self.assertEqual(tolist(h5._content), {"one": [[1], [14], [16]], "two": [[1], [14], [16]]})
+
+        h6 = h.rebin("x", (2,))
+        self.assertEqual(tolist(h6._content), {"one": [[3], [12], [16]], "two": [[3], [12], [16]]})
+
+        h7 = h.rebin("x", (3,))
+        self.assertEqual(tolist(h7._content), {"one": [[7], [8], [16]], "two": [[7], [8], [16]]})

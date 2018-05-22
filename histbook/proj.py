@@ -97,7 +97,7 @@ class Projectable(object):
         else:
             raise IndexError("no such rebinnable axis: {0}".format(axis))
 
-        newaxis, newcontent = axis._rebinsplit(edges, self._content, index)
+        newaxis, newcontent = axis._rebinsplit(edges, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
         out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
