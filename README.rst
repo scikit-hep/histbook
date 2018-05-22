@@ -374,7 +374,7 @@ Books of histograms
     ...         book["w 0.5"].step(),
     ...         book["w 0.9"].step()).to(canvas)
 
-.. image:: docs/source/intro-12.png
+.. image:: docs/source/intro-13.png
 
 
 
