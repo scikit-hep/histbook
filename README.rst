@@ -303,7 +303,13 @@ Axis constructors
 
 histbook currently recognizes the following axis constructors:
 
+groupby
+"""""""
+
 - **groupby(expr)** groups values computed from ``expr`` by uniqueness, usually strings or integers.
+
+groupbin
+""""""""
 
 - **groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)** groups by binned numbers: a sparse histogram. The ``binwidth`` determines the granularity of binning with an ``origin`` to let the bins offset from zero. If ``nanflow`` is ``True``, "not a number" values will fill a single bin; if ``False``, they will be ignored. If ``closedlow`` is ``True``, intervals will include their infimum (leftmost) point; otherwise they'll include their supremum (rightmost) point.
 
