@@ -537,8 +537,11 @@ For example, if the low edge of each bin is closed, attempting to cut above it w
       File "histbook/proj.py", line 230, in select
         return self._select(expr, tolerance)
       File "histbook/proj.py", line 328, in _select
-        raise ValueError("no axis can select {0} (axis {1} has the wrong inequality; low edges are {2})".format(repr(str(expr)), wrongcmpaxis, "closed" if wrongcmpaxis.closedlow else "open"))
-    ValueError: no axis can select 'x <= 0' (axis bin('x', 100, -5.0, 5.0) has the wrong inequality; low edges are closed)
+        raise ValueError("no axis can select {0} (axis {1} has the wrong inequality; low edges are {2})"
+                         .format(repr(str(expr)), wrongcmpaxis, "closed" if wrongcmpaxis.closedlow else
+                         "open"))
+    ValueError: no axis can select 'x <= 0' (axis bin('x', 100, -5.0, 5.0) has the wrong inequality;
+                low edges are closed)
 
 whereas
 
