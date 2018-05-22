@@ -460,3 +460,50 @@ class TestProj(unittest.TestCase):
         h.fill(x=[15, 25, 25, 35, 35, 35])
         self.assertEqual(set(h._content.keys()), set([10.0, 20.0, 30.0]))
         self.assertEqual(set(h.select("x < 20 or x >= 30")._content.keys()), set([10.0, 30.0]))
+
+    def test_rebin_split(self):
+        h = Hist(split("x", (1, 2, 3)))
+        h.fill(x=[0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)
+        self.assertEqual(h._content.tolist(), [[1], [2], [4], [8], [16]])
+
+        h2 = h.rebin("x", (2, 3))
+        self.assertEqual(h2._content.tolist(), [[3], [4], [8], [16]])
+
+        h3 = h.rebin("x", (1, 3))
+        self.assertEqual(h3._content.tolist(), [[1], [6], [8], [16]])
+
+        h4 = h.rebin("x", (1, 2))
+        self.assertEqual(h4._content.tolist(), [[1], [2], [12], [16]])
+
+        h5 = h.rebin("x", (1,))
+        self.assertEqual(h5._content.tolist(), [[1], [14], [16]])
+
+        h6 = h.rebin("x", (2,))
+        self.assertEqual(h6._content.tolist(), [[3], [12], [16]])
+
+        h7 = h.rebin("x", (3,))
+        self.assertEqual(h7._content.tolist(), [[7], [8], [16]])
+
+        h = Hist(split("x", (1, 2, 3), underflow=False, overflow=True))
+        h.fill(x=[0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)
+        self.assertEqual(h._content.tolist(), [[2], [4], [8], [16]])
+
+        h2 = h.rebin("x", (2, 3))
+        self.assertEqual(h2._content.tolist(), [[4], [8], [16]])
+
+        h3 = h.rebin("x", (1, 3))
+        self.assertEqual(h3._content.tolist(), [[6], [8], [16]])
+
+        h4 = h.rebin("x", (1, 2))
+        self.assertEqual(h4._content.tolist(), [[2], [12], [16]])
+
+        h5 = h.rebin("x", (1,))
+        self.assertEqual(h5._content.tolist(), [[14], [16]])
+
+        h6 = h.rebin("x", (2,))
+        self.assertEqual(h6._content.tolist(), [[12], [16]])
+
+        h7 = h.rebin("x", (3,))
+        self.assertEqual(h7._content.tolist(), [[8], [16]])
+
+

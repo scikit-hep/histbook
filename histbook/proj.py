@@ -82,7 +82,29 @@ class Projectable(object):
         out._defs = self._defs
         return out
 
-    def rebin(self, axis, to):
+    def rebin(self, axis, edges):
+        if not isinstance(axis, histbook.axis.Axis):
+            expr = histbook.expr.Expr.parse(axis, defs=self._defs)
+            for x in self._group + self._fixed:
+                if isinstance(x, histbook.axis.RebinSplit) and expr == x._parsed:
+                    axis = x
+                    break
+
+        for index, x in enumerate(self._group + self._fixed):
+            if isinstance(x, histbook.axis.RebinSplit) and axis == x:
+                axis = x
+                break
+        else:
+            raise IndexError("no such rebinnable axis: {0}".format(axis))
+
+        newaxis, newcontent = axis._rebinsplit(edges, self._content, index)
+
+        outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
+        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out._content = newcontent
+        return out
+
+    def rebinby(self, axis, factor):
         raise NotImplementedError
 
     def drop(self, *profile):

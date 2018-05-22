@@ -194,7 +194,8 @@ class FixedAxis(Axis):
         return [IntervalPair(x) for x in zip(keys, content)]
 
 class ProfileAxis(Axis): pass
-class NumericalAxis(object): pass
+class RebinFactor(Axis): pass
+class RebinSplit(Axis): pass
 
 class groupby(GroupAxis):
     def __init__(self, expr):
@@ -249,7 +250,7 @@ class groupby(GroupAxis):
             raise TypeError("groupby content must be a dict")
         return [IntervalPair((n, content[n])) for n in sorted(content)]
 
-class groupbin(GroupAxis, NumericalAxis):
+class groupbin(GroupAxis, RebinFactor):
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
         self._binwidth = self._real(binwidth, "binwidth")
@@ -349,7 +350,7 @@ class groupbin(GroupAxis, NumericalAxis):
             raise TypeError("groupbin content must be a dict")
         return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
 
-class bin(FixedAxis, NumericalAxis):
+class bin(FixedAxis, RebinFactor, RebinSplit):
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._numbins = self._nonnegint(numbins, "numbins")
@@ -514,7 +515,7 @@ class bin(FixedAxis, NumericalAxis):
                              ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
             
-class intbin(FixedAxis, NumericalAxis):
+class intbin(FixedAxis, RebinFactor, RebinSplit):
     def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr
         self._min = self._int(min, "min")
@@ -656,7 +657,7 @@ class intbin(FixedAxis, NumericalAxis):
                              [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
-class split(FixedAxis, NumericalAxis):
+class split(FixedAxis, RebinSplit):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         if isinstance(edges, (numbers.Real, numpy.floating)):
@@ -734,7 +735,66 @@ class split(FixedAxis, NumericalAxis):
 
     def __hash__(self):
         return hash((self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow))
-            
+
+    def _rebinsplit(self, edges, content, index):
+        for x in edges:
+            if not x in self._edges:
+                raise ValueError("cannot rebin: edge {0} is not in the original edges {1}".format(x, self._edges))
+
+        newaxis = split(self._expr, edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+        newaxis._original = self._original
+        newaxis._parsed = self._parsed
+        
+        numbins = len(newaxis._edges) - 1 + (1 if newaxis._underflow else 0) + (1 if newaxis._overflow else 0) + (1 if newaxis._nanflow else 0)
+
+        def recurse(content):
+            if isinstance(content, dict):
+                return dict((n, recurse(x)) for n, x in content.items())
+            else:
+                newshape = tuple(numbins if i == index else x for i, x in enumerate(content.shape))
+                newcontent = numpy.empty(newshape, dtype=content.dtype)
+
+                oldi, oldi2, newi = 0, 0, 0
+                while self._edges[oldi2] < newaxis._edges[0]:
+                    oldi2 += 1
+
+                if newaxis._underflow:
+                    oldi2 += 1
+                    newcontent[newi] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
+                    newi += 1
+
+                oldi = oldi2
+                if not newaxis._underflow:
+                    oldi2 += 1
+
+                for edge in newaxis._edges[1:]:
+                    while self._edges[oldi2] < edge:
+                        oldi2 += 1
+                    if newaxis._underflow:
+                        oldi2 += 1
+
+                    newcontent[newi] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
+                    newi += 1
+                    oldi = oldi2
+                    if not newaxis._underflow:
+                        oldi2 += 1
+
+                if newaxis._overflow:
+                    oldi2 = len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)
+                    newcontent[newi] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
+                    newi += 1
+                    oldi = oldi2
+
+                if newaxis._nanflow:
+                    newcontent[newi] = content[[slice(oldi, oldi + 1) if i == index else slice(None) for i, x in enumerate(content.shape)]]
+
+                return newcontent
+
+        if content is None:
+            return newaxis, None
+        else:
+            return newaxis, recurse(content)
+
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":
             out = self.__class__.__new__(self.__class__)
@@ -897,7 +957,7 @@ class _nullaxis(FixedAxis):
     def keys(self):
         return []
 
-class profile(ProfileAxis, NumericalAxis):
+class profile(ProfileAxis):
     def __init__(self, expr):
         self._expr = expr
 
