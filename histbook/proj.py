@@ -411,7 +411,7 @@ class Projectable(object):
                     outindex += 1
 
             if len(profile) > 0 or effcount:
-                good = numpy.nonzero(sumw)
+                good = sumw > 0
                 sumw = sumw[good]
                 if self._weightparsed is None:
                     effcnt = sumw
@@ -515,7 +515,7 @@ class Projectable(object):
                 out[:, outindex] = sumw
                 outindex += 1
 
-            good = numpy.nonzero(sumw)
+            good = sumw > 0
             denom = sumw[good]
             # if denomhist._weight is not None:
             #     denomw2 = denomcontent[good, denomhist._sumw2index]

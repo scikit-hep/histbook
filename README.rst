@@ -353,7 +353,56 @@ Although each non-profile axis multiplies the number of bins and therefore its m
 Weighted data
 -------------
 
+In addition to bins, histograms take a ``weight`` parameter to compute weights for each input value. A value with weight 2 is roughly equivalent to having two values with all other attributes being equal (for counts, sums, and means, but not standard deviations). Weights may be zero or even negative.
 
+For example: without weights, counts are integers and the effective counts (used for weighted profiles) are equal to the counts.
+
+.. code-block:: python
+
+    >>> x = numpy.random.normal(0, 1, 10000)
+    >>> y = x**2 + numpy.random.normal(0, 5, 10000)
+
+    >>> h = Hist(bin("x", 100, -5, 5), profile("y"))
+    >>> h.fill(x=x, y=y)
+    >>> h.select("-0.5 <= x < 0.5").pandas("y", effcount=True)
+
+.. code-block::
+
+                  count()  err(count())  effcount()         y    err(y)
+    x                                                                  
+    [-0.5, -0.4)    381.0     19.519221       381.0  0.124497  0.251414
+    [-0.4, -0.3)    388.0     19.697716       388.0  0.215915  0.241851
+    [-0.3, -0.2)    376.0     19.390719       376.0 -0.029105  0.252925
+    [-0.2, -0.1)    410.0     20.248457       410.0 -0.128061  0.249327
+    [-0.1, 0.0)     392.0     19.798990       392.0  0.199057  0.250275
+    [0.0, 0.1)      398.0     19.949937       398.0 -0.081793  0.242204
+    [0.1, 0.2)      401.0     20.024984       401.0 -0.144345  0.258108
+    [0.2, 0.3)      397.0     19.924859       397.0  0.083175  0.251312
+    [0.3, 0.4)      381.0     19.519221       381.0  0.065216  0.248393
+    [0.4, 0.5)      341.0     18.466185       341.0  0.349919  0.267243
+
+Below, we make the weights normal-distributed with a mean of 1 and a standard deviation of 4 (many of them are negative, but the average is 1). The counts are no longer integers, errors in the count are much larger, effective counts much smaller, and it affects the profile central values and errors.
+
+.. code-block:: python
+
+    >>> h = Hist(bin("x", 100, -5, 5), profile("y"), weight="w")
+    >>> h.fill(x=x, y=y, w=numpy.random.normal(1, 4, 10000))
+    >>> h.select("-0.5 <= x < 0.5").pandas("y", effcount=True)
+
+.. code-block::
+
+                     count()  err(count())  effcount()         y    err(y)
+    x                                                                     
+    [-0.5, -0.4)  310.641444     83.340859   13.893218 -0.405683  1.690065
+    [-0.4, -0.3)  425.941704     84.217430   25.579754  0.184349  0.836336
+    [-0.3, -0.2)  375.066116     82.471825   20.682568 -0.608185  1.064126
+    [-0.2, -0.1)  382.807263     82.146862   21.715927 -1.597008  1.126224
+    [-0.1, 0.0)   286.163241     87.789195   10.625407  0.713485  1.790242
+    [0.0, 0.1)    390.969763     83.196893   22.083714  0.068378  1.082724
+    [0.1, 0.2)    307.430278     84.485770   13.241163  0.444630  1.355545
+    [0.2, 0.3)    366.041800     81.623699   20.110776  0.085841  1.464471
+    [0.3, 0.4)    342.713428     74.441222   21.195090 -0.193052  0.993808
+    [0.4, 0.5)    444.800092     77.272327   33.134601  0.011396  0.839200
 
 Books of histograms
 -------------------
@@ -382,7 +431,7 @@ Note that the number of bins (memory use) scales as
 
 .. pull-quote::
 
-    (B :sub:`1` × ... B :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`1` + ... + (B :sub:`1` × ... B :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`k`
+    (B :sub:`1` × ... B × :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`1` + ... + (B :sub:`1` × ... B × :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`k`
 
 where B :sub:`i` is the number of bins in non-profile axis i, P :sub:`i` is the number of bins in profile axis i, and the whole expression is repeated for each histogram k in a book. That is, books add memory use, non-profile axes multiply, and profile axes add within the non-profile axes.
 
