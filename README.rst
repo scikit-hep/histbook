@@ -378,7 +378,7 @@ A histogram ``Book`` acts like a Python dictionary, mapping string names to ``Hi
 
 In the above, we created three similar histograms, differing only in how to weight two subexpressions. The use of ``defs`` for substituting constants (or any expression) makes it easier to generate many histograms in a loop.
 
-Note that the number of bins (memory use) scales as (B<sub>1</sub> × ... B<sub>n</sub> × (P<sub>1</sub> + ... + P<sub>m</sub>))<sub>1</sub>
+Note that the number of bins (memory use) scales as (B :sub:`1` × ... B<sub>n</sub> × (P<sub>1</sub> + ... + P<sub>m</sub>))<sub>1</sub>
 
 Manipulation methods
 --------------------
