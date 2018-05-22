@@ -337,49 +337,49 @@ Axis constructors
 groupby
 """""""
 
-``groupby(expr)``
+``Hist.groupby(expr)``
 
 Groups values computed from ``expr`` by uniqueness, usually strings or integers.
 
 groupbin
 """"""""
 
-``groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)``
+``Hist.groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)``
 
 Groups by binned numbers: a sparse histogram. The ``binwidth`` determines the granularity of binning with an ``origin`` to let the bins offset from zero. If ``nanflow`` is ``True``, "not a number" values will fill a single bin; if ``False``, they will be ignored. If ``closedlow`` is ``True``, intervals will include their infimum (leftmost) point; otherwise they'll include their supremum (rightmost) point.
 
 bin
 """
 
-``bin(expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True)``
+``Hist.bin(expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True)``
 
 Uniformly and densely splits a dimension into ``numbins`` from ``low`` to ``high``. If ``underflow`` and/or ``overflow`` are ``True``, values below or above this range go into their own bins; if ``False``, they are ignored (similar to ``nanflow``).
 
 intbin
 """"""
 
-``intbin(expr, min, max, underflow=True, overflow=True)``
+``Hist.intbin(expr, min, max, underflow=True, overflow=True)``
 
 Splits a dimension by integers from ``min`` (inclusive) to ``max`` (inclusive). "Not a number" is not a possible value for integers.
 
 split
 """""
 
-``split(expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True)``
+``Hist.split(expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True)``
 
 Splits a dimension into the regions between ``edges``, which can be non-uniformly spaced. Without underflow, overflow, or nanflow bins, there are one fewer bins than edges.
 
 cut
 """
 
-``cut(expr)``
+``Hist.cut(expr)``
 
 Splits a boolean dimension into true ("pass") and false ("fail"). This differs from ``split`` with one edge because it can include boolean logic (and/or/not).
 
 profile
 """""""
 
-``profile(expr)``
+``Hist.profile(expr)``
 
 Collects statistics to view the mean and error in the mean of ``expr`` in bins of the other dimensions (same statistical treatment as ROOT).
 
@@ -519,15 +519,81 @@ Manipulation methods
 select
 """"""
 
+``Hist.select(expr, tolerance=1e-12)``
+
+Select a set of bins with a boolean ``expr``, returning a new ``Hist``. Cut boundaries may be approximate (within ``tolerance``), but the inequalities must be exact.
+
+For example, if the low edge of each bin is closed, attempting to cut above it without including it is an error, as is attempting to cut below it with including it:
+
+.. code-block:: python
+
+    >>> h = Hist(bin("x", 100, -5, 5, closedlow=True))
+    >>> h.select("x <= 0")
+
+.. code-block::
+
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "histbook/proj.py", line 230, in select
+        return self._select(expr, tolerance)
+      File "histbook/proj.py", line 328, in _select
+        raise ValueError("no axis can select {0} (axis {1} has the wrong inequality; low edges are {2})".format(repr(str(expr)), wrongcmpaxis, "closed" if wrongcmpaxis.closedlow else "open"))
+    ValueError: no axis can select 'x <= 0' (axis bin('x', 100, -5.0, 5.0) has the wrong inequality; low edges are closed)
+
+whereas
+
+.. code-block:: python
+
+    >>> h.select("x < 0")
+    Hist(bin('x', 50, -5.0, 0.0, overflow=False, nanflow=False))
+
+Any selection other than "``x == nan``" eliminates the nanflow because every comparison with "not a number" should yield ``False``. (So technically, "``x == nan``" shouldn't work— this deviation from strict IEEE behavior is for convenience.)
+
+Selections can never select a partial bin, so filling a histogram and then selecting from it should yield exactly the same result as filtering the data before filling.
+
+Categorical ``groupby`` axes can be selected with Python's ``in`` operator and constant sets (necessary because there are no comparators for categorical data other than ``==``, ``!=``, and ``in``).
+
+.. code-block:: python
+
+    >>> h = Hist(groupby("c"))
+    >>> h.fill(c=["one", "two", "two", "three", "three", "three"])
+    >>> h.pandas()
+
+.. code-block::
+
+           count()  err(count())
+    c                           
+    one        1.0      1.000000
+    three      3.0      1.732051
+    two        2.0      1.414214
+
+.. code-block:: python
+
+    >>> h.select("c in {'one', 'two'}").pandas()
+
+.. code-block::
+
+         count()  err(count())
+    c                         
+    one      1.0      1.000000
+    two      2.0      1.414214
+
 project
 """""""
+
+``Hist.project(*axis)``
 
 rebin, rebinby
 """"""""""""""
 
+``Hist.rebin(axis, edges)``
+
+``Hist.rebinby(axis, factor)``
+
 drop
 """"
 
+``Hist.drop(*profile)``
 
 Tabular output
 --------------
@@ -535,11 +601,17 @@ Tabular output
 table
 """""
 
+``Hist.table(*profile, count=True, effcount=False, error=True, recarray=True)``
+
 fraction
 """"""""
 
+``Hist.fraction(*cut, count=True, error="clopper-pearson", level=erf(sqrt(0.5)), recarray=True)``
+
 pandas
 """"""
+
+``Hist.pandas(*axis, **opts)``
 
 
 Plotting methods
@@ -548,35 +620,58 @@ Plotting methods
 bar
 """
 
+``PlottingChain.bar(axis=None, profile=None, error=False)``
+
 step
 """"
+
+``PlottingChain.step(axis=None, profile=None, error=False)``
 
 area
 """"
 
+``PlottingChain.area(axis=None, profile=None, error=False)``
+
 line
 """"
+
+``PlottingChain.line(axis=None, profile=None, error=False)``
 
 marker
 """"""
 
+``PlottingChain.marker(axis=None, profile=None, error=True)``
+
 stack
 """""
+
+``PlottingChain.stack(axis)``
 
 overlay
 """""""
 
+``PlottingChain.overlay(axis)``
+
+``overlay(*plotables)``
+
 beside
 """"""
+
+``PlottingChain.beside(axis)``
+
+``beside(*plotables)``
 
 below
 """""
 
+``PlottingChain.below(axis)``
+
+``below(*plotables)``
 
 Exporting to ROOT
 -----------------
 
-
+``Hist.root(*axis, cache={}, name="", title="")``
 
 .. inclusion-marker-4-do-not-remove
 

@@ -55,7 +55,14 @@ class Exportable(object):
         keys = [[] for x in allaxis]
 
         def index(j, content, key):
-            if j < len(allaxis):
+            if j == len(allaxis):
+                if len(self._fixed) == 0:
+                    arrays.append(numpy.array([content]))
+
+                for j, k in enumerate(key):
+                    keys[j].append(k)
+
+            else:
                 axis = allaxis[j]
                 names[j] = str(axis.expr)
 
@@ -116,10 +123,6 @@ class Exportable(object):
 
                     else:
                         raise AssertionError(axis)
-
-            else:
-                for j, k in enumerate(key):
-                    keys[j].append(k)
 
         index(0, content, ())
 
