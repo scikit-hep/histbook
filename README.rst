@@ -382,9 +382,9 @@ Note that the number of bins (memory use) scales as
 
 .. pull-quote::
 
-    (B :sub:`1` × ... B :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`1` + ...
+    (B :sub:`1` × ... B :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`1` + ... + (B :sub:`1` × ... B :sub:`n` × (P :sub:`1` + ... + P :sub:`m`)) :sub:`k`
 
-where B :sub:`i` is the number of bins in non-profile axis i, P :sub:`i` is the number of bins in profile axis i, and the whole expression is repeated for each histogram in a book. That is, books add memory use, non-profile axes multiply, and profile axes add within the non-profile axes.
+where B :sub:`i` is the number of bins in non-profile axis i, P :sub:`i` is the number of bins in profile axis i, and the whole expression is repeated for each histogram k in a book. That is, books add memory use, non-profile axes multiply, and profile axes add within the non-profile axes.
 
 Manipulation methods
 --------------------
