@@ -86,6 +86,7 @@ Tutorial
 
   - `table <#table>`__
   - `fraction <#fraction>`__
+  - `pandas <#pandas>`__
 
 * `Plotting methods <#plotting-methods>`__
 
@@ -537,6 +538,8 @@ table
 fraction
 """"""""
 
+pandas
+""""""
 
 
 Plotting methods
