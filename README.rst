@@ -89,8 +89,15 @@ Table of contents:
 
 * `Plotting methods <#plotting-methods>`__
 
-
-
+  - `bar <#bar>`__
+  - `step <#step>`__
+  - `area <#area>`__
+  - `line <#line>`__
+  - `marker <#marker>`__
+  - `stack <#stack>`__
+  - `overlay <#overlay>`__
+  - `beside <#beside>`__
+  - `below <#below>`__
 
 * `Exporting to ROOT <#exporting-to-root>`__
 
