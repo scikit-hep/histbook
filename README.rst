@@ -485,8 +485,14 @@ where B :sub:`i` is the number of bins in non-profile axis i, P :sub:`i` is the 
 Manipulation methods
 --------------------
 
-select, project, rebin, rebinby
+select
+""""""
 
+project
+"""""""
+
+rebin, rebinby
+""""""""""""""
 
 
 
