@@ -506,4 +506,47 @@ class TestProj(unittest.TestCase):
         h7 = h.rebin("x", (3,))
         self.assertEqual(h7._content.tolist(), [[8], [16]])
 
+        h = Hist(split("x", (1, 2, 3), underflow=True, overflow=False))
+        h.fill(x=[0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)
+        self.assertEqual(h._content.tolist(), [[1], [2], [4], [16]])
+
+        h2 = h.rebin("x", (2, 3))
+        self.assertEqual(h2._content.tolist(), [[3], [4], [16]])
+
+        h3 = h.rebin("x", (1, 3))
+        self.assertEqual(h3._content.tolist(), [[1], [6], [16]])
+
+        h4 = h.rebin("x", (1, 2))
+        self.assertEqual(h4._content.tolist(), [[1], [2], [16]])
+
+        h5 = h.rebin("x", (1,))
+        self.assertEqual(h5._content.tolist(), [[1], [16]])
+
+        h6 = h.rebin("x", (2,))
+        self.assertEqual(h6._content.tolist(), [[3], [16]])
+
+        h7 = h.rebin("x", (3,))
+        self.assertEqual(h7._content.tolist(), [[7], [16]])
+
+        h = Hist(split("x", (1, 2, 3), underflow=False, overflow=False))
+        h.fill(x=[0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)
+        self.assertEqual(h._content.tolist(), [[2], [4], [16]])
+
+        h2 = h.rebin("x", (2, 3))
+        self.assertEqual(h2._content.tolist(), [[4], [16]])
+
+        h3 = h.rebin("x", (1, 3))
+        self.assertEqual(h3._content.tolist(), [[6], [16]])
+
+        h4 = h.rebin("x", (1, 2))
+        self.assertEqual(h4._content.tolist(), [[2], [16]])
+
+        h5 = h.rebin("x", (1,))
+        self.assertEqual(h5._content.tolist(), [[16]])
+
+        h6 = h.rebin("x", (2,))
+        self.assertEqual(h6._content.tolist(), [[16]])
+
+        h7 = h.rebin("x", (3,))
+        self.assertEqual(h7._content.tolist(), [[16]])
 

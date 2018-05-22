@@ -786,6 +786,7 @@ class split(FixedAxis, RebinSplit):
                     oldi = oldi2
 
                 if newaxis._nanflow:
+                    oldi = len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)
                     newcontent[newi] = content[[slice(oldi, oldi + 1) if i == index else slice(None) for i, x in enumerate(content.shape)]]
 
                 return newcontent
