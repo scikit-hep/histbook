@@ -294,13 +294,29 @@ class groupbin(GroupAxis, RebinFactor):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
-        return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.groupbin{0}".format("L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._binwidth), histbook.expr.Const(self._origin)))]
+        return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.groupbin{0}{1}".format("N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._binwidth), histbook.expr.Const(self._origin)))]
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr and self._binwidth == other._binwidth and self._origin == other._origin and self._nanflow == other._nanflow and self._closedlow == other._closedlow
 
     def __hash__(self):
         return hash((self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow))
+
+    def _rebinfactor(self, factor, content, index):
+        assert factor > 0
+
+        newaxis = groupbin(self._expr, self._binwidth // factor, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
+        newaxis._original = self._original
+        newaxis._parsed = self._parsed
+
+
+
+
+
+        if content is None:
+            return newaxis, None
+        else:
+            return newaxis, recurse(content)
 
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":
@@ -429,6 +445,16 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
 
     def __hash__(self):
         return hash((self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow))
+
+    def _rebinsplit(self, edges, content, index):
+        splitaxis = split(self._expr, [(float(i) / float(self._numbins)) * (self._high - self._low) + self._low for i in range(self._numbins)] + [self._high], underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+        splitaxis._original = self._original
+        splitaxis._parsed = self._parsed
+        return splitaxis._rebinsplit(edges, content, index)
+
+    def _rebinfactor(self, factor, content, index):
+        assert factor > 0
+        return self._rebinsplit([(float(i) / float(self._numbins)) * (self._high - self._low) + self._low for i in range(0, self._numbins, factor)] + [self._high], content, index)
 
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":
@@ -578,6 +604,18 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
     def __hash__(self):
         return hash((self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow))
 
+    def _rebinsplit(self, edges, content, index):
+        binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
+        binaxis._original = self._original
+        binaxis._parsed = self._parsed
+        return binaxis._rebinsplit(edges, content, index)
+
+    def _rebinfactor(self, factor, content, index):
+        binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
+        binaxis._original = self._original
+        binaxis._parsed = self._parsed
+        return binaxis._rebinfactor(edges, content, index)
+
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":
             out = self.__class__.__new__(self.__class__)
@@ -657,7 +695,7 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
                              [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
-class split(FixedAxis, RebinSplit):
+class split(FixedAxis, RebinFactor, RebinSplit):
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         if isinstance(edges, (numbers.Real, numpy.floating)):
@@ -796,6 +834,10 @@ class split(FixedAxis, RebinSplit):
             return newaxis, None
         else:
             return newaxis, recurse(content)
+
+    def _rebinfactor(self, factor, content, index):
+        assert factor > 0
+        return self._rebinsplit(self.edges[0:-1:factor] + self.edges[-1], content, index)
 
     def _select(self, cmp, value, tolerance):
         if value == float("-inf") and cmp == ">=":

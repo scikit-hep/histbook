@@ -154,7 +154,7 @@ def histbook_groupby(values):
 
 library["histbook.groupby"] = histbook_groupby
 
-def histbook_groupbin(closedlow):
+def histbook_groupbin(nanflow, closedlow):
     def groupbin(values, binwidth, origin):
         if origin == 0:
             indexes = numpy.multiply(values, 1.0/float(binwidth))
@@ -178,17 +178,28 @@ def histbook_groupbin(closedlow):
         if ok.all():
             uniques, inverse = numpy.unique(indexes, return_inverse=True)
             inverse = inverse.astype(INDEXTYPE)
+
         else:
             uniques, okinverse = numpy.unique(indexes[ok], return_inverse=True)
             inverse = numpy.ones(indexes.shape, dtype=INDEXTYPE)
-            numpy.multiply(inverse, -1, inverse)
-            inverse[ok] = okinverse
+
+            if nanflow:
+                numpy.multiply(inverse, len(uniques), inverse)
+                inverse[ok] = okinverse
+                uniques = list(uniques) + ["NaN"]
+
+            else:
+                numpy.multiply(inverse, -1, inverse)
+                inverse[ok] = okinverse
+
         return uniques, inverse
 
     return groupbin
 
-library["histbook.groupbinL"] = histbook_groupbin(True)
-library["histbook.groupbinH"] = histbook_groupbin(False)
+library["histbook.groupbinNL"] = histbook_groupbin(True, True)
+library["histbook.groupbinNH"] = histbook_groupbin(True, False)
+library["histbook.groupbin_L"] = histbook_groupbin(False, True)
+library["histbook.groupbin_H"] = histbook_groupbin(False, False)
     
 def histbook_bin(underflow, overflow, nanflow, closedlow):
     if nanflow:
