@@ -79,8 +79,8 @@ Tutorial
 
   - `select <#select>`__
   - `project <#project>`__
-  - `rebin, rebinby <#rebin-rebinby>`__
   - `drop <#drop>`__
+  - `rebin, rebinby <#rebin-rebinby>`__
 
 * `Tabular output <#tabular-output>`__
 
@@ -586,6 +586,19 @@ project
 
 ``Hist.project(*axis)``
 
+Reduces the number of non-profile axes to the provided set, ``*axis``, by summing over all other non-profile axes.
+
+All internal data are sums that are properly combined by summing. For instance, histograms are represented by a count (unweighted) or a sum of weights and squared-weights (weighted), and profiles are represented by a sum of the quantity times weight and a sum of the squared-quantity times weight.
+
+drop
+""""
+
+``Hist.drop(*profile)``
+
+Eliminates all profile axes except the provided set, ``*profile``.
+
+If a ``Hist`` were represented as a table, non-profile axes form a compound key but profile axes are simple columns, which may be dropped without affecting any other data.
+
 rebin, rebinby
 """"""""""""""
 
@@ -593,10 +606,9 @@ rebin, rebinby
 
 ``Hist.rebinby(axis, factor)``
 
-drop
-""""
+Eliminates or sums neighboring bins to reduce the number of bins in an axis to ``edges`` or by a multiplicative ``factor``.
 
-``Hist.drop(*profile)``
+A ``Hist`` with detailed binning in two dimensions can be plotted against one axis with rebinned overlays in the other axis and vice-versa.
 
 Tabular output
 --------------
@@ -606,75 +618,122 @@ table
 
 ``Hist.table(*profile, count=True, effcount=False, error=True, recarray=True)``
 
+Presents data from the histogram as a Numpy array,
+
+- including any ``profile`` in the list;
+- with a total ``count()`` if ``count=True``;
+- with the effective ``effcount()`` if ``effcount=True`` (used to calculate weighted profile errors);
+- with ``err(count()`` and an error for each profile if ``error=True``;
+- as a labeled record array if ``recarray=True``; otherwise, an unlabeled rank-n ndarray.
+
 fraction
 """"""""
 
 ``Hist.fraction(*cut, count=True, error="clopper-pearson", level=erf(sqrt(0.5)), recarray=True)``
+
+Presents cut fractions (cut efficiencies) as a function of non-profile axes for each ``cut``,
+
+- with the total ``count()`` if ``count=True``;
+- using "``clopper-pearson``", "``normal``" (naive binomial), "``wilson``", "``agresti-coull``", "``feldman-cousins``", "``jeffrey``", or "``bayesian-uniform``" errors or no errors if ``errors=None``;
+- evaluated at ``level`` confidence levels (``erf(sqrt(0.5))`` is one sigma);
+- as a labeled record array if ``recarray=True``; otherwise, an unlabeled rank-n ndarray.
 
 pandas
 """"""
 
 ``Hist.pandas(*axis, **opts)``
 
+Presents a ``Hist.table`` as a Pandas DataFrame if all ``*axis`` are profiles or ``Hist.fraction`` if all ``*axis`` are cuts.
 
 Plotting methods
 ----------------
+
+``Hist`` and objects returned by ``PlottingChain.stack``, ``PlottingChain.overlay``, ``PlottingChain.beside``, and ``PlottingChain.below`` are PlottingChains.
 
 bar
 """
 
 ``PlottingChain.bar(axis=None, profile=None, error=False)``
 
+Creates a bar chart Plotable.
+
 step
 """"
 
 ``PlottingChain.step(axis=None, profile=None, error=False)``
+
+Creates a step chart Plotable.
 
 area
 """"
 
 ``PlottingChain.area(axis=None, profile=None, error=False)``
 
+Creates an area chart Plotable.
+
 line
 """"
 
 ``PlottingChain.line(axis=None, profile=None, error=False)``
+
+Creates a line chart Plotable.
 
 marker
 """"""
 
 ``PlottingChain.marker(axis=None, profile=None, error=True)``
 
+Creates a marker chart (points with error bars) Plotable.
+
 stack
 """""
 
 ``PlottingChain.stack(axis)``
+
+Extends the PlottingChain that stacks data along ``axis``.
 
 overlay
 """""""
 
 ``PlottingChain.overlay(axis)``
 
+Extends the PlottingChain that overlays data along ``axis``.
+
 ``overlay(*plotables)``
+
+Overlays two existing Plotables.
 
 beside
 """"""
 
 ``PlottingChain.beside(axis)``
 
+Extends the PlottingChain that places data side-by-side along ``axis``.
+
 ``beside(*plotables)``
+
+Places two existing Plotables side-by-side.
 
 below
 """""
 
 ``PlottingChain.below(axis)``
 
+Extends the PlottingChain that places data above-and-below along ``axis``.
+
 ``below(*plotables)``
+
+Places two existing Plotables above-and-below.
 
 Exporting to ROOT
 -----------------
 
 ``Hist.root(*axis, cache={}, name="", title="")``
+
+Returns a PyROOT histogram projected on ``*axis``.
+
+- If ``cache`` is provided, the resulting object is placed in the cache so that it doesn't disappear after you plot it (due to ROOT's memory management).
+- If ``name`` and ``title`` are provided, they are assigned to PyROOT object.
 
 .. inclusion-marker-4-do-not-remove
 
