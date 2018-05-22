@@ -212,7 +212,7 @@ With multiple dimensions, we can project it out different ways. The ``overlay`` 
 
 .. image:: docs/source/intro-3.png
 
-The ``stack`` method draws them cumulatively, though it only works with the ``area`` (filled) rendering.
+The ``stack`` method draws them cumulatively, though it only works with ``area`` (filled) rendering.
 
 .. code-block:: python
 
@@ -220,7 +220,7 @@ The ``stack`` method draws them cumulatively, though it only works with the ``ar
 
 .. image:: docs/source/intro-4.png
 
-The underflow, overflow, and nanflow curves are zero. Let's exclude them with a post-aggregation selection. You can select at any bin boundary of any axis, as long as the inequalities match (e.g. ``<=`` for left edges and ``<`` for right edges for an axis with ``closedlow=True``).
+The underflow, overflow, and nanflow curves are empty. Let's exclude them with a post-aggregation selection. You can select at any bin boundary of any axis, as long as the inequalities match (e.g. ``<=`` for left edges and ``<`` for right edges for an axis with ``closedlow=True``).
 
 .. code-block:: python
 
