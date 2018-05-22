@@ -760,7 +760,7 @@ class split(FixedAxis, RebinSplit):
 
                 if newaxis._underflow:
                     oldi2 += 1
-                    newcontent[newi] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
+                    newcontent[[newi if i == index else slice(None) for i, x in enumerate(content.shape)]] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
                     newi += 1
 
                 oldi = oldi2
@@ -773,7 +773,7 @@ class split(FixedAxis, RebinSplit):
                     if newaxis._underflow:
                         oldi2 += 1
 
-                    newcontent[newi] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
+                    newcontent[[newi if i == index else slice(None) for i, x in enumerate(content.shape)]] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
                     newi += 1
                     oldi = oldi2
                     if not newaxis._underflow:
@@ -781,13 +781,14 @@ class split(FixedAxis, RebinSplit):
 
                 if newaxis._overflow:
                     oldi2 = len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)
-                    newcontent[newi] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
+                    newcontent[[newi if i == index else slice(None) for i, x in enumerate(content.shape)]] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
                     newi += 1
                     oldi = oldi2
 
                 if newaxis._nanflow:
                     oldi = len(self._edges) - 1 + (1 if self._underflow else 0) + (1 if self._overflow else 0)
-                    newcontent[newi] = content[[slice(oldi, oldi + 1) if i == index else slice(None) for i, x in enumerate(content.shape)]]
+                    oldi2 = oldi + 1
+                    newcontent[[newi if i == index else slice(None) for i, x in enumerate(content.shape)]] = numpy.sum(content[[slice(oldi, oldi2) if i == index else slice(None) for i, x in enumerate(content.shape)]], axis=index)
 
                 return newcontent
 

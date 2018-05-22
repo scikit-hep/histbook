@@ -550,3 +550,47 @@ class TestProj(unittest.TestCase):
         h7 = h.rebin("x", (3,))
         self.assertEqual(h7._content.tolist(), [[16]])
 
+    def test_rebin_split_bin(self):
+        h = Hist(bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False), split("y", (1, 2, 3)))
+        h.fill(x=[0]*(1+2+4+8+16) + [1]*(1+2+4+8+16), y=([0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)*2)
+        self.assertEqual(h._content.tolist(), [[[1], [2], [4], [8], [16]], [[1], [2], [4], [8], [16]]])
+
+        h2 = h.rebin("y", (2, 3))
+        self.assertEqual(h2._content.tolist(), [[[3], [4], [8], [16]], [[3], [4], [8], [16]]])
+
+        h3 = h.rebin("y", (1, 3))
+        self.assertEqual(h3._content.tolist(), [[[1], [6], [8], [16]], [[1], [6], [8], [16]]])
+
+        h4 = h.rebin("y", (1, 2))
+        self.assertEqual(h4._content.tolist(), [[[1], [2], [12], [16]], [[1], [2], [12], [16]]])
+
+        h5 = h.rebin("y", (1,))
+        self.assertEqual(h5._content.tolist(), [[[1], [14], [16]], [[1], [14], [16]]])
+
+        h6 = h.rebin("y", (2,))
+        self.assertEqual(h6._content.tolist(), [[[3], [12], [16]], [[3], [12], [16]]])
+
+        h7 = h.rebin("y", (3,))
+        self.assertEqual(h7._content.tolist(), [[[7], [8], [16]], [[7], [8], [16]]])
+
+        h = Hist(split("y", (1, 2, 3)), bin("x", 2, 0, 2, underflow=False, overflow=False, nanflow=False))
+        h.fill(x=[0]*(1+2+4+8+16) + [1]*(1+2+4+8+16), y=([0] + [1]*2 + [2]*4 + [3]*8 + [numpy.nan]*16)*2)
+        self.assertEqual(h._content.tolist(), [[[1], [1]], [[2], [2]], [[4], [4]], [[8], [8]], [[16], [16]]])
+
+        h2 = h.rebin("y", (2, 3))
+        self.assertEqual(h2._content.tolist(), [[[3], [3]], [[4], [4]], [[8], [8]], [[16], [16]]])
+
+        h3 = h.rebin("y", (1, 3))
+        self.assertEqual(h3._content.tolist(), [[[1], [1]], [[6], [6]], [[8], [8]], [[16], [16]]])
+
+        h4 = h.rebin("y", (1, 2))
+        self.assertEqual(h4._content.tolist(), [[[1], [1]], [[2], [2]], [[12], [12]], [[16], [16]]])
+
+        h5 = h.rebin("y", (1,))
+        self.assertEqual(h5._content.tolist(), [[[1], [1]], [[14], [14]], [[16], [16]]])
+
+        h6 = h.rebin("y", (2,))
+        self.assertEqual(h6._content.tolist(), [[[3], [3]], [[12], [12]], [[16], [16]]])
+
+        h7 = h.rebin("y", (3,))
+        self.assertEqual(h7._content.tolist(), [[[7], [7]], [[8], [8]], [[16], [16]]])
