@@ -129,8 +129,10 @@ This example was deliberately simple. We can extend the binning to two dimension
 .. code-block:: python
 
     >>> import math
-    >>> hist = Hist(bin("sqrt(x**2 + y**2)", 5, 0, 1), bin("atan2(y, x)", 3, -math.pi, math.pi))
-    >>> hist.fill(x=numpy.random.normal(0, 1, 1000000), y=numpy.random.normal(0, 1, 1000000))
+    >>> hist = Hist(bin("sqrt(x**2 + y**2)", 5, 0, 1),
+    ...             bin("atan2(y, x)", 3, -math.pi, math.pi))
+    >>> hist.fill(x=numpy.random.normal(0, 1, 1000000),
+    ...           y=numpy.random.normal(0, 1, 1000000))
     >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("atan2(y,x)")).to(canvas)
 
 .. image:: docs/source/intro-2.png
