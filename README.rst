@@ -358,7 +358,7 @@ Weighted data
 Books of histograms
 -------------------
 
-
+A histogram ``Book`` acts like a Python dictionary, mapping string names to ``Hist`` objects. It provides the convenience of having only one object to ``fill`` (important in a complicated parallelization scheme), but also optimizes the calculation of those histograms to avoid unnecessary passes over the data.
 
 .. code-block:: python
 
@@ -368,7 +368,7 @@ Books of histograms
 
     >>> left = numpy.random.normal(-1, 1, 1000000)
     >>> right = numpy.random.normal(1, 1, 1000000)
-    >>> book.fill(left=left, right=right)            # one call to fill
+    >>> book.fill(left=left, right=right)            # one "fill" for all histograms
 
     >>> overlay(book["w 0.1"].step(),
     ...         book["w 0.5"].step(),
@@ -376,16 +376,14 @@ Books of histograms
 
 .. image:: docs/source/intro-13.png
 
+In the above, we created three similar histograms, differing only in how to weight two subexpressions. The use of ``defs`` for substituting constants (or any expression) makes it easier to generate many histograms in a loop.
 
-
-
-
-
+Note that the number of bins (memory use) scales as (B<sub>1</sub> × ... B<sub>n</sub> × (P<sub>1</sub> + ... + P<sub>m</sub>))<sub>1</sub>
 
 Manipulation methods
 --------------------
 
-select, project
+select, project, rebin, rebinby
 
 
 
@@ -399,7 +397,7 @@ Plotting methods
 Tabular output
 --------------
 
-fraction, weights
+fraction
 
 
 Exporting to ROOT
