@@ -57,6 +57,11 @@ Recommended dependencies:
 
 .. inclusion-marker-3-do-not-remove
 
+Tutorial
+========
+
+- `Getting started <#getting-started>`_
+
 Getting started
 ---------------
 
