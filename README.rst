@@ -122,7 +122,7 @@ We could also access the data as a table, as a `Pandas DataFrame <https://pandas
     [5.0, inf)         0.0      0.000000
     {NaN}              0.0      0.000000
 
-including underflow (``[-inf, -5.0)``), overflow (``[5.0, inf)``), and nanflow (``{NaN}``). In the absence of weights, the error in the count is the square root of the count (approximation of `Poisson statistics <https://en.wikipedia.org/wiki/Poisson_distribution>`__).
+including underflow (``[-inf, -5.0)``), overflow (``[5.0, inf)``), and nanflow (``{NaN}``). In the absence of weights, the error in the count is the square root of the count (approximation of `Poisson statistics <https://en.wikipedia.org/wiki/Poisson_distribution>`__; histbook makes the same statistical assumptions as ROOT).
 
 This example was deliberately simple. We can extend the binning to two dimensions and use expressions in the axis labels, rather than simple names:
 
