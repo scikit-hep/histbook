@@ -60,7 +60,7 @@ Recommended dependencies:
 Tutorial
 ========
 
-Table of contents:
+**Table of contents:**
 
 * `Getting started <#getting-started>`__
 * `Axis constructors <#axis-constructors>`__
