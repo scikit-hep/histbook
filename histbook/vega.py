@@ -226,7 +226,7 @@ class Plotable(object):
         projected = self._source.project(*(x.axis for x in self._chain))
         table = projected.table(*profiles, count=(profile is None), error=error, recarray=False)
 
-        projectedorder = projected.axis
+        projectedorder = [x for x in projected.axis if not isinstance(x, histbook.axis.ProfileAxis)]
         lastj = projectedorder.index(self._last.axis)
 
         data = []
@@ -412,6 +412,7 @@ class Combination(object):
 
     def _varname(self, i):
         out = []
+        i += 1
         while i > 0:
             out.append("abcdefghijklmnopqrstuvwxyz"[i % 26])
             i //= 26

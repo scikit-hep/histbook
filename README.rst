@@ -295,15 +295,36 @@ histbook currently recognizes the following axis constructors:
 
 - ``groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)`` groups by binned numbers: a sparse histogram. The ``binwidth`` determines the granularity of binning with an ``origin`` to let the bins offset from zero. If ``nanflow`` is ``True``, "not a number" values will fill a single bin; if ``False``, they will be ignored. If ``closedlow`` is ``True``, intervals will include their infimum (leftmost) point; otherwise they'll include their supremum (rightmost) point.
 
-- ``bin(expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True)`` uniformly and densely splits a dimension into ``numbins`` from ``low`` to ``high``. If ``underflow`` and/or ``overflow`` are ``True``, values below or above this range go into their own bins (similar to ``nanflow``).
+- ``bin(expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True)`` uniformly and densely splits a dimension into ``numbins`` from ``low`` to ``high``. If ``underflow`` and/or ``overflow`` are ``True``, values below or above this range go into their own bins; if ``False``, they are ignored (similar to ``nanflow``).
 
-- ``intbin(expr, min, max, underflow=True, overflow=True)`` 
+- ``intbin(expr, min, max, underflow=True, overflow=True)`` splits a dimension by integers from ``min`` (inclusive) to ``max`` (inclusive). "Not a number" is not a possible value for integers.
+
+- ``split(expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True)`` splits a dimension into the regions between ``edges``, which can be non-uniformly spaced. Without underflow, overflow, or nanflow bins, there are one fewer bins than edges.
+
+- ``cut(expr)`` splits a boolean dimension into true ("pass") and false ("fail"). This differs from ``split`` with one edge because it can include boolean logic (and/or/not).
+
+- ``profile(expr)`` collects 
+
+
+
+
+.. code-block:: python
+
+    >>> x = numpy.random.normal(0, 1, 10000)
+    >>> y = x**2 + numpy.random.normal(0, 5, 10000)
+    >>> z = -x**3 + numpy.random.normal(0, 5, 10000)
+    >>> 
+    >>> h = Hist(bin("x", 100, -5, 5), profile("y"), profile("z"))
+    >>> h.fill(x=x, y=y, z=z)
+    >>> beside(h.marker("x", "y"), h.marker("x", "z")).to(canvas)
+
+
+.. image:: docs/source/intro-12.png
 
 
 
 
 
-profile
 
 
 Books of histograms
