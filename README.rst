@@ -291,8 +291,13 @@ Axis constructors
 
 histbook currently recognizes the following axis constructors:
 
-- ``groupby(expr)`` groups by unique Python objects, usually strings or integers
-- ``groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)``
+- ``groupby(expr)`` groups values computed from ``expr`` by uniqueness, usually strings or integers.
+- ``groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)`` groups by binned numbers: a sparse histogram. The ``binwidth`` determines the granularity of binning with an ``origin`` to let the bins offset from zero. If ``nanflow`` is ``True``, "not a number" values will fill a single bin; if ``False``, they will be ignored. If ``closedlow`` is ``True``, intervals will include their infimum (leftmost) point; otherwise they'll include their supremum (rightmost) point.
+- ``bin(expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True)`` uniformly and densely splits a dimension into ``numbins`` from ``low`` to ``high``. If ``underflow`` and/or ``overflow`` are ``True``, values below or above this range go into their own bins (similar to ``nanflow``).
+- ``intbin(expr, min, max, underflow=True, overflow=True)`` 
+
+
+
 
 
 profile
