@@ -60,6 +60,15 @@ class TerminalChannel(Channel):
         self.profile = profile
         self.error = error
 
+class BarChannel(TerminalChannel):
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        if self.error is not False:
+            args.append("error={0}".format(self.error))
+        return ".bar({0})".format("".join(args))
+
 class StepChannel(TerminalChannel):
     def __repr__(self):
         args = [repr(self.axis)]
@@ -146,10 +155,15 @@ class PlottingChain(object):
         if any(isinstance(x, BelowChannel) for x in self._chain):
             raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
         return PlottingChain(self, BelowChannel(self._asaxis(axis)))
-        
+
+    def bar(self, axis=None, profile=None, error=False):
+        if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
+            raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
+        return Plotable(self, BarChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+
     def step(self, axis=None, profile=None, error=False):
         if any(isinstance(x, StackChannel) for x in self._chain):
-            raise TypeError("only area can be stacked")
+            raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
@@ -161,14 +175,14 @@ class PlottingChain(object):
 
     def line(self, axis=None, profile=None, error=False):
         if any(isinstance(x, StackChannel) for x in self._chain):
-            raise TypeError("only area can be stacked")
+            raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
 
     def marker(self, axis=None, profile=None, error=True):
         if any(isinstance(x, StackChannel) for x in self._chain):
-            raise TypeError("only area can be stacked")
+            raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
@@ -195,6 +209,13 @@ class Plotable(object):
     def _data(self, prefix, varname):
         error = self._last.error
         baseline = isinstance(self._last, (StepChannel, AreaChannel))
+        if isinstance(self._last.axis, (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
+            if isinstance(self._last, BarChannel):
+                xtype = "ordinal"
+            else:
+                xtype = "quantitative"
+        else:
+            xtype = "nominal"
 
         profile = self._last.profile
         if profile is None:
@@ -232,7 +253,7 @@ class Plotable(object):
 
                 for i, (n, x) in enumerate(axis.items(content)):
                     if isinstance(n, histbook.axis.Interval):
-                        if j == lastj:
+                        if j == lastj and xtype == "quantitative":
                             if numpy.isfinite(n.low) and numpy.isfinite(n.high):
                                 low = n.low
                                 if baseline and isinstance(axis, (histbook.axis.bin, histbook.axis.split)) and n.low == axis.low:
@@ -266,13 +287,17 @@ class Plotable(object):
     def _vegalite(self, axis, domains, varname):
         error = self._last.error
         baseline = isinstance(self._last, (StepChannel, AreaChannel))
-
         if isinstance(self._last.axis, (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
-            xtype = "quantitative"
+            if isinstance(self._last, BarChannel):
+                xtype = "ordinal"
+            else:
+                xtype = "quantitative"
         else:
             xtype = "nominal"
 
-        if isinstance(self._last, StepChannel):
+        if isinstance(self._last, BarChannel):
+            mark = "bar"
+        elif isinstance(self._last, StepChannel):
             if xtype == "nominal":
                 mark = "bar"
             else:

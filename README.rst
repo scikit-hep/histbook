@@ -260,23 +260,31 @@ Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This
 
 .. image:: docs/source/intro-8.png
 
-In the above, only the last line does any drawing. The syntax is deliberately succinct to encourage interactive exploration. For instance, you can quickly switch from plotting "``c``" side-by-side with "``b > 1``" as the bars:
+In the above, only the last line does any drawing. The syntax is deliberately succinct to encourage interactive exploration. For instance, you can quickly switch from plotting "``c``" side-by-side with "``b > 1``" as bars:
 
 .. code-block:: python
 
-    >>> hist.beside("c").step("b > 1").to(canvas)
+    >>> hist.beside("c").bar("b > 1").to(canvas)
 
 .. image:: docs/source/intro-9.png
 
-to plotting "``b > 1``" side-by-side with "``c``" as the bars:
+to plotting "``b > 1``" side-by-side with "``c``" as bars:
 
 .. code-block:: python
 
-    >>> hist.beside("b > 1").step("c").to(canvas)
+    >>> hist.beside("b > 1").bar("c").to(canvas)
 
 .. image:: docs/source/intro-10.png
 
-We see the same trend in different ways. Whatever axes are not mentioned are summed over: imagine a hypercube whose shadows you project onto the graphical elements of steps, lines, overlays, and trellis.
+or rather, as an area:
+
+.. code-block:: python
+
+    >>> hist.beside("b > 1").area("c").to(canvas)
+
+.. image:: docs/source/intro-11.png
+
+We see the same trend in different ways. Whatever axes are not mentioned are summed over: imagine a hypercube whose shadows you project onto the graphical elements of bars, areas, lines, overlays, and trellises.
 
 Axis constructors
 -----------------
