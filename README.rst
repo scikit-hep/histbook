@@ -60,7 +60,14 @@ Recommended dependencies:
 Tutorial
 ========
 
-- `Getting started <#getting-started>`_
+- `Getting started <#getting-started>`__
+- `Axis constructors <#axis-constructors>`__
+- `Weighted data <#weighted-data>`__
+- `Books of histograms <#books-of-histograms>`__
+- `Manipulation methods <#manipulation-methods>`__
+- `Plotting methods <#plotting-methods>`__
+- `Tabular output <#tabular-output>`__
+- `Exporting to ROOT <#exporting-to-root>`__
 
 Getting started
 ---------------
