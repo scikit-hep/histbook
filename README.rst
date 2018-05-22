@@ -79,10 +79,19 @@ Table of contents:
 
   - `select <#select>`__
   - `project <#project>`__
-  - `rebin, rebinby <>`__
+  - `rebin, rebinby <#rebin-rebinby>`__
+  - `drop <#drop>`__
+
+* `Tabular output <#tabular-output>`__
+
+  - `table <#table>`__
+  - `fraction <#fraction>`__
 
 * `Plotting methods <#plotting-methods>`__
-* `Tabular output <#tabular-output>`__
+
+
+
+
 * `Exporting to ROOT <#exporting-to-root>`__
 
 Getting started
@@ -526,8 +535,32 @@ fraction
 Plotting methods
 ----------------
 
+bar
+"""
 
+step
+""""
 
+area
+""""
+
+line
+""""
+
+marker
+""""""
+
+stack
+"""""
+
+overlay
+"""""""
+
+beside
+""""""
+
+below
+"""""
 
 
 Exporting to ROOT
