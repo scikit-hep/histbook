@@ -242,7 +242,7 @@ We can also split side-by-side and top-down:
 
 .. image:: docs/source/intro-7.png
 
-Notice that the three subfigures are labeled by ``atan2(y, x)`` bin. This "trellis plot" formed with ``beside`` and ``below`` is splitting data just as ``overlay`` and ``stack`` split data. Using all but one together, we could visualize four dimensions at once:
+Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This "trellis plot" formed with ``beside`` and ``below`` separated data just as ``overlay`` and ``stack`` separated data. Using all but one together, we could visualize four dimensions at once:
 
 .. code-block:: python
 
@@ -256,7 +256,6 @@ Notice that the three subfigures are labeled by ``atan2(y, x)`` bin. This "trell
     ...           b=numpy.random.normal(0, 1, 1000000),
     ...           c=numpy.random.normal(0, 1, 1000000),
     ...           d=numpy.random.normal(0, 1, 1000000))
-    ... 
     >>> hist.beside("a").below("b > 1").overlay("c").step("d").to(canvas)
 
 .. image:: docs/source/intro-8.png
