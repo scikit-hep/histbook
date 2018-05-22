@@ -64,7 +64,9 @@ Table of contents:
 
 - `Getting started <#getting-started>`__
 - `Axis constructors <#axis-constructors>`__
-  - `groupby <#groupby>`__
+
+   - `groupby <#groupby>`__
+
 - `Weighted data <#weighted-data>`__
 - `Books of histograms <#books-of-histograms>`__
 - `Manipulation methods <#manipulation-methods>`__
