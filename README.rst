@@ -141,7 +141,6 @@ Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it
 
 .. code-block:: python
 
-    >>> import math
     >>> r = lambda x, y: math.sqrt(x**2 + y**2)
     >>> phi = lambda y, x: math.atan2(y, x)
     >>> beside(hist.step(r), hist.step(phi)).to(canvas)
