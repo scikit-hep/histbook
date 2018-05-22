@@ -260,7 +260,7 @@ Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This
 
 .. image:: docs/source/intro-8.png
 
-In the above, only the last line does any drawing. It is deliberately succinct to encourage interactive exploration. For instance, you can quickly switch from putting "``c``" side-by-side:
+In the above, only the last line does any drawing. The syntax is deliberately succinct to encourage interactive exploration. For instance, you can quickly switch from plotting "``c``" side-by-side with "``b > 1``" as the bars:
 
 .. code-block:: python
 
@@ -268,7 +268,7 @@ In the above, only the last line does any drawing. It is deliberately succinct t
 
 .. image:: docs/source/intro-9.png
 
-to putting "``b > 1``" side-by-side:
+to plotting "``b > 1``" side-by-side with "``c``" as the bars:
 
 .. code-block:: python
 
@@ -276,7 +276,7 @@ to putting "``b > 1``" side-by-side:
 
 .. image:: docs/source/intro-10.png
 
-and see the same trend in different ways. Whatever axes are not mentioned are summed over: imagine a hypercube that you project onto the graphical elements of steps, lines, overlays, and trellis.
+We see the same trend in different ways. Whatever axes are not mentioned are summed over: imagine a hypercube whose shadows you project onto the graphical elements of steps, lines, overlays, and trellis.
 
 Axis constructors
 -----------------
