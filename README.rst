@@ -248,10 +248,10 @@ Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This
 
     >>> import random
     >>> labels = "one", "two", "three"
-    >>> hist = Hist(groupby("a"),
-    ...             cut("b > 1"),
-    ...             split("c", (-3, 0, 1, 2, 3)),
-    ...             bin("d", 50, -3, 3))
+    >>> hist = Hist(groupby("a"),                     # categorical axis: distinct strings
+    ...             cut("b > 1"),                     # cut axis: two bins (pass and fail)
+    ...             split("c", (-3, 0, 1, 2, 3)),     # non-uniformly split the data
+    ...             bin("d", 50, -3, 3))              # uniform bins
     >>> hist.fill(a=[random.choice(labels) for i in range(1000000)],
     ...           b=numpy.random.normal(0, 1, 1000000),
     ...           c=numpy.random.normal(0, 1, 1000000),
