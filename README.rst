@@ -312,7 +312,7 @@ For example, we can profile "``y``" and "``z``" or as many distributions as we w
     >>> x = numpy.random.normal(0, 1, 10000)
     >>> y = x**2 + numpy.random.normal(0, 5, 10000)
     >>> z = -x**3 + numpy.random.normal(0, 5, 10000)
-    >>> 
+
     >>> h = Hist(bin("x", 100, -5, 5), profile("y"), profile("z"))
     >>> h.fill(x=x, y=y, z=z)
     >>> beside(h.marker("x", "y"), h.marker("x", "z")).to(canvas)
@@ -350,8 +350,31 @@ For example, we can profile "``y``" and "``z``" or as many distributions as we w
 
 Although each non-profile axis multiplies the number of bins and therefore its memory use, profiles merely add to the number of bins. In fact, they share some statistics, making it 33% (unweighted) to 50% (weighted) more efficient to combine profiles with the same binning. Perhaps more importantly, it's an organizational aid.
 
+Weighted data
+-------------
+
+
+
 Books of histograms
 -------------------
+
+
+
+.. code-block:: python
+
+    >>> book = Book()
+    >>> for w in 0.1, 0.5, 0.9:
+    ...     book["w %g" % w] = Hist(bin("w*left + (1-w)*right", 100, -5, 5), defs={"w": w})
+
+    >>> left = numpy.random.normal(-1, 1, 1000000)
+    >>> right = numpy.random.normal(1, 1, 1000000)
+    >>> book.fill(left=left, right=right)            # one call to fill
+
+    >>> overlay(book["w 0.1"].step(),
+    ...         book["w 0.5"].step(),
+    ...         book["w 0.9"].step()).to(canvas)
+
+.. image:: docs/source/intro-12.png
 
 
 
@@ -362,7 +385,7 @@ Books of histograms
 Manipulation methods
 --------------------
 
-
+select, project
 
 
 
@@ -377,6 +400,10 @@ Tabular output
 --------------
 
 fraction, weights
+
+
+Exporting to ROOT
+-----------------
 
 
 
