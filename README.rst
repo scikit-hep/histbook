@@ -60,8 +60,11 @@ Recommended dependencies:
 Tutorial
 ========
 
+Table of contents:
+
 - `Getting started <#getting-started>`__
 - `Axis constructors <#axis-constructors>`__
+  - `groupby <#groupby>`__
 - `Weighted data <#weighted-data>`__
 - `Books of histograms <#books-of-histograms>`__
 - `Manipulation methods <#manipulation-methods>`__
@@ -300,8 +303,6 @@ We see the same trend in different ways. Whatever axes are not mentioned are sum
 
 Axis constructors
 -----------------
-
-histbook currently recognizes the following axis constructors:
 
 groupby
 """""""
