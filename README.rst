@@ -82,6 +82,7 @@ Tutorial
   - `drop <#drop>`__
   - `rebin, rebinby <#rebin-rebinby>`__
 
+* `Combining histograms <#combining-histograms>`__
 * `Tabular output <#tabular-output>`__
 
   - `table <#table>`__
@@ -613,10 +614,81 @@ A ``Hist`` with detailed binning in two dimensions can be plotted against one ax
 Combining histograms
 --------------------
 
+Separately filled histograms (``Hist`` or ``Book``) that represent the same data can be combined by adding them with the ``+`` operator. This simply adds all bins (like ROOT's hadd).
 
+However, you may also want to combine qualitatively different data while maintaining their distinction as a new categorical axis. A common reason for this is to make a stacked plot of different distributions, such as different Monte Carlo samples in physics. For this, you use the ``Hist.group`` or ``Book.group`` static methods.
 
+For example, suppose that we have two histograms filled with different data:
 
+.. code-block:: python
 
+    >>> h1 = Hist(bin("x", 10, -5, 5))
+    >>> h2 = Hist(bin("x", 10, -5, 5))
+    >>> h1.fill(x=numpy.random.normal(-2.5, 1, 1000000))
+    >>> h2.fill(x=numpy.random.normal(2.5, 1, 1000000))
+
+Adding them mixes data into the same bins, after which they are no longer seperable.
+
+.. code-block:: python
+
+    >>> (h1 + h2).pandas()
+
+.. code-block::
+
+                   count()  err(count())
+    x                                   
+    [-inf, -5.0)    6228.0     78.917679
+    [-5.0, -4.0)   60582.0    246.134110
+    [-4.0, -3.0)  241904.0    491.837371
+    [-3.0, -2.0)  383531.0    619.298797
+    [-2.0, -1.0)  241015.0    490.932786
+    [-1.0, 0.0)    66541.0    257.955423
+    [0.0, 1.0)     66982.0    258.808810
+    [1.0, 2.0)    240963.0    490.879822
+    [2.0, 3.0)    383046.0    618.907101
+    [3.0, 4.0)    242198.0    492.136160
+    [4.0, 5.0)     60726.0    246.426460
+    [5.0, inf)      6284.0     79.271685
+    {NaN}              0.0      0.000000
+
+But grouping them creates a new categorical axis, "``source``" by default, where each distribution is associated with an assigned categorical value.
+
+.. code-block:: python
+
+    >>> Hist.group(a=h1, b=h2).pandas()
+
+.. code-block::
+
+                          count()  err(count())
+    source x                                   
+    a      [-inf, -5.0)    6228.0     78.917679
+           [-5.0, -4.0)   60582.0    246.134110
+           [-4.0, -3.0)  241904.0    491.837371
+           [-3.0, -2.0)  383528.0    619.296375
+           [-2.0, -1.0)  240761.0    490.674026
+           [-1.0, 0.0)    60570.0    246.109732
+           [0.0, 1.0)      6187.0     78.657485
+           [1.0, 2.0)       236.0     15.362291
+           [2.0, 3.0)         4.0      2.000000
+           [3.0, 4.0)         0.0      0.000000
+           [4.0, 5.0)         0.0      0.000000
+           [5.0, inf)         0.0      0.000000
+           {NaN}              0.0      0.000000
+    b      [-inf, -5.0)       0.0      0.000000
+           [-5.0, -4.0)       0.0      0.000000
+           [-4.0, -3.0)       0.0      0.000000
+           [-3.0, -2.0)       3.0      1.732051
+           [-2.0, -1.0)     254.0     15.937377
+           [-1.0, 0.0)     5971.0     77.272246
+           [0.0, 1.0)     60795.0    246.566421
+           [1.0, 2.0)    240727.0    490.639379
+           [2.0, 3.0)    383042.0    618.903870
+           [3.0, 4.0)    242198.0    492.136160
+           [4.0, 5.0)     60726.0    246.426460
+           [5.0, inf)      6284.0     79.271685
+           {NaN}              0.0      0.000000
+
+For both types of combination, all axes of the ``Hist`` or all histograms in the ``Book`` must be identical.
 
 Tabular output
 --------------

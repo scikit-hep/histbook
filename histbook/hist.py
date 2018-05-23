@@ -556,7 +556,9 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
             raise TypeError("only histograms can be grouped")
 
         axis = None
+        hist = None
         for x in hists.values():
+            hist = x
             if axis is None:
                 axis = x._group + x._fixed + x._profile
             elif axis != x._group + x._fixed + x._profile:
@@ -580,7 +582,8 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         for x in hists.values():
             defs.update(x._defs)
 
-        out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in self._group + self._fixed + self._profile]), weight=weight, defs=defs)
+        out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, defs=defs)
+        out._content = {}
         for n, x in hists.items():
             out._content[n] = Hist._copycontent(x._content)
         return out
