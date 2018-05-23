@@ -3,7 +3,7 @@ histbook
 
 .. inclusion-marker-1-do-not-remove
 
-Versitile, high-performance histogram toolkit for Numpy.
+Versatile, high-performance histogram toolkit for Numpy.
 
 .. inclusion-marker-1-5-do-not-remove
 
@@ -609,6 +609,14 @@ rebin, rebinby
 Eliminates or sums neighboring bins to reduce the number of bins in an axis to ``edges`` or by a multiplicative ``factor``.
 
 A ``Hist`` with detailed binning in two dimensions can be plotted against one axis with rebinned overlays in the other axis and vice-versa.
+
+Combining histograms
+--------------------
+
+
+
+
+
 
 Tabular output
 --------------

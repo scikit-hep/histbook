@@ -42,15 +42,20 @@ def get_version():
 def get_description():
     description = open("README.rst",'rb').read().decode('utf8', 'ignore')    
     start = description.index(".. inclusion-marker-1-5-do-not-remove")
-    stop = description.index(".. inclusion-marker-5-do-not-remove")
-    return description[start:stop].strip()
+    stop = description.index(".. inclusion-marker-3-do-not-remove")
+
+    after = """
+
+See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tutorial <https://github.com/diana-hep/histbook#tutorial>`__."""
+
+    return description[start:stop].strip() + after
 
 setup(name = "histbook",
       version = get_version(),
       packages = find_packages(exclude = ["tests"]),
       scripts = [],
       data_files = ["README.rst"],
-      description = "Histogram library with better separation between aggregation and plotting.",
+      description = "Versatile, high-performance histogram toolkit for Numpy.",
       long_description = get_description(),
       author = "Jim Pivarski (DIANA-HEP)",
       author_email = "pivarski@fnal.gov",
