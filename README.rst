@@ -655,7 +655,8 @@ But grouping them creates a new categorical axis, "``source``" by default, where
 
 .. code-block:: python
 
-    >>> Hist.group(a=h1, b=h2).pandas()
+    >>> h = Hist.group(a=h1, b=h2)
+    >>> h.pandas()
 
 .. code-block::
 
@@ -687,6 +688,12 @@ But grouping them creates a new categorical axis, "``source``" by default, where
            [4.0, 5.0)     60726.0    246.426460
            [5.0, inf)      6284.0     79.271685
            {NaN}              0.0      0.000000
+
+.. code-block:: python
+
+    >>> beside(h.area("x"), h.stack("source").area("x")).to(canvas)
+
+.. image:: docs/source/intro-14.png
 
 For both types of combination, all axes of the ``Hist`` or all histograms in the ``Book`` must be identical.
 
