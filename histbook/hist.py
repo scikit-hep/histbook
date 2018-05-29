@@ -138,10 +138,10 @@ class Book(collections.MutableMapping, Fillable):
     def __setitem__(self, name, value):
         if isinstance(value, Book):
             for n, x in value.items():
-                self._hists[name + "/" + n] = x.copy()
+                self._hists[name + "/" + n] = x.copyonfill()
                 self._fields = None
         elif isinstance(value, Hist):
-            self._hists[name] = value.copy()
+            self._hists[name] = value.copyonfill()
             self._fields = None
         else:
             raise TypeError("histogram books can only be filled with histograms or other histogram books, not {0}".format(type(value)))
@@ -247,9 +247,16 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         out._content = Hist._copycontent(self._content)
         return out
 
+    def copyonfill(self):
+        out = self.__class__.__new__(self.__class__)
+        out.__dict__.update(self.__dict__)
+        out._copyonfill = True
+        return out
+
     def __init__(self, *axis, **opts):
         weight = opts.pop("weight", None)
         defs = opts.pop("defs", {})
+        fill = opts.pop("fill", None)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
 
@@ -260,7 +267,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
         newaxis = []
         for old in axis:
-            if isinstance(old, histbook.axis._nullaxis):
+            if isinstance(old, histbook.axis._nullaxis) or (hasattr(old, "_original") and hasattr(old, "_parsed")):
                 newaxis.append(old)
             else:
                 expr, label = histbook.expr.Expr.parse(old._expr, defs=defs, returnlabel=True)
@@ -328,7 +335,16 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         self._shape = tuple(self._shape)
         self._content = None
         self._fields = None
-        
+        self._copyonfill = False
+
+        if fill is not None:
+            if not isinstance(fill, dict):
+                if len(self._group + self._fixed + self._profile) == 1:
+                    fill = {str((self._group + self._fixed + self._profile)[0]._parsed): fill}
+                else:
+                    raise TypeError("fill must be a dict for histograms of more than one axis")
+            self.fill(fill)
+
     def __repr__(self, indent=", "):
         out = [repr(x) for x in self._group + self._fixed + self._profile]
         if self._weightlabel is not None:
@@ -356,6 +372,10 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         return instructions
 
     def fill(self, arrays=None, **more):
+        if self._copyonfill:
+            self._content = Hist._copycontent(self._content)
+            self._copyonfill = False
+
         if arrays is None:
             arrays = more
         elif len(more) == 0:

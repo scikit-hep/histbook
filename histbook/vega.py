@@ -55,55 +55,57 @@ class BelowChannel(Channel):
         return ".below({0})".format(self.axis)
 
 class TerminalChannel(Channel):
-    def __init__(self, axis, profile, error):
+    def __init__(self, axis, profile, error, width, height, title, config, xscale, yscale, colorscale, shapescale):
         self.axis = axis
         self.profile = profile
         self.error = error
+        self.width = width
+        self.height = height
+        self.title = title
+        self.config = config
+        self.xscale = xscale
+        self.yscale = yscale
+        self.colorscale = colorscale
+        self.shapescale = shapescale
+
+    def __repr__(self):
+        args = [repr(self.axis)]
+        if self.profile is not None:
+            args.append("profile={0}".format(self.profile))
+        if self.error is not False:
+            args.append("error={0}".format(self.error))
+        if self.width is not None:
+            args.append("width={0}".format(repr(self.width)))
+        if self.height is not None:
+            args.append("height={0}".format(repr(self.height)))
+        if self.title is not None:
+            args.append("title={0}".format(repr(self.title)))
+        if self.config is not None:
+            args.append("config={0}".format(repr(self.config)))
+        if self.xscale is not None:
+            args.append("xscale={0}".format(repr(self.xscale)))
+        if self.yscale is not None:
+            args.append("yscale={0}".format(repr(self.yscale)))
+        if self.colorscale is not None:
+            args.append("colorscale={0}".format(repr(self.colorscale)))
+        if self.shapescale is not None:
+            args.append("shapescale={0}".format(repr(self.shapescale)))
+        return ".{0}({1})".format(self._method, "".join(args))
 
 class BarChannel(TerminalChannel):
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        if self.error is not False:
-            args.append("error={0}".format(self.error))
-        return ".bar({0})".format("".join(args))
+    _method = "bar"
 
 class StepChannel(TerminalChannel):
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        if self.error is not False:
-            args.append("error={0}".format(self.error))
-        return ".step({0})".format("".join(args))
+    _method = "step"
 
 class AreaChannel(TerminalChannel):
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        if self.error is not False:
-            args.append("error={0}".format(self.error))
-        return ".area({0})".format("".join(args))
+    _method = "area"
 
 class LineChannel(TerminalChannel):
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        if self.error is not False:
-            args.append("error={0}".format(self.error))
-        return ".line({0})".format("".join(args))
+    _method = "line"
 
 class MarkerChannel(TerminalChannel):
-    def __repr__(self):
-        args = [repr(self.axis)]
-        if self.profile is not None:
-            args.append("profile={0}".format(self.profile))
-        if self.error is not True:
-            args.append("error={0}".format(self.error))
-        return ".marker({0})".format("".join(args))
+    _method = "marker"
 
 class PlottingChain(object):
     def __init__(self, source, item):
@@ -156,36 +158,36 @@ class PlottingChain(object):
             raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
         return PlottingChain(self, BelowChannel(self._asaxis(axis)))
 
-    def bar(self, axis=None, profile=None, error=False):
+    def bar(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, BarChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, BarChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def step(self, axis=None, profile=None, error=False):
+    def step(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def area(self, axis=None, profile=None, error=False):
+    def area(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, AreaChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, AreaChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def line(self, axis=None, profile=None, error=False):
+    def line(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def marker(self, axis=None, profile=None, error=True):
+    def marker(self, axis=None, profile=None, error=True, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error))
+        return Plotable(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
 class Plotable(object):
     def __init__(self, source, item):
@@ -236,7 +238,7 @@ class Plotable(object):
 
         def recurse(j, content, row, base):
             if j == len(projectedorder):
-                if base:
+                if base and not self._last.yscale == "log" and not (isinstance(self._last.yscale, dict) and self._last.yscale.get("type", None) == "log"):
                     row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
                     row = row + tuple(float(x) for x in content)
@@ -354,6 +356,27 @@ class Plotable(object):
             else:
                 raise AssertionError(channel)
 
+        if self._last.xscale is not None and "x" in encoding:
+            if isinstance(self._last.xscale, dict):
+                encoding["x"]["scale"] = self._last.xscale
+            else:
+                encoding["x"]["scale"] = {"type": self._last.xscale}
+        if self._last.yscale is not None and "y" in encoding:
+            if isinstance(self._last.yscale, dict):
+                encoding["y"]["scale"] = self._last.yscale
+            else:
+                encoding["y"]["scale"] = {"type": self._last.yscale}
+        if self._last.colorscale is not None and "color" in encoding:
+            if isinstance(self._last.colorscale, dict):
+                encoding["color"]["scale"] = self._last.colorscale
+            else:
+                encoding["color"]["scale"] = {"type": self._last.colorscale}
+        if self._last.shapescale is not None and "shape" in encoding:
+            if isinstance(self._last.shapescale, dict):
+                encoding["shape"]["scale"] = self._last.shapescale
+            else:
+                encoding["shape"]["scale"] = {"type": self._last.shapescale}
+
         if not error:
             return [mark], [encoding], [transform]
 
@@ -378,6 +401,10 @@ class Plotable(object):
 
         if len(marks) == 1:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                    "width": self._last.width,
+                    "height": self._last.height,
+                    "title": self._last.title,
+                    "config": self._last.config,
                     "data": {"values": data},
                     "mark": marks[0],
                     "encoding": encodings[0],
@@ -385,6 +412,10 @@ class Plotable(object):
 
         else:
             return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                    "width": self._last.width,
+                    "height": self._last.height,
+                    "title": self._last.title,
+                    "config": self._last.config,
                     "data": {"values": data},
                     "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]}
 
