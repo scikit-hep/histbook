@@ -238,11 +238,14 @@ class Plotable(object):
 
         def recurse(j, content, row, base):
             if j == len(projectedorder):
-                if base and not self._last.yscale == "log" and not (isinstance(self._last.yscale, dict) and self._last.yscale.get("type", None) == "log"):
+                if base:
                     row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
                     row = row + tuple(float(x) for x in content)
-                data.append(dict(prefix + tuple(zip([varname + str(i) for i in range(len(row))], row))))
+
+                datum = dict(prefix + tuple(zip([varname + str(i) for i in range(len(row))], row)))
+                if datum[varname + str(j)] > 0 or (self._last.yscale != "log" and not (isinstance(self._last.yscale, dict) and self._last.yscale.get("type", None) == "log")):
+                    data.append(datum)
 
             else:
                 axis = projectedorder[j]
