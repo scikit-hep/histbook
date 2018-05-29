@@ -332,7 +332,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
             self._shape[-1] += 2
             dest([histbook.instr.CallGraphGoal(self._weightparsed),
                   histbook.instr.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
-
+            
         self._group = tuple(self._group)
         self._fixed = tuple(self._fixed)
         self._profile = tuple(self._profile)
@@ -592,7 +592,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
                 axis = x._group + x._fixed + x._profile
             elif axis != x._group + x._fixed + x._profile:
                 raise TypeError("histograms can only be grouped with the same axis specifications")
-
+            
         if axis is None:
             raise ValueError("at least one histogram must be provided")
 
@@ -613,6 +613,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
         out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, defs=defs)
         out._content = {}
+        out._shape = hist._shape
         for n, x in hists.items():
             out._content[n] = Hist._copycontent(x._content)
         return out
