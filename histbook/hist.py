@@ -87,6 +87,8 @@ class Fillable(object):
 
                 if not isinstance(array, numpy.ndarray):
                     array = numpy.array(array)
+                if array.shape == ():
+                    array.shape = (1,)
 
                 if length is None:
                     length = len(array)
