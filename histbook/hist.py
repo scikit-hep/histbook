@@ -30,6 +30,7 @@
 
 import collections
 import functools
+import numbers
 import sys
 
 import numpy
@@ -319,10 +320,13 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
             self._weightoriginal, self._weightparsed, self._weightlabel = None, None, None
             self._sumwindex = self._shape[-1]
             self._shape[-1] += 1
-
+        
         else:
             self._weightoriginal = weight
-            self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(weight, defs=self._defs, returnlabel=True)
+            if isinstance(weight, (numbers.Real, numpy.integer, numpy.floating)):
+                self._weightparsed, self._weightlabel = histbook.expr.Const(weight), str(weight)
+            else:
+                self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(weight, defs=self._defs, returnlabel=True)
             self._sumwindex = self._shape[-1]
             self._sumw2index = self._shape[-1] + 1
             self._shape[-1] += 2
@@ -420,6 +424,9 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         if self._weightparsed is None:
             weight = 1
             weight2 = None
+        elif isinstance(self._weightparsed, histbook.expr.Const):
+            weight = numpy.ones(length) * self._weightparsed.value
+            weight2 = numpy.ones(length) * self._weightparsed.value**2
         else:
             weight = self._destination[0][j]
             weight2 = self._destination[0][j + 1]
