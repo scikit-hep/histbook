@@ -43,8 +43,15 @@ class OverlayChannel(Channel):
         return ".overlay({0})".format(self.axis)
 
 class StackChannel(Channel):
+    def __init__(self, axis, order):
+        super(StackChannel, self).__init__(axis)
+        self.order = order
+
     def __repr__(self):
-        return ".stack({0})".format(self.axis)
+        if self.order is None:
+            return ".stack({0})".format(self.axis)
+        else:
+            return ".stack({0}, order={1})".format(self.axis, repr(self.order))
 
 class BesideChannel(Channel):
     def __repr__(self):
@@ -143,10 +150,10 @@ class PlottingChain(object):
             raise TypeError("cannot overlay an overlay")
         return PlottingChain(self, OverlayChannel(self._asaxis(axis)))
 
-    def stack(self, axis):
+    def stack(self, axis, order=None):
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("cannot stack a stack")
-        return PlottingChain(self, StackChannel(self._asaxis(axis)))
+        return PlottingChain(self, StackChannel(self._asaxis(axis), order))
 
     def beside(self, axis):
         if any(isinstance(x, BesideChannel) for x in self._chain):
@@ -342,7 +349,10 @@ class Plotable(object):
                 encoding["color"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "legend": {"title": channel.axis.expr}, "scale": {"domain": overlayorder}}
 
             elif isinstance(channel, StackChannel):
-                stackorder = [str(x) for x in sorted(domains[channel.axis])]
+                if channel.order is None:
+                    stackorder = [str(x) for x in sorted(domains[channel.axis])]
+                else:
+                    stackorder = channel.order
                 encoding["color"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "legend": {"title": channel.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
                 encoding["y"]["aggregate"] = "sum"
                 encoding["order"] = {"field": "stackorder", "type": "nominal"}
