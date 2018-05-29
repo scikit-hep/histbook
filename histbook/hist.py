@@ -603,9 +603,10 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         for x in hists.values():
             if weight is None:
                 weight = x._weight
+            elif x._weight is None:
+                raise TypeError("histograms can only be grouped with the same weight specifications")
             elif weight != x._weight:
-                weight = None
-                break
+                weight = 1.0
 
         defs = {}
         for x in hists.values():
@@ -613,7 +614,6 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
         out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, defs=defs)
         out._content = {}
-        out._shape = hist._shape
         for n, x in hists.items():
             out._content[n] = Hist._copycontent(x._content)
         return out
