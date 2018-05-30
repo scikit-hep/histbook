@@ -74,6 +74,30 @@ class Fillable(object):
 
         return self._fields
 
+    def _showgoals(self):
+        self.fields  # for the side-effect of creating self._instructions
+
+        numbers = {}
+        order = []
+        def recurse(node):
+            for x in node.requires:
+                recurse(x)
+            if node not in numbers:
+                number = numbers[node] = len(numbers)
+                order.append(node)
+        for goal in sorted(self._goals):
+            recurse(goal)
+        print("goals:")
+        print("------")
+        for node in order:
+            print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
+        print("")
+        print("instructions:")
+        print("-------------")
+        for instruction in self._instructions:
+            print(instruction)
+        print("")
+        
     def _fill(self, arrays):
         self.fields  # for the side-effect of creating self._instructions
 

@@ -280,6 +280,9 @@ class Param(Instruction):
     def __repr__(self):
         return "Param({0}, {1})".format(repr(self.name), repr(self.extern))
 
+    def __str__(self):
+        return "{0} := {1} (external parameter)".format(self.name, repr(self.extern))
+
 class Assign(Instruction):
     def __init__(self, name, expr):
         self.name = name
@@ -287,6 +290,9 @@ class Assign(Instruction):
 
     def __repr__(self):
         return "Assign({0}, {1})".format(repr(self.name), repr(str(self.expr)))
+
+    def __str__(self):
+        return "{0} := {1}".format(self.name, str(self.expr))
 
 class Export(Instruction):
     def __init__(self, name, goal):
@@ -296,12 +302,18 @@ class Export(Instruction):
     def __repr__(self):
         return "Export({0}, {1})".format(repr(self.name), repr(str(self.goal)))
 
+    def __str__(self):
+        return "export {0} as {1}".format(self.name, repr(str(self.goal)))
+
 class Delete(Instruction):
     def __init__(self, name):
         self.name = name
 
     def __repr__(self):
         return "Delete({0})".format(repr(self.name))
+
+    def __str__(self):
+        return "delete {0}".format(self.name)
 
 def instructions(sources, goals):
     live = {}
@@ -341,17 +353,3 @@ def instructions(sources, goals):
         for n in dead:
             del live[n]
             yield Delete(n)
-
-# def show(goals):
-#     numbers = {}
-#     order = []
-#     def recurse(node):
-#         for x in node.requires:
-#             recurse(x)
-#         if node not in numbers:
-#             number = numbers[node] = len(numbers)
-#             order.append(node)
-#     for goal in goals:
-#         recurse(goal)
-#     for node in order:
-#         print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
