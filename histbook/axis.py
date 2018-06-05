@@ -36,6 +36,7 @@ import histbook.instr
 import numpy
 
 class Interval(object):
+    """Represents floating-point values represented by a single histogram bin."""
     def __init__(self, low, high, closedlow=True, closedhigh=False):
         self._low = low
         self._high = high
@@ -52,18 +53,22 @@ class Interval(object):
 
     @property
     def low(self):
+        """Low edge (number)."""
         return self._low
 
     @property
     def high(self):
+        """High edge (number)."""
         return self._high
 
     @property
     def closedlow(self):
+        """If ``True``, the interval includes the low edge."""
         return self._closedlow
 
     @property
     def closedhigh(self):
+        """If ``True``, the interval includes the high edge."""
         return self._closedhigh
 
     def _num(self, n):
@@ -108,6 +113,7 @@ class Interval(object):
         return hash((self.__class__, self._low, self._high, self._closedlow, self._closedhigh))
 
 class IntervalNaN(Interval):
+    """Represents the set containing only NaN (not a number)."""
     def __init__(self):
         pass
 
@@ -146,14 +152,17 @@ class IntervalNaN(Interval):
         return hash((self.__class__,))
 
 class IntervalTuple(tuple):
+    """A tuple of :py:class:`tuples <histbook.axis.Interval>` with special ``__repr__`` presentation."""
     def __repr__(self):
         return "({0}{1})".format(", ".join(str(x) for x in self), ("," if len(self) == 1 else ""))
 
 class IntervalPair(tuple):
+    """A 2-tuple of :py:class:`tuples <histbook.axis.Interval>` with special ``__repr__`` presentation."""
     def __repr__(self):
         return "({0}, {1})".format(str(self[0]), repr(self[1]))
 
 class Axis(object):
+    """Abstract class for a histogram axis."""
     @staticmethod
     def _int(x, n):
         if not isinstance(x, (numbers.Integral, numpy.integer)):
@@ -185,19 +194,39 @@ class Axis(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-class GroupAxis(Axis): pass
+class GroupAxis(Axis):
+    """Abstract class for histogram axes that fill bin contents as a dict (dynamic memory allocation)."""
+
 class FixedAxis(Axis):
+    """Abstract class for histogram axes that fill bin contents as a Numpy array (static memory allocation)."""
     def items(self, content):
+        """Returns (key, value) pairs of the content."""
         keys = self.keys()
         if len(keys) != len(content):
             raise ValueError("len(keys) is {0} but len(content) is {1}", len(keys), len(content))
         return [IntervalPair(x) for x in zip(keys, content)]
 
-class ProfileAxis(Axis): pass
-class RebinFactor(Axis): pass
-class RebinSplit(Axis): pass
+class ProfileAxis(Axis):
+    """Abstract class for profile axes (dependent variables)."""
+
+class RebinFactor(Axis):
+    """Abstract class for axis that can be rebinned by a factor."""
+
+class RebinSplit(Axis):
+    """Abstract class for axis that can be rebinned with explicit edges."""
 
 class groupby(GroupAxis):
+    """
+    Describes an axis of categorical values, such as strings.
+
+    Memory use scales with distinct values encountered in the data.
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        quantity to use as an independent variable in the probability distribution represented by this histogram; distinct values are used to determine bin membership
+    """
+
     def __init__(self, expr):
         self._expr = expr
 
@@ -206,9 +235,11 @@ class groupby(GroupAxis):
 
     @property
     def expr(self):
+        """`Algebraic expression <histbook.expr.Expr>`"""
         return self._expr
 
     def relabel(self, label):
+        """Returns a :py:class:`groupby <histbook.axis.groupby>` with a new ``expr``."""
         return groupby(label)
 
     def _goals(self, parsed=None):
@@ -243,17 +274,44 @@ class groupby(GroupAxis):
             raise AssertionError(cmp)
 
     def keys(self, content):
+        """Returns key labels in the order of the bin content, to index the content."""
         return [n for n, x in self.items(content)]
 
     def items(self, content):
+        """Returns (key, value) pairs of the content."""
         if not isinstance(content, dict):
             raise TypeError("groupby content must be a dict")
         return [IntervalPair((n, content[n])) for n in sorted(content)]
 
 class groupbin(GroupAxis, RebinFactor):
+    """
+    Describes an axis of sparse, numeric values. 
+
+    Memory use scales with distinct bins encountered in the data.
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        quantity to use as an independent variable in the probability distribution represented by this histogram
+
+    binwidth : positive number
+        width of the intervals used to determine bin membership
+
+    origin : number *(default 0)*
+        the low edge of all bin intervals modulo ``binwidth``; use this to offset the phase of the bins
+
+    nanflow : bool
+        if ``True`` *(default)*, include a single bin for NaN (not a number)
+
+    closedlow : bool
+        if ``True`` *(default)*, the low edge of all bins is included in the bin, high edge is excluded; if ``False``, the high edge is included and low edge is excluded (exception: if an edge is infinite, it is always included)
+    """
+
     def __init__(self, expr, binwidth, origin=0, nanflow=True, closedlow=True):
         self._expr = expr
         self._binwidth = self._real(binwidth, "binwidth")
+        if self._binwidth <= 0:
+            raise ValueError("binwidth must be positive")
         self._origin = self._real(origin, "origin")
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
@@ -289,6 +347,7 @@ class groupbin(GroupAxis, RebinFactor):
         return self._closedlow
 
     def relabel(self, label):
+        """Returns a :py:class:`groupbin <histbook.axis.groupbin>` with a new ``expr``."""
         return groupbin(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def _goals(self, parsed=None):
@@ -390,14 +449,47 @@ class groupbin(GroupAxis, RebinFactor):
             return None, None, None, False
 
     def keys(self, content):
+        """Returns key labels in the order of the bin content, to index the content."""
         return IntervalTuple(n for n, x in self.items(content))
 
     def items(self, content):
+        """Returns (key, value) pairs of the content."""
         if not isinstance(content, dict):
             raise TypeError("groupbin content must be a dict")
         return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
 
 class bin(FixedAxis, RebinFactor, RebinSplit):
+    """
+    Describes an axis of regularly spaced, dense, numeric values. 
+
+    Memory use is fixed: number of bins is ``numbins + (1 if underflow else 0) + (1 if overflow else 0) + (1 if nanflow else 0)``.
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        quantity to use as an independent variable in the probability distribution represented by this histogram
+
+    numbins : positive integer
+        number of bins between ``low`` and ``high``
+
+    low : number
+        the low edge of the first finite bin
+
+    high : number
+        the high edge of the last finite bin
+
+    underflow : bool
+        if ``True`` *(default)*, include an underflow bin representing the interval from negative infinity to ``low``
+
+    overflow : bool
+        if ``True`` *(default)*, include an overflow bin representing the interval from ``high`` to positive infinity
+
+    nanflow : bool
+        if ``True`` *(default)*, include a single nanflow bin representing NaN (not a number) values
+
+    closedlow : bool
+        if ``True`` *(default)*, the low edge of all bins is included in the bin, high edge is excluded; if ``False``, the high edge is included and low edge is excluded (exception: if an edge is infinite, it is always included)
+    """
     def __init__(self, expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         self._numbins = self._nonnegint(numbins, "numbins")
@@ -460,6 +552,7 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
         return self._closedlow
 
     def relabel(self, label):
+        """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
         return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     @property
@@ -570,6 +663,7 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
             return None, None, None, False
 
     def keys(self, content=None):
+        """Returns key labels in the order of the bin content, to index the content."""
         def i2x(i):
             return (float(i) / float(self._numbins)) * float(self._high - self._low) + float(self._low)
         return IntervalTuple(([Interval(float("-inf"), float(self._low), closedlow=True, closedhigh=(not self._closedlow))] if self.underflow else []) +
@@ -578,6 +672,28 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
                              ([IntervalNaN()] if self.nanflow else []))
             
 class intbin(FixedAxis, RebinFactor, RebinSplit):
+    """
+    Describes an axis of integer values. 
+
+    Memory use is fixed: number of bins is ``max - min + 1 + (1 if underflow else 0) + (1 if overflow else 0)``.
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        quantity to use as an independent variable in the probability distribution represented by this histogram
+
+    min : integer
+        the minimum bin value (inclusive)
+
+    high : number
+        the maximum bin value (inclusive)
+
+    underflow : bool
+        if ``True`` *(default)*, include an underflow bin representing the interval from negative infinity to ``min``
+
+    overflow : bool
+        if ``True`` *(default)*, include an overflow bin representing the interval from ``max`` to positive infinity
+    """
     def __init__(self, expr, min, max, underflow=True, overflow=True):
         self._expr = expr
         self._min = self._int(min, "min")
@@ -619,6 +735,7 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
         return self._overflow
 
     def relabel(self, label):
+        """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
         return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
 
     @property
@@ -732,11 +849,37 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
             return None, None, None, False
 
     def keys(self, content=None):
+        """Returns key labels in the order of the bin content, to index the content."""
         return IntervalTuple(([Interval(float("-inf"), int(self._min), closedlow=True, closedhigh=False)] if self.underflow else []) +
                              [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
 class split(FixedAxis, RebinFactor, RebinSplit):
+    """
+    Describes an axis of irregularly spaced, dense, numeric values. 
+
+    Memory use is fixed: number of bins is ``len(edges) - 1 + (1 if underflow else 0) + (1 if overflow else 0) + (1 if nanflow else 0)``.
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        quantity to use as an independent variable in the probability distribution represented by this histogram
+
+    edges : non-empty iterable of numbers or a single number
+        thresholds defining a partitioning of space
+
+    underflow : bool
+        if ``True`` *(default)*, include an underflow bin representing the interval from negative infinity to ``low``
+
+    overflow : bool
+        if ``True`` *(default)*, include an overflow bin representing the interval from ``high`` to positive infinity
+
+    nanflow : bool
+        if ``True`` *(default)*, include a single nanflow bin representing NaN (not a number) values
+
+    closedlow : bool
+        if ``True`` *(default)*, the low edge of all bins is included in the bin, high edge is excluded; if ``False``, the high edge is included and low edge is excluded (exception: if an edge is infinite, it is always included)
+    """
     def __init__(self, expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True):
         self._expr = expr
         if isinstance(edges, (numbers.Real, numpy.floating)):
@@ -802,6 +945,7 @@ class split(FixedAxis, RebinFactor, RebinSplit):
         return self._edges[-1]
 
     def relabel(self, label):
+        """Returns a :py:class:`split <histbook.axis.split>` with a new ``expr``."""
         return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     @property
@@ -964,12 +1108,24 @@ class split(FixedAxis, RebinFactor, RebinSplit):
             return None, None, None, False
 
     def keys(self, content=None):
+        """Returns key labels in the order of the bin content, to index the content."""
         return IntervalTuple(([Interval(float("-inf"), float(self._edges[0]), closedlow=True, closedhigh=(not self._closedlow))] if self.underflow else []) +
                              [Interval(float(low), float(high), closedlow=self._closedlow, closedhigh=(not self._closedlow)) for low, high in zip(self._edges[:-1], self._edges[1:])] +
                              ([Interval(float(self._edges[-1]), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
 
 class cut(FixedAxis):
+    """
+    Describes an axis of two bins: those that fail and those that pass a boolean expression.
+
+    Memory use is fixed: number of bins is ``2``.
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        boolean quantity to use as an independent variable in the probability distribution represented by this histogram; ``False`` and ``True`` values are the two distinct bins
+    """
+
     def __init__(self, expr):
         self._expr = expr
 
@@ -981,6 +1137,7 @@ class cut(FixedAxis):
         return self._expr
 
     def relabel(self, label):
+        """Returns a :py:class:`cut <histbook.axis.cut>` with a new ``expr``."""
         return cut(label)
 
     @property
@@ -1016,6 +1173,7 @@ class cut(FixedAxis):
             return None, None, None, False
 
     def keys(self, content=None):
+        """Returns key labels in the order of the bin content, to index the content."""
         return [False, True]
 
 class _nullaxis(FixedAxis):
@@ -1053,6 +1211,16 @@ class _nullaxis(FixedAxis):
         return []
 
 class profile(ProfileAxis):
+    """
+    Describes an axis in which to compute mean and error in the mean.
+
+    Memory use is fixed: number of bins is ``2`` (to accumulate mean and error in the mean).
+
+    Parameters
+    ----------
+    expr : algebraic expression (lambda or string)
+        quantity to use as a dependent variable, binned by other axes in the :py:class:`Hist <histbook.hist.Hist>`
+    """
     def __init__(self, expr):
         self._expr = expr
 
@@ -1064,6 +1232,7 @@ class profile(ProfileAxis):
         return self._expr
 
     def relabel(self, label):
+        """Returns a :py:class:`profile <histbook.axis.profile>` with a new ``expr``."""
         return profile(label)
 
     def _goals(self, parsed=None):
