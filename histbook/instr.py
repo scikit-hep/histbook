@@ -91,7 +91,7 @@ class CallGraphNode(object):
         self.numrequiredby += 1
 
     def sources(self, table):
-        """Returns the sources (`CallGraphNode <histbook.instr.CallGraphNode>`) of a dependency graph."""
+        """Returns the sources (:py:class:`CallGraphNode <histbook.instr.CallGraphNode>`) of a dependency graph."""
 
         if isinstance(self.goal, histbook.expr.Const):
             return set()
@@ -235,11 +235,11 @@ class CallGraphGoal(CallGraphNode):
         self.original = goal
 
 def sources(goals, table):
-    """Returns the sources (`CallGraphNode <histbook.instr.CallGraphNode>`) in a set of ``goals`` (`CallGraphNode <histbook.instr.CallGraphNode>`) given a ``table`` (dict) filled with :py:meth:`CallGraphNode.grow <histbook.instr.CallGraphNode.grow>`."""
+    """Returns the sources (:py:class:`CallGraphNode <histbook.instr.CallGraphNode>`) in a set of ``goals`` (:py:class:`CallGraphNode <histbook.instr.CallGraphNode>`) given a ``table`` (dict) filled with :py:meth:`CallGraphNode.grow <histbook.instr.CallGraphNode.grow>`."""
     return functools.reduce(set.union, (x.sources(table) for x in goals), set())
 
 def walkdown(sources):
-    """Generator for an ordered walk from ``sources`` (`CallGraphNode <histbook.instr.CallGraphNode>`) to goals (`CallGraphGoal <histbook.instr.CallGraphGoal>`) that steps through nodes required by the most goals first."""
+    """Generator for an ordered walk from ``sources`` (:py:class:`CallGraphNode <histbook.instr.CallGraphNode>`) to goals (:py:class:`CallGraphGoal <histbook.instr.CallGraphGoal>`) that steps through nodes required by the most goals first."""
     seen = set()
     def recurse(node):
         if node not in seen:
@@ -258,7 +258,7 @@ def walkdown(sources):
             yield x
 
 # def walkdown(sources):
-#     """Generator for an ordered walk from sources (`CallGraphNode <histbook.instr.CallGraphNode>`) to goals (`CallGraphGoal <histbook.instr.CallGraphGoal>`) that steps through nodes required by the most goals first."""
+#     """Generator for an ordered walk from sources (:py:class:`CallGraphNode <histbook.instr.CallGraphNode>`) to goals (:py:class:`CallGraphGoal <histbook.instr.CallGraphGoal>`) that steps through nodes required by the most goals first."""
 #     seen = set()
 #     whenready = []
 #     def recurse(node):
@@ -340,7 +340,7 @@ class Delete(Instruction):
         return "delete {0}".format(self.name)
 
 def instructions(sources, goals):
-    """Returns an ordered sequence of instructions (`Instruction <histbook.instr.Instruction>`), given a set of ``sources`` (`CallGraphNode <histbook.instr.CallGraphNode>`) and a set of ``goals`` (`CallGraphGoal <histbook.instr.CallGraphGoal>`)."""
+    """Returns an ordered sequence of instructions (:py:class:`Instruction <histbook.instr.Instruction>`), given a set of ``sources`` (:py:class:`CallGraphNode <histbook.instr.CallGraphNode>`) and a set of ``goals`` (:py:class:`CallGraphGoal <histbook.instr.CallGraphGoal>`)."""
 
     live = {}
     names = {}

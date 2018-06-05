@@ -56,8 +56,12 @@ class _ChainedDict(object):
             return self._one[n]    # self._one might only have __getitem__
         
 class Fillable(object):
+    """Mix-in for objects with a ``fill`` method, like `Hist <histbook.hist.Hist>` and `Book <histbook.hist.Book>`."""
+
     @property
     def fields(self):
+        """Names of fields that must be provided in the ``fill`` method."""
+
         if self._fields is None:
             table = {}
             goals = set(self._goals)
@@ -139,12 +143,27 @@ class Fillable(object):
         return length
 
 class Book(collections.MutableMapping, Fillable):
-    def __init__(self, hists={}, **keywords):
+    """
+    A collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) that can be filled with a single ``fill`` call.
+
+    Behaves like a dict (item assignment, ``keys``, ``values``).
+    """
+
+    def __init__(self, hists={}, **more):
+        u"""
+        Parameters
+        ----------
+        hists : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
+            initial histograms
+
+        **more : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
+            more initial histograms
+        """
         self._fields = None
         self._hists = collections.OrderedDict()
         for n, x in hists.items():
             self._hists[n] = x
-        for n, x in keywords.items():
+        for n, x in more.items():
             self._hists[n] = x
 
     def __repr__(self):
@@ -200,6 +219,21 @@ class Book(collections.MutableMapping, Fillable):
         return instructions
 
     def fill(self, arrays=None, **more):
+        u"""
+        Fill the histogram: identify bins for independent variables, increase their counts by ``1`` or ``weight``, and increment any profile (dependent variable) means and errors in the means.
+
+        All arrays must have the same length (one-dimensional shape). Numbers are treated as one-element arrays.
+
+        All histograms in the book are filled with the same inputs.
+
+        Parameters
+        ----------
+        arrays : dict \u2192 Numpy array or number
+            field values to use in the calculation of independent and dependent variables (axes)
+
+        **more : dict \u2192 Numpy array or number
+            more field values
+        """
         if arrays is None:
             arrays = more
         elif len(more) == 0:
@@ -240,6 +274,19 @@ class Book(collections.MutableMapping, Fillable):
 
     @staticmethod
     def group(by="source", **books):
+        """
+        Combine histograms, maintaining their distinctiveness by adding a new categorical axis to each.
+
+        To combine histograms by adding bins, just use the ``+`` operator.
+
+        Parameters
+        ----------
+        by : string
+            name of the new axis (must not already exist)
+
+        **books : :py:class:`Book <histbook.hist.Book>`
+            books to combine (histograms with the same names must have the same axes)
+        """
         if any(not isinstance(x, Book) for x in books.values()):
             raise TypeError("only histogram Books can be grouped")
         out = Book()
@@ -257,6 +304,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         return ()
 
     def weight(self, expr):
+        """Returns a copy of this histogram with ``expr`` as weights (for fluent construction)."""
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
 
     @staticmethod
@@ -269,18 +317,37 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
             return dict((n, Hist._copycontent(x)) for n, x in content.items())
 
     def copy(self):
+        """Return an immediate copy of the histogram."""
         out = self.__class__.__new__(self.__class__)
         out.__dict__.update(self.__dict__)
         out._content = Hist._copycontent(self._content)
         return out
 
     def copyonfill(self):
+        """Return a copy of the histogram whose content is copied if filled."""
         out = self.__class__.__new__(self.__class__)
         out.__dict__.update(self.__dict__)
         out._copyonfill = True
         return out
 
     def __init__(self, *axis, **opts):
+        u"""
+        Parameters
+        ----------
+        *axis : :py:class:`Axis <histbook.axis.Axis>`
+            axis or axes that define the independent and dependent variables of the histogram
+
+        Keyword Arguments
+        -----------------
+        weight : ``None``, algebraic expression (lambda or string), or number
+            if ``None`` *(default)*, data will be filled with weight ``1``; if an expression, weights are computed from the expression; if a number, weights are constant
+
+        defs : ``None`` or dict of str \u2192 algebraic expression (lambda or string) or :py:class:`Expr <histbook.expr.Expr>`
+            if not ``None``, definitions to use when computing expressions
+
+        fill : ``None``, single Numpy array or dict of str \u2192 Numpy arrays
+            if not ``None``, data to immediately fill after constructing the histogram; single Numpy array is only permitted if there's only one field
+        """
         weight = opts.pop("weight", None)
         defs = opts.pop("defs", {})
         fill = opts.pop("fill", None)
@@ -388,6 +455,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
     @property
     def shape(self):
+        """Shape of the Numpy array defining the content of the fixed-memory axes (:py:class:`FixedAxis <histbook.axis.FixedAxis>`) only."""
         return self._shape
 
     def _streamline(self, i, instructions):
@@ -402,6 +470,19 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         return instructions
 
     def fill(self, arrays=None, **more):
+        u"""
+        Fill the histogram: identify bins for independent variables, increase their counts by ``1`` or ``weight``, and increment any profile (dependent variable) means and errors in the means.
+
+        All arrays must have the same length (one-dimensional shape). Numbers are treated as one-element arrays.
+
+        Parameters
+        ----------
+        arrays : dict \u2192 Numpy array or number
+            field values to use in the calculation of independent and dependent variables (axes)
+
+        **more : dict \u2192 Numpy array or number
+            more field values
+        """
         if self._copyonfill:
             self._content = Hist._copycontent(self._content)
             self._copyonfill = False
@@ -605,6 +686,19 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
     @staticmethod
     def group(by="source", **hists):
+        """
+        Combine histograms, maintaining their distinctiveness by adding a new categorical axis to each.
+
+        To combine histograms by adding bins, just use the ``+`` operator.
+
+        Parameters
+        ----------
+        by : string
+            name of the new axis (must not already exist)
+
+        **hists : :py:class:`Hist <histbook.hist.Hist>`
+            histograms to combine (must have the same axes)
+        """
         if any(not isinstance(x, Hist) for x in hists.values()):
             raise TypeError("only histograms can be grouped")
 
@@ -643,6 +737,16 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         return out
 
     def togroup(**hists):
+        u"""
+        Adds histograms to the :py:class:`groupby <histbook.axis.groupby>` that is the first axis.
+
+        Histograms created with :py:meth:`Hist.group <histbook.hist.Hist.group>` have a first axis that is a :py:class:`groupby <histbook.axis.groupby>`.
+
+        Keyword Arguments
+        -----------------
+        **hists : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
+            histograms to add to the existing group
+        """
         if len(self._group) == 0 or not isinstance(self._group[0], histbook.axis.groupby):
             raise ValueError("togroup can only be used on histograms whose first axis is a groupby")
 
