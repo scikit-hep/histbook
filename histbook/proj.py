@@ -184,7 +184,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        *profile : :py:class:`profile <histbook.axis.profile>`
+        *profile : :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string), or index position (integer)
             the axis or axes to drop
 
         Returns
@@ -229,7 +229,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        *axis : :py:class:`Axis <histbook.axis.axis>`
+        *axis : :py:class:`Axis <histbook.axis.axis>`, algebraic expression (lambda or string), or index position (integer)
             the axis or axes to keep (all :py:class:`profile <histbook.axis.profile>` axes are kept)
 
         Returns

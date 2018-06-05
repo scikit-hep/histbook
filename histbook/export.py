@@ -33,7 +33,22 @@ import numpy
 import histbook.axis
 
 class Exportable(object):
+    """Mix-in for methods that export histograms to third-party software."""
+
     def pandas(self, *axis, **opts):
+        """
+        Exports the data in the histogram to a Pandas DataFrame.
+
+        Parameters
+        ----------
+        *axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            axis or axes to include in the table; if no axes or all :py:class:`profile <histbook.axis.profile>` axes, this function calls :py:meth:`Hist.table <histbook.proj.Projectable.table>`; if all :py:class:`cut <histbook.axis.cut>` axes, this function calls :py:meth:`Hist.fraction <histbook.proj.Projectable.fraction>`
+
+        Keyword Arguments
+        -----------------
+        **opts : *any*
+            passed to :py:meth:`Hist.table <histbook.proj.Projectable.table>` or :py:meth:`Hist.fraction <histbook.proj.Projectable.fraction>`; see these methods for options
+        """
         import pandas as pd
 
         axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
@@ -132,11 +147,32 @@ class Exportable(object):
                             data=arrays.view(arrays.dtype[arrays.dtype.names[0]]).reshape(len(keys[0]), -1))
 
     def root(self, *axis, **opts):
+        """
+        Exports the data in the histogram to a ROOT histogram.
+
+        The histogram may need to be selected (:py:meth:`Hist.select <histbook.proj.Projectable.select>`) or projected (:py:meth:`Hist.project <histbook.proj.Projectable.project>`) to make it useful in a ROOT histogram.
+
+        Parameters
+        ----------
+        *axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            axis or axes to include in the output; if no axes, this function returns a histogram of counts; if one :py:class:`profile <histbook.axis.profile>`, this function returns a profile; ...
+
+        Keyword Arguments
+        -----------------
+        name : string
+            name to give to the ROOT object *(default is the empty string)*
+
+        title : string
+            title to give to the ROOT object *(default is the empty string)*
+
+        cache : dict-like object
+            if supplied, the return value is inserted into ``cache`` keyed by its name; this for convenience (ROOT objects must be kept in scope to be drawn)
+        """
         import ROOT
 
-        cache = opts.pop("cache", {})
         name = opts.pop("name", "")
         title = opts.pop("title", "")
+        cache = opts.pop("cache", {})
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist.root: {0}".format(" ".join(opts)))
 
