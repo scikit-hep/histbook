@@ -37,7 +37,9 @@ import histbook.axis
 import histbook.expr
 
 class AxisTuple(tuple):
+    """An ordered sequence of :py:class:`Axis <histbook.axis.Axis>` returned by :py:meth:`Hist.axis <histbook.hist.Hist.axis>`."""
     def __getitem__(self, item):
+        """Get an axis by algebraic expression (lambda or string) or index position (integer)."""
         if isinstance(item, (numbers.Integral, numpy.integer)):
             return super(AxisTuple, self).__getitem__(item)
         else:
@@ -55,34 +57,59 @@ class AxisTuple(tuple):
         raise IndexError("no such axis: {0}({1}{2})".format(cls.__name__, repr(str(expr)), "".join(", {0}={1}".format(n, kwargs[n]) for n in sorted(kwargs))))
 
     def groupby(self, expr, **kwargs):
+        """Get a :py:class:`groupby <histbook.axis.groupby>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.groupby, kwargs)
 
     def groupbin(self, expr, **kwargs):
+        """Get a :py:class:`groupbin <histbook.axis.groupbin>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.groupbin, kwargs)
 
     def bin(self, expr, **kwargs):
+        """Get a :py:class:`bin <histbook.axis.bin>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.bin, kwargs)
 
     def intbin(self, expr, **kwargs):
+        """Get a :py:class:`intbin <histbook.axis.intbin>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.intbin, kwargs)
 
     def split(self, expr, **kwargs):
+        """Get a :py:class:`split <histbook.axis.split>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.split, kwargs)
 
     def cut(self, expr, **kwargs):
+        """Get a :py:class:`cut <histbook.axis.cut>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.cut, kwargs)
 
     def profile(self, expr, **kwargs):
+        """Get a :py:class:`profile <histbook.axis.profile>` axis by algebraic expression (lambda or string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.profile, kwargs)
 
 class Projectable(object):
+    """Mix-in for :py:class:`Hist <histbook.hist.Hist>` methods that provide selection, projection, and rebinning."""
     @property
     def axis(self):
+        """The axes that define a histogram's binning of space."""
         out = AxisTuple(self._group + self._fixed + self._profile)
         out._defs = self._defs
         return out
 
     def rebin(self, axis, edges):
+        """
+        Reduce the number of bins by combining existing bins at a specified set of ``edges``.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to rebin
+
+        edges : iterable of numbers
+            new bin edges; must be a subset of existing bin edges
+
+        Returns
+        -------
+        :py:class:`Hist <histbook.hist.Hist>`
+            a rebinned histogram.
+        """
         if not isinstance(axis, histbook.axis.Axis):
             expr = histbook.expr.Expr.parse(axis, defs=self._defs)
             for x in self._group + self._fixed:
@@ -108,6 +135,22 @@ class Projectable(object):
         return out
 
     def rebinby(self, axis, factor):
+        """
+        Reduce the number of bins by an approximate ``factor`` by combining existing bins.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to rebin
+
+        factor : positive integer
+            number of bins to combine into a single bin (inexact if the number of bins in ``axis`` is not an exact multiple of ``factor``)
+
+        Returns
+        -------
+        :py:class:`Hist <histbook.hist.Hist>`
+            a rebinned histogram.
+        """
         if not isinstance(factor, (numbers.Integral, numpy.integer)) or factor <= 0:
             raise TypeError("factor must be a positive integer")
 
@@ -136,11 +179,26 @@ class Projectable(object):
         return out
 
     def drop(self, *profile):
+        """
+        Remove one or more :py:class:`profile <histbook.axis.profile>` axes.
+
+        Parameters
+        ----------
+        *profile : :py:class:`profile <histbook.axis.profile>`
+            the axis or axes to drop
+
+        Returns
+        -------
+        :py:class:`Hist <histbook.hist.Hist>`
+            a histogram without the selected ``profiles``.
+        """
+        if len(profile) == 0:
+            raise IndexError("no profile axis given")
         profile = [x if isinstance(x, histbook.axis.Axis) else self.axis.profile(x) for x in profile]
         for prof in profile:
             if prof not in self._profile:
                 raise IndexError("no such profile axis: {0}".format(prof))
-
+        
         axis = []
         index = []
         for i, prof in enumerate(self._profile):
@@ -166,6 +224,19 @@ class Projectable(object):
         return out
 
     def project(self, *axis):
+        """
+        Project onto a given set of :py:class:`axis <histbook.axis.Axis>`.
+
+        Parameters
+        ----------
+        *axis : :py:class:`Axis <histbook.axis.axis>`
+            the axis or axes to keep (all :py:class:`profile <histbook.axis.profile>` axes are kept)
+
+        Returns
+        -------
+        :py:class:`Hist <histbook.hist.Hist>`
+            a histogram projected onto the selected axis or axes.
+        """
         allaxis = self._group + self._fixed
 
         axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
@@ -215,6 +286,22 @@ class Projectable(object):
         return out
 
     def select(self, expr, tolerance=1e-12):
+        """
+        Eliminate bins by selecting data with a boolean ``expr``.
+
+        Parameters
+        ----------
+        expr : algebraic expression (lambda or string)
+            boolean expression of data to keep; selection thresholds must align with bin edges with the right inequality (e.g. ``<`` vs ``<=``)
+
+        tolerance : small positive number
+            absolute difference between selection threshold and bin edge to qualify as a match
+
+        Returns
+        -------
+        :py:class:`Hist <histbook.hist.Hist>`
+            a histogram with data removed (fewer bins)
+        """
         expr = histbook.expr.Expr.parse(expr, defs=self._defs)
 
         if isinstance(expr, histbook.expr.LogicalAnd):
@@ -362,6 +449,28 @@ class Projectable(object):
         return out
 
     def table(self, *profile, **opts):
+        """
+        Return histogram data as a table of counts and, optionally, dependent variables (profiles).
+
+        Parameters
+        ----------
+        *profile : :py:class:`profile <histbook.axis.profile>`
+            the dependent variables to include in the table
+
+        Keyword Arguments
+        -----------------
+        count : bool
+            if ``True`` *(default)*, include the (possibly weighted) count of entries in each bin
+
+        effcount : bool
+            if ``True`` *(not default)*, include the effective count, which is used to convert between weighted profile errors and weighted profile spreads (equal to ``count`` for unweighted data)
+
+        error : bool
+            if ``True`` *(default)*, include "errors" on all parameters (uncertainty in the mean of the distribution the count or profile average represents)
+
+        recarray : bool
+            if ``True`` *(default)*, return results as a Numpy record array, which is rank-2 with named columns; if ``False``, return a plain Numpy array, which is rank-N for N axes and has no column labels.
+        """
         count = opts.pop("count", True)
         effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
@@ -443,6 +552,28 @@ class Projectable(object):
         return handle(self._content)
 
     def fraction(self, *cut, **opts):
+        """
+        Return a table of the fraction of entries that pass a set of cuts in each bin.
+
+        Parameters
+        ----------
+        *cut : :py:class:`profile <histbook.axis.cut>`
+            the cut axis or axes to include in the table
+
+        Keyword Arguments
+        -----------------
+        count : bool
+            if ``True`` *(default)*, include the (possibly weighted) count of entries in each bin (denominator of the fraction)
+
+        error : string or ``None``
+            if not ``None``, include "errors" on all parameters (uncertainty in the mean of the distribution the count or fraction represents); options are ``"clopper-pearson"``, ``"normal"`` (default), ``"wilson"``, ``"agresti-coull"``, ``"feldman-cousins"``, ``"jeffrey"``, ``"bayesian-uniform"``
+
+        level : number or iterable of numbers
+            confidence level or levels at which to evaluate error; default is erf(sqrt(0.5)) or 0.6827, otherwise known as "one sigma"
+
+        recarray : bool
+            if ``True`` *(default)*, return results as a Numpy record array, which is rank-2 with named columns; if ``False``, return a plain Numpy array, which is rank-N for N axes and has no column labels.
+        """
         return self._fraction(cut, opts, False)
 
     def _fraction(self, cut, opts, return_denomhist):
