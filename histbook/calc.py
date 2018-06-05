@@ -326,6 +326,22 @@ library["histbook.split___H"] = histbook_split(False, False, False, False)
 library["histbook.cut"] = lambda values: numpy.ma.array(values, dtype=INDEXTYPE)
 
 def calculate(expr, symbols):
+    u"""
+    Calculates an expression, given a dict of symbols to set values of named fields.
+
+    Parameters
+    ----------
+    expr : `Expr <histbook.expr.Expr>`
+        expression to calculate
+
+    symbols : dict of str \u2192 Numpy array
+        values of `Names <histbook.expr.Name>` and `Predicates <histbook.expr.Predicate>` in the expression
+
+    Returns
+    -------
+    Numpy array or number
+    """
+
     if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]
 
