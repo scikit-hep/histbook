@@ -45,6 +45,8 @@ import numpy
 class ExpressionError(Exception): pass
 
 class Expr(object):
+    """A symbolic expression, constructed from a lambda or string using :py:meth:`Expr.parse <histbook.expr.Expr.parse>`."""
+
     def __repr__(self):
         return "{0}({1})".format(self.__class__.__name__, ", ".join(self._reprargs()))
 
@@ -72,6 +74,20 @@ class Expr(object):
 
     @staticmethod
     def parse(expression, defs=None, returnlabel=False):
+        """
+        Convert a lambda or string ``expression`` into a :py:class:`Expr <histbook.expr.Expr>`.
+
+        Parameters
+        ----------
+        expression : lambda or string
+            expression involving constants (literals and ``pi``, ``e``, ``inf``, and ``nan``), field variables, and functions in ``Expr.recognized``; if a lambda, the fields are given by function parameters, if a string, any unrecognized names will be identified as fields
+
+        defs : ``None`` or dict
+            if not ``None``, provides names to recognize in ``expression`` (to avoid repetitive code)
+
+        returnlabel : bool
+            if ``True``, return value is a 2-tuple: `Expr <histbook.expr.Expr>` and string representing the expression; otherwise *(default)*, just the `Expr <histbook.expr.Expr>`
+        """
         _defs = {"pi": Const(math.pi), "e": Const(math.e), "inf": Const(float("inf")), "nan": Const(float("nan"))}
         if defs is not None:
             for n, x in defs.items():
@@ -449,6 +465,8 @@ _recognize(numpy, "tan", "tan")
 _recognize(numpy, "trunc", "trunc")
 
 class Const(Expr):
+    """Represents a literal constant in the expression tree, such as a number, boolean, or ``None``."""
+
     def __init__(self, value):
         self.value = value
 
@@ -481,6 +499,8 @@ class Const(Expr):
         return self
 
 class Name(Expr):
+    """Represents a named variable in the expression tree."""
+
     def __init__(self, value):
         self.value = value
 
@@ -507,6 +527,8 @@ class Name(Expr):
         return Name(names[self])
 
 class Call(Expr):
+    """Represents a function call in the expression tree."""
+
     def __init__(self, fcn, *args):
         self.fcn = fcn
         self.args = args
@@ -536,6 +558,8 @@ class Call(Expr):
             return self.__class__(self.fcn, *(x.rename(names) for x in self.args))
 
 class BinOp(Call):
+    """Represents a binary operation in the expression tree, such as ``%`` or ``**``."""
+
     def __init__(self, fcn, left, right, op):
         super(BinOp, self).__init__(fcn, left, right)
         self.op = op
@@ -544,6 +568,8 @@ class BinOp(Call):
         return (" " + self.op + " ").join(("(" + str(x) + ")") if isinstance(x, BinOp) else str(x) for x in self.args)
 
 class RingAlgebra(Expr):
+    """Abstract class for ring algebras, such as addition and multiplication."""
+
     def __init__(self, const, pos, neg):
         self.const = const
         self.pos = pos
@@ -595,6 +621,8 @@ class RingAlgebra(Expr):
             return self.__class__(self.const, tuple(x.rename(names) for x in self.pos), tuple(x.rename(names) for x in self.neg))
 
 class RingAlgebraMultLike(RingAlgebra):
+    """Abstract class for the multiplication-like part of a ring algebra."""
+
     @classmethod
     def normalform(op, arg):
         if isinstance(arg, op):
@@ -608,6 +636,8 @@ class RingAlgebraMultLike(RingAlgebra):
         return isinstance(other, self.__class__) and self.pos == other.pos and self.neg == other.neg
         
 class RingAlgebraAddLike(RingAlgebra):
+    """Abstract class for the addition-like part of a ring algebra."""
+
     @classmethod
     def normalform(op, arg):
         if isinstance(arg, op):
@@ -718,6 +748,8 @@ class RingAlgebraAddLike(RingAlgebra):
         return out
 
 class RingAlgebraBinOp(object):
+    """Abstract class for a binary operation in a ring algebra (for pretty printing)."""
+
     def __str__(self):
         out = []
         if self.const != self.identity or len(self.pos) == 0:
@@ -732,6 +764,8 @@ class RingAlgebraBinOp(object):
         return "".join(out)
 
 class TimesDiv(RingAlgebraBinOp, RingAlgebraMultLike):
+    """Represents multiplication and division in a ring algebra (actually, a whole field because it includes division)."""
+
     posop = "*"
     negop = "/"
 
@@ -747,6 +781,8 @@ class TimesDiv(RingAlgebraBinOp, RingAlgebraMultLike):
         return left * right
 
 class PlusMinus(RingAlgebraBinOp, RingAlgebraAddLike):
+    """Represents addition and subtraction in a ring algebra (actually, a whole field because it includes division)."""
+
     posop = " + "
     negop = " - "
 
@@ -798,6 +834,8 @@ class PlusMinus(RingAlgebraBinOp, RingAlgebraAddLike):
 #         return numpy.uint64(left) | numpy.uint64(right)
 
 class Logical(object):
+    """Mix-in for logical operations."""
+
     commutative = True
 
     def __init__(self, *args):
@@ -846,6 +884,8 @@ class Logical(object):
             return self.__class__(*(x.rename(names) for x in self.args))
 
 class LogicalAnd(Logical, RingAlgebraMultLike):
+    """Represents logical and in a ring algebra."""
+
     @classmethod
     def combine(op, left, right):
         left, right = op.normalform(left), op.normalform(right)
@@ -862,6 +902,8 @@ class LogicalAnd(Logical, RingAlgebraMultLike):
             return self
 
 class LogicalOr(Logical, RingAlgebraAddLike):
+    """Represents logical or in a ring algebra."""
+
     @classmethod
     def combine(op, left, right):
         left, right = op.normalform(left), op.normalform(right)
@@ -878,6 +920,8 @@ class LogicalOr(Logical, RingAlgebraAddLike):
             return self
 
 class Relation(Expr):
+    """Represents a logical relation in the expression tree, such as ``==`` and ``in``."""
+
     def __init__(self, cmp, left, right):
         self.cmp = cmp
         self.left = left
@@ -918,6 +962,8 @@ class Relation(Expr):
             raise AssertionError(self.cmp)
 
 class Predicate(Expr):
+    """Represents a logical predicate (name identified as boolean) in the expression tree."""
+
     def __init__(self, value, positive=True):
         self.value = value
         self.positive = positive
