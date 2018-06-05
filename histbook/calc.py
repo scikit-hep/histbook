@@ -331,11 +331,11 @@ def calculate(expr, symbols):
 
     Parameters
     ----------
-    expr : `Expr <histbook.expr.Expr>`
+    expr : :py:class:`Expr <histbook.expr.Expr>`
         expression to calculate
 
     symbols : dict of str \u2192 Numpy array
-        values of `Names <histbook.expr.Name>` and `Predicates <histbook.expr.Predicate>` in the expression
+        values of :py:class:`Names <histbook.expr.Name>` and :py:class:`Predicates <histbook.expr.Predicate>` in the expression
 
     Returns
     -------

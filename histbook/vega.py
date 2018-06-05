@@ -35,14 +35,20 @@ import numpy
 import histbook.axis
 
 class Channel(object):
+    """Abstract class for graphical channels in a Vega-Lite plot."""
+
     def __init__(self, axis):
         self.axis = axis
 
 class OverlayChannel(Channel):
+    """Represents an overlayed axis in a Vega-Lite plot."""
+
     def __repr__(self):
         return ".overlay({0})".format(self.axis)
 
 class StackChannel(Channel):
+    """Represents a stacked axis in a Vega-Lite plot."""
+
     def __init__(self, axis, order):
         super(StackChannel, self).__init__(axis)
         self.order = order
@@ -54,14 +60,20 @@ class StackChannel(Channel):
             return ".stack({0}, order={1})".format(self.axis, repr(self.order))
 
 class BesideChannel(Channel):
+    """Represents a side-by-side axis in a Vega-Lite plot."""
+
     def __repr__(self):
         return ".beside({0})".format(self.axis)
 
 class BelowChannel(Channel):
+    """Represents an above-and-below axis in a Vega-Lite plot."""
+
     def __repr__(self):
         return ".below({0})".format(self.axis)
 
 class TerminalChannel(Channel):
+    """Abstract class for the last graphical channel in a Vega-Lite plot."""
+
     def __init__(self, axis, profile, error, width, height, title, config, xscale, yscale, colorscale, shapescale):
         self.axis = axis
         self.profile = profile
@@ -100,21 +112,28 @@ class TerminalChannel(Channel):
         return ".{0}({1})".format(self._method, "".join(args))
 
 class BarChannel(TerminalChannel):
+    """Represents a bar axis in a Vega-Lite plot."""
     _method = "bar"
 
 class StepChannel(TerminalChannel):
+    """Represents a step axis in a Vega-Lite plot."""
     _method = "step"
 
 class AreaChannel(TerminalChannel):
+    """Represents an area axis in a Vega-Lite plot."""
     _method = "area"
 
 class LineChannel(TerminalChannel):
+    """Represents a line axis in a Vega-Lite plot."""
     _method = "line"
 
 class MarkerChannel(TerminalChannel):
+    """Represents a marker axis in a Vega-Lite plot."""
     _method = "marker"
 
 class PlottingChain(object):
+    """Mix-in for :py:class:`Hist <histbook.hist.Hist>` (as the first in a plotting chain) and :py:class:`Channels <histbook.vega.Channel>` in a plotting chain."""
+
     def __init__(self, source, item):
         if isinstance(source, PlottingChain):
             self._source = source._source
@@ -146,31 +165,124 @@ class PlottingChain(object):
             return self._source.axis[axis]
 
     def overlay(self, axis):
+        """
+        Display bins in ``axis`` overlaid on each other in different colors.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay
+
+        Returns
+        -------
+        :py:class:`PlottingChain <histbook.vega.PlottingChain>`
+        """
         if any(isinstance(x, OverlayChannel) for x in self._chain):
             raise TypeError("cannot overlay an overlay")
         return PlottingChain(self, OverlayChannel(self._asaxis(axis)))
 
     def stack(self, axis, order=None):
+        """
+        Display bins in ``axis`` stacked on one another in an area plot.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay
+
+        order : iterable of strings
+            stacking order of bins
+
+        Returns
+        -------
+        :py:class:`PlottingChain <histbook.vega.PlottingChain>`
+        """
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("cannot stack a stack")
         return PlottingChain(self, StackChannel(self._asaxis(axis), order))
 
     def beside(self, axis):
+        """
+        Display bins in ``axis`` next to each other horizontally.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay
+
+        Returns
+        -------
+        :py:class:`PlottingChain <histbook.vega.PlottingChain>`
+        """
         if any(isinstance(x, BesideChannel) for x in self._chain):
             raise TypeError("cannot split plots beside each other that are already split with beside (can do beside and below)")
         return PlottingChain(self, BesideChannel(self._asaxis(axis)))
 
     def below(self, axis):
+        """
+        Display bins in ``axis`` next to each other vertically.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay
+
+        Returns
+        -------
+        :py:class:`PlottingChain <histbook.vega.PlottingChain>`
+        """
         if any(isinstance(x, BelowChannel) for x in self._chain):
             raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
         return PlottingChain(self, BelowChannel(self._asaxis(axis)))
 
     def bar(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+        """
+        Display bins in ``axis`` (if not the only axis) as bars on the horizontal axis.
+
+        Parameters
+        ----------
+        axis : ``None``, :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay; if ``None`` *(default)*, use the only axis in this :py:class:`Hist <histbook.hist.Hist>`
+
+        profile : ``None``, :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string) or index position (integer)
+            if ``None`` *(default)*, display bin counts; otherwise, display profile means (and errors on the mean)
+
+        error : bool
+            if ``True``, overlay error bars
+
+        width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
+            graphical directives to pass to Vega-Lite
+
+        Returns
+        -------
+        :py:class:`Plotable <histbook.vega.Plotable>`
+        """
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, BarChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
     def step(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+        """
+        Display bins in ``axis`` (if not the only axis) as steps on the horizontal axis.
+
+        Parameters
+        ----------
+        axis : ``None``, :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay; if ``None`` *(default)*, use the only axis in this :py:class:`Hist <histbook.hist.Hist>`
+
+        profile : ``None``, :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string) or index position (integer)
+            if ``None`` *(default)*, display bin counts; otherwise, display profile means (and errors on the mean)
+
+        error : bool
+            if ``True``, overlay error bars
+
+        width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
+            graphical directives to pass to Vega-Lite
+
+        Returns
+        -------
+        :py:class:`Plotable <histbook.vega.Plotable>`
+        """
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
@@ -178,11 +290,53 @@ class PlottingChain(object):
         return Plotable(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
     def area(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+        """
+        Display bins in ``axis`` (if not the only axis) as areas on the horizontal axis.
+
+        Parameters
+        ----------
+        axis : ``None``, :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay; if ``None`` *(default)*, use the only axis in this :py:class:`Hist <histbook.hist.Hist>`
+
+        profile : ``None``, :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string) or index position (integer)
+            if ``None`` *(default)*, display bin counts; otherwise, display profile means (and errors on the mean)
+
+        error : bool
+            if ``True``, overlay error bars
+
+        width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
+            graphical directives to pass to Vega-Lite
+
+        Returns
+        -------
+        :py:class:`Plotable <histbook.vega.Plotable>`
+        """
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, AreaChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
     def line(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+        """
+        Display bins in ``axis`` (if not the only axis) as lines on the horizontal axis.
+
+        Parameters
+        ----------
+        axis : ``None``, :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay; if ``None`` *(default)*, use the only axis in this :py:class:`Hist <histbook.hist.Hist>`
+
+        profile : ``None``, :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string) or index position (integer)
+            if ``None`` *(default)*, display bin counts; otherwise, display profile means (and errors on the mean)
+
+        error : bool
+            if ``True``, overlay error bars
+
+        width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
+            graphical directives to pass to Vega-Lite
+
+        Returns
+        -------
+        :py:class:`Plotable <histbook.vega.Plotable>`
+        """
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
@@ -190,6 +344,27 @@ class PlottingChain(object):
         return Plotable(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
     def marker(self, axis=None, profile=None, error=True, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+        """
+        Display bins in ``axis`` (if not the only axis) as markers on the horizontal axis.
+
+        Parameters
+        ----------
+        axis : ``None``, :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+            the axis to overlay; if ``None`` *(default)*, use the only axis in this :py:class:`Hist <histbook.hist.Hist>`
+
+        profile : ``None``, :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string) or index position (integer)
+            if ``None`` *(default)*, display bin counts; otherwise, display profile means (and errors on the mean)
+
+        error : bool
+            if ``True``, overlay error bars
+
+        width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
+            graphical directives to pass to Vega-Lite
+
+        Returns
+        -------
+        :py:class:`Plotable <histbook.vega.Plotable>`
+        """
         if any(isinstance(x, StackChannel) for x in self._chain):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
@@ -197,6 +372,8 @@ class PlottingChain(object):
         return Plotable(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
 class Plotable(object):
+    """Mix-in for :py:class:`Channels <histbook.vega.Channel>` and :py:class:`Combinations <histbook.vega.Combination>` that can be plotted."""
+
     def __init__(self, source, item):
         if isinstance(source, PlottingChain):
             self._source = source._source
@@ -409,6 +586,8 @@ class Plotable(object):
             return [mark, "rule"], [encoding, encoding2], [transform, transform2]
         
     def vegalite(self):
+        """Return the Vega-Lite JSON for this plot."""
+
         axis, data, domains = self._data((), "a")
         marks, encodings, transforms = self._vegalite(axis, domains, "a")
 
@@ -433,9 +612,12 @@ class Plotable(object):
                     "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]}
 
     def to(self, fcn):
+        """Call ``fcn`` on the Vega-Lite JSON for this plot."""
         return fcn(self.vegalite())
 
 class Combination(object):
+    """Abstract class for :py:class:`Plotables <histbook.vega.Plotable>` that have been combined as an overlay or side-by-side plots."""
+
     def __init__(self, *plotables):
         self._plotables = []
         for arg in plotables:           # first level: for varargs
@@ -466,6 +648,8 @@ class Combination(object):
         return fcn(self.vegalite())
 
 class overlay(Combination):
+    """:py:class:`Plotable <histbook.vega.Plotable>` overlaying two or more independently produced :py:class:`Plotables <histbook.vega.Plotable>`."""
+
     def vegalite(self):
         allaxis = []
         alldata = []
@@ -498,6 +682,8 @@ class overlay(Combination):
         return out
 
 class beside(Combination):
+    """:py:class:`Plotable <histbook.vega.Plotable>` displaying two or more independently produced :py:class:`Plotables <histbook.vega.Plotable>` beside each other horizontally."""
+
     def __init__(self, *plotables):
         super(beside, self).__init__(*plotables)
         if any(isinstance(x, BesideChannel) for x in self._plotables):
@@ -532,6 +718,8 @@ class beside(Combination):
         return out
 
 class below(Combination):
+    """:py:class:`Plotable <histbook.vega.Plotable>` displaying two or more independently produced :py:class:`Plotables <histbook.vega.Plotable>` below each other vertically."""
+
     def __init__(self, *plotables):
         super(below, self).__init__(*plotables)
         if any(isinstance(x, BelowChannel) for x in self._plotables):

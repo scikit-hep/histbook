@@ -86,7 +86,7 @@ class Expr(object):
             if not ``None``, provides names to recognize in ``expression`` (to avoid repetitive code)
 
         returnlabel : bool
-            if ``True``, return value is a 2-tuple: `Expr <histbook.expr.Expr>` and string representing the expression; otherwise *(default)*, just the `Expr <histbook.expr.Expr>`
+            if ``True``, return value is a 2-tuple: :py:class:`Expr <histbook.expr.Expr>` and string representing the expression; otherwise *(default)*, just the :py:class:`Expr <histbook.expr.Expr>`
         """
         _defs = {"pi": Const(math.pi), "e": Const(math.e), "inf": Const(float("inf")), "nan": Const(float("nan"))}
         if defs is not None:
