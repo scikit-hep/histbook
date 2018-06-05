@@ -33,11 +33,15 @@ import functools
 import histbook.expr
 
 class CallGraphNode(object):
+    """Represents a node in a graph of dependencies among subexpressions in an :py:class:`Expr <histbook.expr.Expr>`."""
+
     def __init__(self, goal):
+        """Creates a node for a given goal (:py:class:`Expr <histbook.expr.Expr>`) without expanding to form a complete graph."""
         self.goal = goal
         self.clear()
 
     def clear(self):
+        """Removes dependencies (``requires``) and dependent (``requiredby``) sets for this node."""
         self.requires = set()
         self.requiredby = set()
         self.numrequiredby = 0
@@ -61,6 +65,8 @@ class CallGraphNode(object):
             return self.__class__.__name__ < other.__class__.__name__
 
     def grow(self, table):
+        """Builds a whole dependency graph, using ``table`` (dict) to identify identical nodes."""
+
         if self not in table:
             table[self] = self
 
@@ -85,6 +91,8 @@ class CallGraphNode(object):
         self.numrequiredby += 1
 
     def sources(self, table):
+        """Returns the sources (`CallGraphNode <histbook.instr.CallGraphNode>`) of a dependency graph."""
+
         if isinstance(self.goal, histbook.expr.Const):
             return set()
 
@@ -103,9 +111,12 @@ class CallGraphNode(object):
             raise NotImplementedError
 
     def rename(self, names):
+        """Rename all :py:class:`Names <histbook.expr.Name>` and :py:class:`Predicates <histbook.expr.Predicate>` in the graph using ``names`` (dict) mapping old names to new names."""
         return self.goal.rename(names)
 
 def totree(expr):
+    """Simplifies ``expr`` (:py:class:`Expr <histbook.expr.Expr>`) to contain only constants (:py:class:`Const <histbook.expr.Const>`), names (:py:class:`Name <histbook.expr.Name>` and :py:class:`Predicate <histbook.expr.Predicate>`), and function calls (:py:class:`Call <histbook.expr.Call>`)."""
+
     def linear(fcn, args):
         if len(args) == 1:
             return args[0]
@@ -218,14 +229,17 @@ def totree(expr):
         raise AssertionError(expr)
 
 class CallGraphGoal(CallGraphNode):
+    """Goal node of a call graph: something to histogram."""
     def __init__(self, goal):
         super(CallGraphGoal, self).__init__(totree(goal))
         self.original = goal
 
 def sources(goals, table):
+    """Returns the sources (`CallGraphNode <histbook.instr.CallGraphNode>`) in a set of ``goals`` (`CallGraphNode <histbook.instr.CallGraphNode>`) given a ``table`` (dict) filled with :py:meth:`CallGraphNode.grow <histbook.instr.CallGraphNode.grow>`."""
     return functools.reduce(set.union, (x.sources(table) for x in goals), set())
 
 def walkdown(sources):
+    """Generator for an ordered walk from ``sources`` (`CallGraphNode <histbook.instr.CallGraphNode>`) to goals (`CallGraphGoal <histbook.instr.CallGraphGoal>`) that steps through nodes required by the most goals first."""
     seen = set()
     def recurse(node):
         if node not in seen:
@@ -244,6 +258,7 @@ def walkdown(sources):
             yield x
 
 # def walkdown(sources):
+#     """Generator for an ordered walk from sources (`CallGraphNode <histbook.instr.CallGraphNode>`) to goals (`CallGraphGoal <histbook.instr.CallGraphGoal>`) that steps through nodes required by the most goals first."""
 #     seen = set()
 #     whenready = []
 #     def recurse(node):
@@ -270,9 +285,12 @@ def walkdown(sources):
 #         for x in recurse(source):
 #             yield x
 
-class Instruction(object): pass
+class Instruction(object):
+    """Abstract class for instructions (ordered steps in the calculation)."""
 
 class Param(Instruction):
+    """Represents a request for data into the calculation."""
+
     def __init__(self, name, extern):
         self.name = name
         self.extern = extern
@@ -284,6 +302,8 @@ class Param(Instruction):
         return "{0} := {1} (external parameter)".format(self.name, repr(self.extern))
 
 class Assign(Instruction):
+    """Represents an assignment, creating a new variable to store the result of a function call."""
+
     def __init__(self, name, expr):
         self.name = name
         self.expr = expr
@@ -295,6 +315,8 @@ class Assign(Instruction):
         return "{0} := {1}".format(self.name, str(self.expr))
 
 class Export(Instruction):
+    """Represents a result to export out of the calculation."""
+
     def __init__(self, name, goal):
         self.name = name
         self.goal = goal
@@ -306,6 +328,8 @@ class Export(Instruction):
         return "export {0} as {1}".format(self.name, repr(str(self.goal)))
 
 class Delete(Instruction):
+    """Represents a subexpression that may now be safely deleted."""
+
     def __init__(self, name):
         self.name = name
 
@@ -316,6 +340,8 @@ class Delete(Instruction):
         return "delete {0}".format(self.name)
 
 def instructions(sources, goals):
+    """Returns an ordered sequence of instructions (`Instruction <histbook.instr.Instruction>`), given a set of ``sources`` (`CallGraphNode <histbook.instr.CallGraphNode>`) and a set of ``goals`` (`CallGraphGoal <histbook.instr.CallGraphGoal>`)."""
+
     live = {}
     names = {}
     namenum = [0]
