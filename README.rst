@@ -93,8 +93,6 @@ Interactive tutorial
 
 Run `this tutorial <https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
 
-Coming soon on Binder.
-
 Reference documentation
 =======================
 

@@ -1,2 +1,3 @@
-pip install pandas vega uproot
+# pip install -e git://github.com/srossross/Meta.git@develop#egg=meta
+pip install pandas vega
 pip install -e .

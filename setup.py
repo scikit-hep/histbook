@@ -62,7 +62,7 @@ See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tuto
 Interactive tutorial
 ====================
 
-Coming soon on Binder.
+Run `this tutorial <https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
 
 Reference documentation
 =======================
