@@ -113,12 +113,12 @@ class Projectable(object):
         if not isinstance(axis, histbook.axis.Axis):
             expr = histbook.expr.Expr.parse(axis, defs=self._defs)
             for x in self._group + self._fixed:
-                if isinstance(x, histbook.axis.RebinSplit) and expr == x._parsed:
+                if isinstance(x, histbook.axis._RebinSplit) and expr == x._parsed:
                     axis = x
                     break
 
         for index, x in enumerate(self._group + self._fixed):
-            if isinstance(x, histbook.axis.RebinSplit) and axis == x:
+            if isinstance(x, histbook.axis._RebinSplit) and axis == x:
                 axis = x
                 break
         else:
@@ -157,12 +157,12 @@ class Projectable(object):
         if not isinstance(axis, histbook.axis.Axis):
             expr = histbook.expr.Expr.parse(axis, defs=self._defs)
             for x in self._group + self._fixed:
-                if isinstance(x, histbook.axis.RebinFactor) and expr == x._parsed:
+                if isinstance(x, histbook.axis._RebinFactor) and expr == x._parsed:
                     axis = x
                     break
 
         for index, x in enumerate(self._group + self._fixed):
-            if isinstance(x, histbook.axis.RebinFactor) and axis == x:
+            if isinstance(x, histbook.axis._RebinFactor) and axis == x:
                 axis = x
                 break
         else:
