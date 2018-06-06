@@ -48,6 +48,8 @@ def get_description():
    :alt: histbook
    :target: https://github.com/diana-hep/histbook
 
+|
+
 """
 
     after = """
