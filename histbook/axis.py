@@ -209,11 +209,8 @@ class FixedAxis(Axis):
 class ProfileAxis(Axis):
     """Abstract class for profile axes (dependent variables)."""
 
-class RebinFactor(Axis):
-    """Abstract class for axis that can be rebinned by a factor."""
-
-class RebinSplit(Axis):
-    """Abstract class for axis that can be rebinned with explicit edges."""
+class _RebinFactor(Axis): pass
+class _RebinSplit(Axis): pass
 
 class groupby(GroupAxis):
     """
@@ -283,7 +280,7 @@ class groupby(GroupAxis):
             raise TypeError("groupby content must be a dict")
         return [IntervalPair((n, content[n])) for n in sorted(content)]
 
-class groupbin(GroupAxis, RebinFactor):
+class groupbin(GroupAxis, _RebinFactor):
     """
     Describes an axis of sparse, numeric values. 
 
@@ -458,7 +455,7 @@ class groupbin(GroupAxis, RebinFactor):
             raise TypeError("groupbin content must be a dict")
         return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
 
-class bin(FixedAxis, RebinFactor, RebinSplit):
+class bin(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of regularly spaced, dense, numeric values. 
 
@@ -671,7 +668,7 @@ class bin(FixedAxis, RebinFactor, RebinSplit):
                              ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
             
-class intbin(FixedAxis, RebinFactor, RebinSplit):
+class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of integer values. 
 
@@ -854,7 +851,7 @@ class intbin(FixedAxis, RebinFactor, RebinSplit):
                              [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
-class split(FixedAxis, RebinFactor, RebinSplit):
+class split(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of irregularly spaced, dense, numeric values. 
 

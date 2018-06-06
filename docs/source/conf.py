@@ -13,6 +13,8 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
+    "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.graphviz",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -66,6 +68,8 @@ exclude_patterns = []
 todo_include_todos = True
 
 add_function_parentheses = False
+
+autoclass_content = "both"
 
 # -- Options for HTML output ----------------------------------------------
 

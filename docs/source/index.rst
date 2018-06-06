@@ -29,3 +29,4 @@ Reference documentation
 
    histograms
    books-of-histograms
+   axis-descriptors
