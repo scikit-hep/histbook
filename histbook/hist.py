@@ -684,6 +684,8 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         else:
             add(self._content, other._content)
 
+        return self
+
     @staticmethod
     def group(by="source", **hists):
         """
