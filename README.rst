@@ -76,7 +76,7 @@ Tutorial
   - `select <#select>`__
   - `project <#project>`__
   - `drop <#drop>`__
-  - `rebin, rebinby <#rebin-rebinby>`__
+  - `rebin, rebinby <#rebin>`__
 
 * `Combining histograms <#combining-histograms>`__
 * `Tabular output <#tabular-output>`__
@@ -480,8 +480,8 @@ where B :sub:`i` is the number of bins in non-profile axis i, P :sub:`i` is the 
 Manipulation methods
 --------------------
 
-`Hist.select <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.select>`__
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+`select <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.select>`__
+""""""
 
 Select a set of bins with a boolean ``expr``, returning a new `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__. Cut boundaries may be approximate (within ``tolerance``), but the inequalities must be exact.
 
@@ -543,30 +543,25 @@ Categorical `groupby <http://histbook.readthedocs.io/en/latest/axis-descriptors.
     one      1.0      1.000000
     two      2.0      1.414214
 
-project
+`project <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.project>`__
 """""""
-
-`Hist.project(*axis) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.project>`__
 
 Reduces the number of non-profile axes to the provided set, ``*axis``, by summing over all other non-profile axes.
 
 All internal data are sums that are properly combined by summing. For instance, histograms are represented by a count (unweighted) or a sum of weights and squared-weights (weighted), and profiles are represented by a sum of the quantity times weight and a sum of the squared-quantity times weight.
 
-drop
+`drop <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.drop>`__
 """"
-
-`Hist.drop(*profile) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.drop>`__
 
 Eliminates all profile axes except the provided set, ``*profile``.
 
 If a `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ were represented as a table, non-profile axes form a compound key but profile axes are simple columns, which may be dropped without affecting any other data.
 
-rebin, rebinby
+`rebin <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebin>`__
 """"""""""""""
 
-`Hist.rebin(axis, edges) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebin>`__
-
-`Hist.rebinby(axis, factor) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebinby>`__
+`rebinby <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebinby>`__
+""""""""""""""
 
 Eliminates or sums neighboring bins to reduce the number of bins in an axis to ``edges`` or by a multiplicative ``factor``.
 
@@ -661,24 +656,18 @@ For both types of combination, all axes of the `Hist <http://histbook.readthedoc
 Tabular output
 --------------
 
-table
+`table <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.table>`__
 """""
-
-`Hist.table(*profile, **opts) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.table>`__
 
 Presents data from the histogram as a Numpy array,
 
-fraction
+`fraction <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.fraction>`__
 """"""""
-
-`Hist.fraction(*cut, **opts) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.fraction>`__
 
 Presents cut fractions (cut efficiencies) as a function of non-profile axes for each ``cut``.
 
-pandas
+`pandas <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.pandas>`__
 """"""
-
-`Hist.pandas(*axis, **opts) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.pandas>`__
 
 Presents a `Hist.table <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.table>`__ as a Pandas DataFrame if all ``*axis`` are profiles or `Hist.fraction <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.fraction>`__ if all ``*axis`` are cuts.
 
