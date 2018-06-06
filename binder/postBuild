@@ -1,1 +1,2 @@
+pip install pandas vega uproot
 pip install -e .
