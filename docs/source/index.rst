@@ -14,7 +14,7 @@ histbook
 Tutorial
 --------
 
-See `the homepage <https://github.com/diana-hep/histbook#tutorial>`__ for an introduction and examples.
+See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tutorial <https://github.com/diana-hep/histbook#tutorial>`__.
 
 Interactive tutorial
 --------------------

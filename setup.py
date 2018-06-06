@@ -84,7 +84,7 @@ setup(name = "histbook",
       install_requires = ["numpy>=1.8.0", "meta"],
       tests_require = [],
       classifiers = [
-          "Development Status :: 4 - Beta",
+          "Development Status :: 5 - Production/Stable",
           "Intended Audience :: Developers",
           "Intended Audience :: Information Technology",
           "Intended Audience :: Science/Research",
