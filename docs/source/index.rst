@@ -1,8 +1,7 @@
-..
-   .. image:: logo-300px.png
-      :alt: histbook
-      :target: https://github.com/diana-hep/histbook
-      :align: center
+.. image:: logo-500px.png
+   :alt: histbook
+   :target: https://github.com/diana-hep/histbook
+   :align: center
 
 histbook
 ========
