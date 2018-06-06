@@ -76,7 +76,7 @@ Tutorial
   - `select <#select>`__
   - `project <#project>`__
   - `drop <#drop>`__
-  - `rebin, rebinby <#rebin>`__
+  - `rebin, rebinby <#rebin-rebinby>`__
 
 * `Combining histograms <#combining-histograms>`__
 * `Tabular output <#tabular-output>`__
@@ -557,10 +557,7 @@ Eliminates all profile axes except the provided set, ``*profile``.
 
 If a `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ were represented as a table, non-profile axes form a compound key but profile axes are simple columns, which may be dropped without affecting any other data.
 
-`rebin <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebin>`__
-""""""""""""""
-
-`rebinby <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebinby>`__
+`rebin, rebinby <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebin>`__
 """"""""""""""
 
 Eliminates or sums neighboring bins to reduce the number of bins in an axis to ``edges`` or by a multiplicative ``factor``.
