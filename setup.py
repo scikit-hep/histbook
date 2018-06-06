@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, DIANA-HEP
+# Copyright (c) 2018, DIANA-HEP
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,15 @@ def get_description():
     start = description.index(".. inclusion-marker-1-5-do-not-remove")
     stop = description.index(".. inclusion-marker-3-do-not-remove")
 
+    before = """.. image:: https://raw.githubusercontent.com/diana-hep/histbook/master/docs/source/logo-500px.png
+   :alt: histbook
+   :target: https://github.com/diana-hep/histbook
+
+|
+|
+
+"""
+
     after = """
 
 Tutorial
@@ -64,7 +73,7 @@ Reference documentation
 * `Axis descriptors <https://histbook.readthedocs.io/en/latest/axis-descriptors.html>`__
 """
 
-    return description[start:stop].strip() + after
+    return before + description[start:stop].strip() + after
     
 setup(name = "histbook",
       version = get_version(),

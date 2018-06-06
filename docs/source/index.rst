@@ -3,6 +3,9 @@
    :target: https://github.com/diana-hep/histbook
    :align: center
 
+|
+|
+
 histbook
 ========
 
