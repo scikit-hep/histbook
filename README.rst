@@ -1,3 +1,6 @@
+.. image:: docs/source/logo-500px.png
+   :alt: histbook
+
 histbook
 ========
 
