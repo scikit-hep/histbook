@@ -1,5 +1,6 @@
 .. image:: docs/source/logo-500px.png
    :alt: histbook
+   :target: http://histbook.readthedocs.io/en/latest/
 
 histbook
 ========
@@ -19,25 +20,13 @@ Versatile, high-performance histogram toolkit for Numpy.
 
 .. inclusion-marker-1-5-do-not-remove
 
-A histogram is a way to visualize the distribution of a dataset via aggregation: rather than plotting data points individually, we count how many fall within a set of abutting intervals and plot those totals. The resulting chart is an approximate view of the distribution from which the data were derived (`see Wikipedia for details <https://en.wikipedia.org/wiki/Histogram>`__).
+histbook computes histograms from Numpy arrays. It differs from most other histogramming tools in that its histograms are primarily tables of numbers, rather than display graphics. Histograms can be filled and refilled iteratively through a large dataset, or in parallel and later combined with addition :sup:`*`. Histograms have arbitrarily many dimensions with convenient methods for selecting, rebinning, and projecting into lower-dimensional spaces.
 
-The **histbook** package defines, fills, and visualizes histograms of Numpy data. Its capabilities extend considerably beyond the `numpy.histogram <https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html>`__ function included in Numpy, as it was designed to serve the needs of particle physicists. Particle physicists have been analyzing data with histograms for decades and have strict requirements on histogramming:
+Axis dimensions are managed by algebraic expressions, rather than string labels or index positions, so they are computable: an axis named ``x + y`` requires two Numpy arrays, ``x`` and ``y``, which will be added before filling the histogram. Expressions in different axes or different histograms in the same "book" (a collection of named histograms) are computed in an optimized way, reusing subexpressions wherever possible for quicker filling without giving up clarity.
 
-- One must be able to declare an empty histogram as a container to be filled, iteratively or in parallel, and then combine results from multiple sources. An interface that skips directly from data to plot or tries to guess bin edges on the fly is not sufficient.
-- It must be possible to fill many histograms in a single pass over the data, as datasets may be huge and I/O-bound.
-- Data analysts must be able to access bin contents programmatically, not just visually. They will be performing statistical analyses on the contents.
-- It should be possible to make "profile plots" (average one variable, binned in another) in addition to plain histograms.
-- The data may be weighted, including negative weights.
+Histogram data may be exported to a variety of formats, such as `Pandas <https://pandas.pydata.org/>`__, `ROOT <https://root.cern/>`__, and `HEPData <https://github.com/HEPData/hepdata-submission>`__. It can also be plotted with `Vega-Lite <https://vega.github.io/vega-lite/>`__, which makes short work of projecting many dimensions of data as overlays and trellises.
 
-`CERN HBOOK <http://cds.cern.ch/record/307945/files/>`__ was created in the 1970's to address the above. Since then, histogramming packages developed for particle physicists (`PAW <http://paw.web.cern.ch/paw/>`__, `mn_fit <https://community.linuxmint.com/software/view/mn-fit>`__, `Jas3 <http://jas.freehep.org/jas3/>`__, `HippoDraw <http://www.slac.stanford.edu/grp/ek/hippodraw/>`__, `AIDA <http://aida.freehep.org/doc/v3.0/UsersGuide.html>`__, `YODA <https://yoda.hepforge.org/>`__, `ROOT <https://root.cern/>`__) have provided the same capabilities. histbook, deliberately echoing the name, does so for Numpy.
-
-However, histbook has a more streamlined interface that allows users to be "lazy" without giving up performance. Instead of a suite of histogram and profile classes, histbook has a single n-dimensional histogram class, ``Hist``. Different histograms and profiles are latent within this ``Hist``, allowing data exploration after the time-consuming filling stage. Many ``Hist`` objects can be filled at once by binding them into a ``Book``.
-
-It's usually easier to write analysis scripts as a list of mathematical expressions, which suggests separate passes over the data, but it's much faster to execute them as a single pass. To bridge this gap, histbook takes axis specifications as *symbolic expressions* to collect in a single pass with no duplication of reading or processing. For example, if you wish to plot "``pt``", "``eta``", and "``pt*sinh(eta)``" and they're in the same ``Book``, the ``pt`` array will be read once, the ``eta`` array will be read once, and they'll be reused to compute ``pt*sinh(eta)`` (using Numpy ufuncs). If any histograms in the same ``Book`` apply cuts like "``-10 <= pt*sinh(eta) < 10``", the subexpression array will be retained for that. If not, it will be deleted to minimize the memory footprint.
-
-Thus, you can write your analysis as hundreds of mathematical expressions, without worrying about coding for performance, using a single syntax for any dimensionality. You can combine all of your histograms in a ``Book`` so that you have only one object to fill as you iterate through data. Since the filled distributions are n-dimensional, you can change your mind about how you want to plot them after the filling stage.
-
-histbook lets you plot interactively with `Vega-Lite <https://vega.github.io/vega-lite/>`__, dump tables of numbers into `Pandas DataFrames <https://pandas.pydata.org/pandas-docs/stable/dsintro.html>`__, and export histograms to `ROOT <https://root.cern/>`__ format.
+:sup:`*` In this respect, histbook is like histogramming packages developed for particle physics, from `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`__ in the 1970's (name similarity intended) to `ROOT <https://root.cern/>`__.
 
 .. inclusion-marker-2-do-not-remove
 
