@@ -84,6 +84,18 @@ Tutorial
 * `Plotting methods <#plotting-methods>`__
 * `Exporting to ROOT <#exporting-to-root>`__
 
+Interactive tutorial
+====================
+
+Coming soon on Binder.
+
+Reference documentation
+=======================
+
+* `Histograms <https://histbook.readthedocs.io/en/latest/histograms.html>`__
+* `Books of histograms <https://histbook.readthedocs.io/en/latest/books-of-histograms.html>`__
+* `Axis descriptors <https://histbook.readthedocs.io/en/latest/axis-descriptors.html>`__
+
 Getting started
 ---------------
 

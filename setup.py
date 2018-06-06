@@ -46,10 +46,26 @@ def get_description():
 
     after = """
 
-See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tutorial <https://github.com/diana-hep/histbook#tutorial>`__."""
+Tutorial
+========
+
+See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tutorial <https://github.com/diana-hep/histbook#tutorial>`__.
+
+Interactive tutorial
+====================
+
+Coming soon on Binder.
+
+Reference documentation
+=======================
+
+* `Histograms <https://histbook.readthedocs.io/en/latest/histograms.html>`__
+* `Books of histograms <https://histbook.readthedocs.io/en/latest/books-of-histograms.html>`__
+* `Axis descriptors <https://histbook.readthedocs.io/en/latest/axis-descriptors.html>`__
+"""
 
     return description[start:stop].strip() + after
-
+    
 setup(name = "histbook",
       version = get_version(),
       packages = find_packages(exclude = ["tests"]),
