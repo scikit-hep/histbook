@@ -14,10 +14,8 @@ histbook
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1284427.svg
    :target: https://doi.org/10.5281/zenodo.1284427
 
-..
-
-   .. image:: http://mybinder.org/badge.svg
-      :target: https://mybinder.org/v2/gh/diana-hep/histbook/addBinder?filepath=binder%2Ftutorial.ipynb
+.. image:: https://mybinder.org/badge.svg
+   :target: https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb
 
 .. inclusion-marker-1-do-not-remove
 
@@ -92,6 +90,8 @@ Tutorial
 
 Interactive tutorial
 ====================
+
+Run `this tutorial <https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
 
 Coming soon on Binder.
 
@@ -190,7 +190,7 @@ Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it
     >>> phi = lambda y, x: math.atan2(y, x)
     >>> beside(hist.step(r), hist.step(phi)).to(canvas)
 
-The data contained in ``hist`` is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)
+The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)
 
 .. code-block:: python
 
@@ -249,7 +249,7 @@ The data contained in ``hist`` is two-dimensional, which you can see by printing
                       [3.14159265359, inf)                  0.0      0.000000
                       {NaN}                                 0.0      0.000000
 
-With multiple dimensions, we can project it out different ways. The ``overlay`` method draws all the bins of one axis as separate lines in the projection of the other.
+With multiple dimensions, we can project it out different ways. The `overlay <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ method draws all the bins of one axis as separate lines in the projection of the other.
 
 .. code-block:: python
 
@@ -257,7 +257,7 @@ With multiple dimensions, we can project it out different ways. The ``overlay`` 
 
 .. image:: docs/source/intro-3.png
 
-The ``stack`` method draws them cumulatively, though it only works with ``area`` (filled) rendering.
+The `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ method draws them cumulatively, though it only works with `area <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ (filled) rendering.
 
 .. code-block:: python
 
@@ -287,7 +287,7 @@ We can also split side-by-side and top-down:
 
 .. image:: docs/source/intro-7.png
 
-Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This "trellis plot" formed with ``beside`` and ``below`` separated data just as ``overlay`` and ``stack`` separated data. Using all but one together, we could visualize four dimensions at once:
+Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This "trellis plot" formed with `beside <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ and `below <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ separated data just as `overlay <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ and `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ separated data. Using all but one together, we could visualize four dimensions at once:
 
 .. code-block:: python
 
@@ -336,18 +336,18 @@ Axis constructors
 
 Histograms can be built from the following types of axis:
 
-* ``groupby(expr)`` to bin by unique values, usually strings or integers (categorical binning)
-* ``groupbin(expr, binwidth)`` to create new bins when they appear in the data (regularly spaced, sparse binning)
-* ``bin(expr, numbins, low, high)`` for a fixed number of bins in a given range (regularly spaced, dense binning)
-* ``intbin(expr, min, max)`` for integer-valued bins between min and max, inclusive (same as above, but for integers)
-* ``split(expr, edges)`` for a fixed number of bins between a set of given edges (irregularly spaced, dense binning)
-* ``cut(expr)`` to divide the data into entries that pass or fail a boolean predicate (two bins)
-* ``profile(expr)`` to collect the mean and error in the mean of a dependent variable (not binned)
+* `groupby(expr) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.groupby>`__ to bin by unique values, usually strings or integers (categorical binning)
+* `groupbin(expr, binwidth) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.groupbin>`__ to create new bins when they appear in the data (regularly spaced, sparse binning)
+* `bin(expr, numbins, low, high) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.bin>`__ for a fixed number of bins in a given range (regularly spaced, dense binning)
+* `intbin(expr, min, max) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.intbin>`__ for integer-valued bins between min and max, inclusive (same as above, but for integers)
+* `split(expr, edges) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.split>`__ for a fixed number of bins between a set of given edges (irregularly spaced, dense binning)
+* `cut(expr) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.cut>`__ to divide the data into entries that pass or fail a boolean predicate (two bins)
+* `profile(expr) <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.profile>`__ to collect the mean and error in the mean of a dependent variable (not binned)
 
 Profile plots
 -------------
 
-We can profile "``y``" and "``z``" or as many distributions as we want in a single ``Hist`` object.
+We can profile "``y``" and "``z``" or as many distributions as we want in a single `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ object.
 
 .. code-block:: python
 
@@ -395,7 +395,7 @@ Although each non-profile axis multiplies the number of bins and therefore its m
 Weighted data
 -------------
 
-In addition to bins, histograms take a ``weight`` parameter to compute weights for each input value. A value with weight 2 is roughly equivalent to having two values with all other attributes being equal (for counts, sums, and means, but not standard deviations). Weights may be zero or even negative.
+In addition to bins, `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ takes a ``weight`` parameter to compute weights for each input value. A value with weight 2 is roughly equivalent to having two values with all other attributes being equal (for counts, sums, and means, but not standard deviations). Weights may be zero or even negative.
 
 For example: without weights, counts are integers and the effective counts (used for weighted profiles) are equal to the counts.
 
@@ -449,7 +449,7 @@ Below, we make the weights normal-distributed with a mean of 1 and a standard de
 Books of histograms
 -------------------
 
-A histogram ``Book`` acts like a Python dictionary, mapping string names to ``Hist`` objects. It provides the convenience of having only one object to ``fill`` (important in a complicated parallelization scheme), but also optimizes the calculation of those histograms to avoid unnecessary passes over the data.
+A histogram `Book <http://histbook.readthedocs.io/en/latest/books-of-histograms.html#histbook.hist.Book>`__ acts like a Python dictionary, mapping string names to `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ objects. It provides the convenience of having only one object to `fill <http://histbook.readthedocs.io/en/latest/books-of-histograms.html#histbook.hist.Book.fill>`__ (important in a complicated parallelization scheme), but also optimizes the calculation of those histograms to avoid unnecessary passes over the data.
 
 .. code-block:: python
 
@@ -483,9 +483,9 @@ Manipulation methods
 select
 """"""
 
-``Hist.select(expr, tolerance=1e-12)``
+`Hist.select(expr, tolerance=1e-12) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.select>`__
 
-Select a set of bins with a boolean ``expr``, returning a new ``Hist``. Cut boundaries may be approximate (within ``tolerance``), but the inequalities must be exact.
+Select a set of bins with a boolean ``expr``, returning a new `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__. Cut boundaries may be approximate (within ``tolerance``), but the inequalities must be exact.
 
 For example, if the low edge of each bin is closed, attempting to cut above it without including it is an error, as is attempting to cut below it with including it:
 
@@ -518,7 +518,7 @@ Any selection other than "``x == nan``" eliminates the nanflow because every com
 
 Selections can never select a partial bin, so filling a histogram and then selecting from it should yield exactly the same result as filtering the data before filling.
 
-Categorical ``groupby`` axes can be selected with Python's ``in`` operator and constant sets (necessary because there are no comparators for categorical data other than ``==``, ``!=``, and ``in``).
+Categorical `groupby <http://histbook.readthedocs.io/en/latest/axis-descriptors.html#histbook.axis.groupby>`__ axes can be selected with Python's ``in`` operator and constant sets (necessary because there are no comparators for categorical data other than ``==``, ``!=``, and ``in``).
 
 .. code-block:: python
 
@@ -548,7 +548,7 @@ Categorical ``groupby`` axes can be selected with Python's ``in`` operator and c
 project
 """""""
 
-``Hist.project(*axis)``
+`Hist.project(*axis) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.project>`__
 
 Reduces the number of non-profile axes to the provided set, ``*axis``, by summing over all other non-profile axes.
 
@@ -557,29 +557,29 @@ All internal data are sums that are properly combined by summing. For instance, 
 drop
 """"
 
-``Hist.drop(*profile)``
+`Hist.drop(*profile) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.drop>`__
 
 Eliminates all profile axes except the provided set, ``*profile``.
 
-If a ``Hist`` were represented as a table, non-profile axes form a compound key but profile axes are simple columns, which may be dropped without affecting any other data.
+If a `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ were represented as a table, non-profile axes form a compound key but profile axes are simple columns, which may be dropped without affecting any other data.
 
 rebin, rebinby
 """"""""""""""
 
-``Hist.rebin(axis, edges)``
+`Hist.rebin(axis, edges) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebin>`__
 
-``Hist.rebinby(axis, factor)``
+`Hist.rebinby(axis, factor) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebinby>`__
 
 Eliminates or sums neighboring bins to reduce the number of bins in an axis to ``edges`` or by a multiplicative ``factor``.
 
-A ``Hist`` with detailed binning in two dimensions can be plotted against one axis with rebinned overlays in the other axis and vice-versa.
+A `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ with detailed binning in two dimensions can be plotted against one axis with rebinned overlays in the other axis and vice-versa.
 
 Combining histograms
 --------------------
 
-Separately filled histograms (``Hist`` or ``Book``) that represent the same data can be combined by adding them with the ``+`` operator. This simply adds all bins (like ROOT's hadd).
+Separately filled histograms (`Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ or `Book <http://histbook.readthedocs.io/en/latest/books-of-histograms.html#histbook.hist.Book>`__) that represent the same data can be combined by adding them with the ``+`` operator. This simply adds all bins (like ROOT's hadd).
 
-However, you may also want to combine qualitatively different data while maintaining their distinction as a new categorical axis. A common reason for this is to make a stacked plot of different distributions, such as different Monte Carlo samples in physics. For this, you use the ``Hist.group`` or ``Book.group`` static methods.
+However, you may also want to combine qualitatively different data while maintaining their distinction as a new categorical axis. A common reason for this is to make a stacked plot of different distributions, such as different Monte Carlo samples in physics. For this, you use the `Hist.group <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.group>`__ or `Book.group <http://histbook.readthedocs.io/en/latest/books-of-histograms.html#histbook.hist.Book.group>`__ static methods.
 
 For example, suppose that we have two histograms filled with different data:
 
@@ -658,7 +658,7 @@ But grouping them creates a new categorical axis, "``source``" by default, where
 
 .. image:: docs/source/intro-14.png
 
-For both types of combination, all axes of the ``Hist`` or all histograms in the ``Book`` must be identical.
+For both types of combination, all axes of the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ or all histograms in the `Book <http://histbook.readthedocs.io/en/latest/books-of-histograms.html#histbook.hist.Book>`__ must be identical.
 
 Tabular output
 --------------
@@ -666,70 +666,56 @@ Tabular output
 table
 """""
 
-``Hist.table(*profile, count=True, effcount=False, error=True, recarray=True)``
+`Hist.table(*profile, **opts) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.table>`__
 
 Presents data from the histogram as a Numpy array,
-
-- including any ``profile`` in the list;
-- with a total ``count()`` if ``count=True``;
-- with the effective ``effcount()`` if ``effcount=True`` (used to calculate weighted profile errors);
-- with ``err(count()`` and an error for each profile if ``error=True``;
-- as a labeled record array if ``recarray=True``; otherwise, an unlabeled rank-n ndarray.
 
 fraction
 """"""""
 
-``Hist.fraction(*cut, count=True, error="clopper-pearson", level=erf(sqrt(0.5)), recarray=True)``
+`Hist.fraction(*cut, **opts) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.fraction>`__
 
-Presents cut fractions (cut efficiencies) as a function of non-profile axes for each ``cut``,
-
-- with the total ``count()`` if ``count=True``;
-- using "``clopper-pearson``", "``normal``" (naive binomial), "``wilson``", "``agresti-coull``", "``feldman-cousins``", "``jeffrey``", or "``bayesian-uniform``" errors or no errors if ``errors=None``;
-- evaluated at ``level`` confidence levels (``erf(sqrt(0.5))`` is one sigma);
-- as a labeled record array if ``recarray=True``; otherwise, an unlabeled rank-n ndarray.
+Presents cut fractions (cut efficiencies) as a function of non-profile axes for each ``cut``.
 
 pandas
 """"""
 
-``Hist.pandas(*axis, **opts)``
+`Hist.pandas(*axis, **opts) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.pandas>`__
 
-Presents a ``Hist.table`` as a Pandas DataFrame if all ``*axis`` are profiles or ``Hist.fraction`` if all ``*axis`` are cuts.
+Presents a `Hist.table <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.table>`__ as a Pandas DataFrame if all ``*axis`` are profiles or `Hist.fraction <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.fraction>`__ if all ``*axis`` are cuts.
 
 Plotting methods
 ----------------
 
-An n-dimensional histogram is plotted by spreading its bins across the horizontal axis, across overlaid curves, across a cumulative stack, or across horizontal or vertical side-by-side plots. Any dimensions not spread across a graphical channel are summed, so these plots are a kind of projection. A typical use is to ``select`` and ``rebin`` first, spread zero or more axes across overlays or trellis (side-by-side) channels, then spread the last axis across horizontal bins.
+An n-dimensional histogram is plotted by spreading its bins across the horizontal axis, across overlaid curves, across a cumulative stack, or across horizontal or vertical side-by-side plots. Any dimensions not spread across a graphical channel are summed, so these plots are a kind of projection. A typical use is to `select <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.select>`__ and `rebin <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.rebin>`__ first, spread zero or more axes across overlays or trellis (side-by-side) channels, then spread the last axis across horizontal bins.
 
-The syntax for these operations is fluent: histogram-dot-operation-dot-operation-dot-plot. A chain of selection/rebinning/plotting operations ends with ``.vegalite()`` (for a Vega-Lite JSON object) or ``.to(canvas)`` (where ``canvas`` is a callable that draws the Vega-Lite). Chainable plotting operations are:
+The syntax for these operations is fluent: histogram-dot-operation-dot-operation-dot-plot. A chain of selection/rebinning/plotting operations ends with `.vegalite() <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.vegalite>`__ (for a Vega-Lite JSON object) or `.to(canvas) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.to>`__ (where ``canvas`` is a callable that draws the Vega-Lite). Chainable plotting operations are:
 
-* ``PlottingChain.overlay(axis)`` to spread the bins of ``axis`` across overlaid curves
-* ``PlottingChain.stack(axis, order=None)`` to stack them cumulatively with an optional ``order`` (can only be used if ``area`` is the terminal operation in the chain)
-* ``PlottingChain.beside(axis)`` to spread the bins of ``axis`` across horizontally arranged plots
-* ``PlottingChain.below(axis)`` to spread the bins of ``axis`` across vertically arranged plots
+* `PlottingChain.overlay(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ to spread the bins of ``axis`` across overlaid curves
+* `PlottingChain.stack(axis, order=None) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ to stack them cumulatively with an optional ``order`` (can only be used if `PlottingChain.area(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ is the terminal operation in the chain)
+* `PlottingChain.beside(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ to spread the bins of ``axis`` across horizontally arranged plots
+* `PlottingChain.below(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ to spread the bins of ``axis`` across vertically arranged plots
 
 The following plotting operations are terminal: they must be last in a chain.
 
-* ``PlottingChain.bar(axis=None, profile=None, error=False)`` to draw bar plots (``axis`` must be specified if the histogram has more than one; ``profile`` to draw a dependent variable instead of counts; and ``error`` to overlay error bars)
-* ``PlottingChain.step(axis=None, profile=None, error=False)`` to draw step-wise histograms
-* ``PlottingChain.area(axis=None, profile=None, error=False)`` to draw filled areas (only terminal operation that can be used with a ``stack``)
-* ``PlottingChain.line(axis=None, profile=None, error=False)`` to draw connected lines
-* ``PlottingChain.marker(axis=None, profile=None, error=True)`` to draw points (note: by default, ``error=True``)
+* `PlottingChain.bar(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.bar>`__ to draw bar plots (``axis`` must be specified if the histogram has more than one; ``profile`` to draw a dependent variable instead of counts; and ``error`` to overlay error bars)
+* `PlottingChain.step(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.step>`__ to draw step-wise histograms
+* `PlottingChain.area(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ to draw filled areas (only terminal operation that can be used with a `PlottingChain.stack(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__)
+* `PlottingChain.line(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.line>`__ to draw connected lines
+* `PlottingChain.marker(axis=None, profile=None, error=True) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.marker>`__ to draw points (note: by default, ``error=True``)
 
-In addition, terminated plotting chains can be combined with the following operations. The output of these functions can be plotted with ``.vegalite()`` or ``.to(canvas)``.
+In addition, terminated plotting chains can be combined with the following operations. The output of these functions can be plotted with `.vegalite() <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.vegalite>`__ (for a Vega-Lite JSON object) or `.to(canvas) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.to>`__.
 
-* ``overlay(*plotables)`` to overlay plots
-* ``beside(*plotables)`` to arrange plots horizontally
-* ``below(*plotables)`` to arrange plots vertically
+* `overlay(*plotables) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.overlay>`__ to overlay plots
+* `beside(*plotables) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.beside>`__ to arrange plots horizontally
+* `below(*plotables) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.below>`__ to arrange plots vertically
 
 Exporting to ROOT
 -----------------
 
-``Hist.root(*axis, cache={}, name="", title="")``
+`Hist.root(*axis) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.root>`__
 
-Returns a PyROOT histogram projected on ``*axis``.
-
-- If ``cache`` is provided, the resulting object is placed in the cache so that it doesn't disappear after you plot it (due to ROOT's memory management).
-- If ``name`` and ``title`` are provided, they are assigned to PyROOT object.
+Returns a PyROOT histogram projected on ``*axis``. The type (``TH1``, ``TH2``, ``TProfile``, ...) depends on the structure of the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__.
 
 .. inclusion-marker-4-do-not-remove
 
