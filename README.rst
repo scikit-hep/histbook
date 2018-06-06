@@ -14,6 +14,11 @@ histbook
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1284427.svg
    :target: https://doi.org/10.5281/zenodo.1284427
 
+..
+
+   .. image:: http://mybinder.org/badge.svg
+      :target: https://mybinder.org/v2/gh/diana-hep/histbook/addBinder?filepath=binder%2Ftutorial.ipynb
+
 .. inclusion-marker-1-do-not-remove
 
 Versatile, high-performance histogram toolkit for Numpy.
