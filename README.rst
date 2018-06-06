@@ -64,15 +64,7 @@ Tutorial
 
 * `Getting started <#getting-started>`__
 * `Axis constructors <#axis-constructors>`__
-
-  - `groupby <#groupby>`__
-  - `groupbin <#groupbin>`__
-  - `bin <#bin>`__
-  - `intbin <#intbin>`__
-  - `split <#split>`__
-  - `cut <#cut>`__
-  - `profile <#profile>`__
-
+* `Profile plots <#profile-plots>`__
 * `Weighted data <#weighted-data>`__
 * `Books of histograms <#books-of-histograms>`__
 * `Manipulation methods <#manipulation-methods>`__
@@ -90,17 +82,6 @@ Tutorial
   - `pandas <#pandas>`__
 
 * `Plotting methods <#plotting-methods>`__
-
-  - `bar <#bar>`__
-  - `step <#step>`__
-  - `area <#area>`__
-  - `line <#line>`__
-  - `marker <#marker>`__
-  - `stack <#stack>`__
-  - `overlay <#overlay>`__
-  - `beside <#beside>`__
-  - `below <#below>`__
-
 * `Exporting to ROOT <#exporting-to-root>`__
 
 Getting started
@@ -335,56 +316,20 @@ We see the same trend in different ways. Whatever axes are not mentioned are sum
 Axis constructors
 -----------------
 
-groupby
-"""""""
+Histograms can be built from the following types of axis:
 
-``Hist.groupby(expr)``
+* ``groupby(expr)`` to bin by unique values, usually strings or integers (categorical binning)
+* ``groupbin(expr, binwidth)`` to create new bins when they appear in the data (regularly spaced, sparse binning)
+* ``bin(expr, numbins, low, high)`` for a fixed number of bins in a given range (regularly spaced, dense binning)
+* ``intbin(expr, min, max)`` for integer-valued bins between min and max, inclusive (same as above, but for integers)
+* ``split(expr, edges)`` for a fixed number of bins between a set of given edges (irregularly spaced, dense binning)
+* ``cut(expr)`` to divide the data into entries that pass or fail a boolean predicate (two bins)
+* ``profile(expr)`` to collect the mean and error in the mean of a dependent variable (not binned)
 
-Groups values computed from ``expr`` by uniqueness, usually strings or integers.
+Profile plots
+-------------
 
-groupbin
-""""""""
-
-``Hist.groupbin(expr, binwidth, origin=0, nanflow=True, closedlow=True)``
-
-Groups by binned numbers: a sparse histogram. The ``binwidth`` determines the granularity of binning with an ``origin`` to let the bins offset from zero. If ``nanflow`` is ``True``, "not a number" values will fill a single bin; if ``False``, they will be ignored. If ``closedlow`` is ``True``, intervals will include their infimum (leftmost) point; otherwise they'll include their supremum (rightmost) point.
-
-bin
-"""
-
-``Hist.bin(expr, numbins, low, high, underflow=True, overflow=True, nanflow=True, closedlow=True)``
-
-Uniformly and densely splits a dimension into ``numbins`` from ``low`` to ``high``. If ``underflow`` and/or ``overflow`` are ``True``, values below or above this range go into their own bins; if ``False``, they are ignored (similar to ``nanflow``).
-
-intbin
-""""""
-
-``Hist.intbin(expr, min, max, underflow=True, overflow=True)``
-
-Splits a dimension by integers from ``min`` (inclusive) to ``max`` (inclusive). "Not a number" is not a possible value for integers.
-
-split
-"""""
-
-``Hist.split(expr, edges, underflow=True, overflow=True, nanflow=True, closedlow=True)``
-
-Splits a dimension into the regions between ``edges``, which can be non-uniformly spaced. Without underflow, overflow, or nanflow bins, there are one fewer bins than edges.
-
-cut
-"""
-
-``Hist.cut(expr)``
-
-Splits a boolean dimension into true ("pass") and false ("fail"). This differs from ``split`` with one edge because it can include boolean logic (and/or/not).
-
-profile
-"""""""
-
-``Hist.profile(expr)``
-
-Collects statistics to view the mean and error in the mean of ``expr`` in bins of the other dimensions (same statistical treatment as ROOT).
-
-For example, we can profile "``y``" and "``z``" or as many distributions as we want in a single ``Hist`` object.
+We can profile "``y``" and "``z``" or as many distributions as we want in a single ``Hist`` object.
 
 .. code-block:: python
 
@@ -735,82 +680,28 @@ Presents a ``Hist.table`` as a Pandas DataFrame if all ``*axis`` are profiles or
 Plotting methods
 ----------------
 
-``Hist`` and objects returned by ``PlottingChain.stack``, ``PlottingChain.overlay``, ``PlottingChain.beside``, and ``PlottingChain.below`` are PlottingChains.
+An n-dimensional histogram is plotted by spreading its bins across the horizontal axis, across overlaid curves, across a cumulative stack, or across horizontal or vertical side-by-side plots. Any dimensions not spread across a graphical channel are summed, so these plots are a kind of projection. A typical use is to ``select`` and ``rebin`` first, spread zero or more axes across overlays or trellis (side-by-side) channels, then spread the last axis across horizontal bins.
 
-bar
-"""
+The syntax for these operations is fluent: histogram-dot-operation-dot-operation-dot-plot. A chain of selection/rebinning/plotting operations ends with ``.vegalite()`` (for a Vega-Lite JSON object) or ``.to(canvas)`` (where ``canvas`` is a callable that draws the Vega-Lite). Chainable plotting operations are:
 
-``PlottingChain.bar(axis=None, profile=None, error=False)``
+* ``PlottingChain.overlay(axis)`` to spread the bins of ``axis`` across overlaid curves
+* ``PlottingChain.stack(axis, order=None)`` to stack them cumulatively with an optional ``order`` (can only be used if ``area`` is the terminal operation in the chain)
+* ``PlottingChain.beside(axis)`` to spread the bins of ``axis`` across horizontally arranged plots
+* ``PlottingChain.below(axis)`` to spread the bins of ``axis`` across vertically arranged plots
 
-Creates a bar chart Plotable.
+The following plotting operations are terminal: they must be last in a chain.
 
-step
-""""
+* ``PlottingChain.bar(axis=None, profile=None, error=False)`` to draw bar plots (``axis`` must be specified if the histogram has more than one; ``profile`` to draw a dependent variable instead of counts; and ``error`` to overlay error bars)
+* ``PlottingChain.step(axis=None, profile=None, error=False)`` to draw step-wise histograms
+* ``PlottingChain.area(axis=None, profile=None, error=False)`` to draw filled areas (only terminal operation that can be used with a ``stack``)
+* ``PlottingChain.line(axis=None, profile=None, error=False)`` to draw connected lines
+* ``PlottingChain.marker(axis=None, profile=None, error=True)`` to draw points (note: by default, ``error=True``)
 
-``PlottingChain.step(axis=None, profile=None, error=False)``
+In addition, terminated plotting chains can be combined with the following operations. The output of these functions can be plotted with ``.vegalite()`` or ``.to(canvas)``.
 
-Creates a step chart Plotable.
-
-area
-""""
-
-``PlottingChain.area(axis=None, profile=None, error=False)``
-
-Creates an area chart Plotable.
-
-line
-""""
-
-``PlottingChain.line(axis=None, profile=None, error=False)``
-
-Creates a line chart Plotable.
-
-marker
-""""""
-
-``PlottingChain.marker(axis=None, profile=None, error=True)``
-
-Creates a marker chart (points with error bars) Plotable.
-
-stack
-"""""
-
-``PlottingChain.stack(axis)``
-
-Extends the PlottingChain that stacks data along ``axis``.
-
-overlay
-"""""""
-
-``PlottingChain.overlay(axis)``
-
-Extends the PlottingChain that overlays data along ``axis``.
-
-``overlay(*plotables)``
-
-Overlays two existing Plotables.
-
-beside
-""""""
-
-``PlottingChain.beside(axis)``
-
-Extends the PlottingChain that places data side-by-side along ``axis``.
-
-``beside(*plotables)``
-
-Places two existing Plotables side-by-side.
-
-below
-"""""
-
-``PlottingChain.below(axis)``
-
-Extends the PlottingChain that places data above-and-below along ``axis``.
-
-``below(*plotables)``
-
-Places two existing Plotables above-and-below.
+* ``overlay(*plotables)`` to overlay plots
+* ``beside(*plotables)`` to arrange plots horizontally
+* ``below(*plotables)`` to arrange plots vertically
 
 Exporting to ROOT
 -----------------
