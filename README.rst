@@ -675,18 +675,18 @@ An n-dimensional histogram is plotted by spreading its bins across the horizonta
 
 The syntax for these operations is fluent: histogram-dot-operation-dot-operation-dot-plot. A chain of selection/rebinning/plotting operations ends with `.vegalite() <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.vegalite>`__ (for a Vega-Lite JSON object) or `.to(canvas) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.to>`__ (where ``canvas`` is a callable that draws the Vega-Lite). Chainable plotting operations are:
 
-* `PlottingChain.overlay(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ to spread the bins of ``axis`` across overlaid curves
-* `PlottingChain.stack(axis, order=None) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ to stack them cumulatively with an optional ``order`` (can only be used if `area <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ is the terminal operation in the chain)
-* `PlottingChain.beside(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ to spread the bins of ``axis`` across horizontally arranged plots
-* `PlottingChain.below(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ to spread the bins of ``axis`` across vertically arranged plots
+* `overlay(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ to spread the bins of ``axis`` across overlaid curves
+* `stack(axis, order=None) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ to stack them cumulatively with an optional ``order`` (can only be used if `area <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ is the terminal operation in the chain)
+* `beside(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ to spread the bins of ``axis`` across horizontally arranged plots
+* `below(axis) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ to spread the bins of ``axis`` across vertically arranged plots
 
 The following plotting operations are terminal: they must be last in a chain.
 
-* `PlottingChain.bar(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.bar>`__ to draw bar plots (``axis`` must be specified if the histogram has more than one; ``profile`` to draw a dependent variable instead of counts; and ``error`` to overlay error bars)
-* `PlottingChain.step(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.step>`__ to draw step-wise histograms
-* `PlottingChain.area(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ to draw filled areas (only terminal operation that can be used with a `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__)
-* `PlottingChain.line(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.line>`__ to draw connected lines
-* `PlottingChain.marker(axis=None, profile=None, error=True) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.marker>`__ to draw points (note: by default, ``error=True``)
+* `bar(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.bar>`__ to draw bar plots (``axis`` must be specified if the histogram has more than one; ``profile`` to draw a dependent variable instead of counts; and ``error`` to overlay error bars)
+* `step(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.step>`__ to draw step-wise histograms
+* `area(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.area>`__ to draw filled areas (only terminal operation that can be used with a `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__)
+* `line(axis=None, profile=None, error=False) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.line>`__ to draw connected lines
+* `marker(axis=None, profile=None, error=True) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.marker>`__ to draw points (note: by default, ``error=True``)
 
 In addition, terminated plotting chains can be combined with the following operations. The output of these functions can be plotted with `.vegalite() <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.vegalite>`__ (for a Vega-Lite JSON object) or `.to(canvas) <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.Plotable.to>`__.
 
@@ -699,7 +699,7 @@ Exporting to ROOT
 
 `Hist.root(*axis) <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist.root>`__
 
-Returns a PyROOT histogram projected on ``*axis``. The type (``TH1``, ``TH2``, ``TProfile``, ...) depends on the structure of the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__.
+Returns a PyROOT histogram projected on ``*axis``. The type (``TH1``, ``TH2``, ``TProfile``, ...) depends on the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__.
 
 .. inclusion-marker-4-do-not-remove
 
