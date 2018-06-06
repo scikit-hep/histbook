@@ -20,13 +20,13 @@ Versatile, high-performance histogram toolkit for Numpy.
 
 .. inclusion-marker-1-5-do-not-remove
 
-histbook computes histograms from Numpy arrays. It differs from most other histogramming tools in that its histograms are primarily tables of numbers, rather than display graphics. Histograms can be filled and refilled iteratively through a large dataset, or in parallel and later combined with addition*. Histograms have arbitrarily many dimensions with convenient methods for selecting, rebinning, and projecting into lower-dimensional spaces.
+histbook computes histograms from Numpy arrays. It differs from most other histogramming tools in that its histograms are primarily tables of numbers, rather than display graphics. Histograms can be filled and refilled iteratively through a large dataset, or in parallel and later combined with addition\*. Histograms have arbitrarily many dimensions with convenient methods for selecting, rebinning, and projecting into lower-dimensional spaces.
 
 Axis dimensions are managed by algebraic expressions, rather than string labels or index positions, so they are computable: an axis named ``x + y`` requires two Numpy arrays, ``x`` and ``y``, which will be added before filling the histogram. Expressions in different axes or different histograms in the same "book" (a collection of named histograms) are computed in an optimized way, reusing subexpressions wherever possible for quicker filling without giving up clarity.
 
 Histogram data may be exported to a variety of formats, such as `Pandas <https://pandas.pydata.org/>`__, `ROOT <https://root.cern/>`__, and `HEPData <https://github.com/HEPData/hepdata-submission>`__. It can also be plotted with `Vega-Lite <https://vega.github.io/vega-lite/>`__, which makes short work of projecting many dimensions of data as overlays and trellises.
 
-\*In this respect, histbook is like histogramming packages developed for particle physics, from `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`__ in the 1970's (name similarity intended) to `ROOT <https://root.cern/>`__.
+(\*In this respect, histbook is like histogramming packages developed for particle physics, from `CERN HBOOK <http://cds.cern.ch/record/307945/files/>`__ in the 1970's (name similarity intended) to modern-day `ROOT <https://root.cern/>`__.)
 
 .. inclusion-marker-2-do-not-remove
 
