@@ -1,6 +1,15 @@
 histbook
 ========
 
+.. image:: https://travis-ci.org/diana-hep/histbook.svg?branch=master
+   :target: https://travis-ci.org/diana-hep/histbook
+
+.. image:: https://readthedocs.org/projects/histbook/badge/
+   :target: http://histbook.readthedocs.io/
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1284427.svg
+   :target: https://doi.org/10.5281/zenodo.1284427
+
 .. inclusion-marker-1-do-not-remove
 
 Versatile, high-performance histogram toolkit for Numpy.
