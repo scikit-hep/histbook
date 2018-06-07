@@ -421,6 +421,7 @@ class Plotable(PlotableFrontends):
     def _data(self, prefix, varname):
         error = self._last.error
         baseline = isinstance(self._last, (StepChannel, AreaChannel))
+
         if isinstance(self._last.axis, (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
             if isinstance(self._last, BarChannel):
                 xtype = "ordinal"
@@ -474,6 +475,8 @@ class Plotable(PlotableFrontends):
                                 if baseline and isinstance(axis, (histbook.axis.bin, histbook.axis.split)) and n.low == axis.low:
                                     recurse(j + 1, x, row + (n.low,), True)
                                     low += 1e-10*(axis.high - axis.low)
+                                elif not baseline and isinstance(axis, (histbook.axis.bin, histbook.axis.split)):
+                                    low = 0.5*(n.low + n.high)
 
                                 recurse(j + 1, x, row + (low,), base)
 
