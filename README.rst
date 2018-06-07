@@ -55,7 +55,9 @@ Recommended dependencies:
 =========================
 
 - `Pandas <https://pandas.pydata.org/>`__ for more convenient programmatic access to bin contents
-- `vega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter notebook or `vegascope <https://pypi.org/project/vegascope/>`__ to view them in a browser window without Jupyter.
+- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook.
+- `Altair <https://altair-viz.github.io/>`__ to view plots in Jupyter Notebook or JupyterLab, and to mix histograms with Altair graphics.
+- `VegaScope <https://pypi.org/project/vegascope/>`__ to view plots in a web browser *without* Jupyter.
 - `ROOT <https://root.cern/>`__ to analyze histograms in a complete statistical toolkit
 - `uproot <https://pypi.org/project/uproot/>`__ to access ROOT files without the full ROOT framework
 
@@ -103,13 +105,13 @@ Reference documentation
 Getting started
 ---------------
 
-Install histbook, pandas, and your choice of vega or vegascope (above).
+Install histbook, pandas, and your choice of ipyvega/Altair/VegaScope (above).
 
 .. code-block:: bash
 
-    pip install histbook pandas vega --user
+    pip install histbook pandas vega altair vegascope --user
 
-Then start a Jupyter notebook (vega) or Python prompt (vegascope),
+Then start a Jupyter Notebook (ipyvega or Altair), JupyterLab (Altair), or Python prompt (VegaScope),
 
 .. code-block:: python
 
@@ -120,8 +122,12 @@ and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ gr
 
 .. code-block:: python
 
-    >>> from vega import VegaLite as canvas                    # for vega in Jupyter
-    >>> import vegascope; canvas = vegascope.LocalCanvas()     # for vegascope
+    >>> from vega import VegaLite as canvas                    # for ipyvega in Jupyter Notebook
+
+    >>> import altair; canvas = altair.Chart.from_dict         # for Altair in Jupyter Notebook or Lab
+    >>> altair.renderers.enable("notebook")
+
+    >>> import vegascope; canvas = vegascope.LocalCanvas()     # for VegaScope in bare Python
 
 Let's start by histogramming a simple array of data.
 

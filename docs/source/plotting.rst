@@ -13,6 +13,7 @@ The plotting interface is fluent, meaning that the graphical content of the plot
 
 .. inheritance-diagram:: histbook.vega.overlay histbook.vega.beside histbook.vega.below
    :parts: 1
+   :top-classes: histbook.vega.Combination
 
 .. autoclass:: histbook.vega.Combination
    :members: 
