@@ -28,6 +28,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import absolute_import
+
 import numbers
 
 import numpy
@@ -371,7 +373,31 @@ class PlottingChain(object):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
         return Plotable(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-class Plotable(object):
+class PlotableFrontends(object):
+    def to(self, fcn):
+        """Call ``fcn`` on the Vega-Lite JSON for this plot."""
+        return fcn(self.vegalite())
+
+    def ipyvega(self):
+        """Draw this plot inline in a Jupyter notebook (not lab) using the vega library."""
+        import vega
+        return self.to(vega.VegaLite)
+
+    def vegascope(self, canvas=None):
+        """Draw this plot in a (possibly remote) browser using the VegaScope library."""
+        import vegascope
+        if canvas is None:
+            if not hasattr(vegascope, "canvas"):
+                vegascope.canvas = vegascope.LocalCanvas()
+            canvas = vegascope.canvas
+        return self.to(canvas)
+
+    def altair(self, validate=True):
+        """Return an altair.Chart of this plot using the Altair library."""
+        import altair
+        return self.to(lambda x: altair.Chart.from_dict(x, validate=validate))
+
+class Plotable(PlotableFrontends):
     """Mix-in for :py:class:`Channels <histbook.vega.Channel>` and :py:class:`Combinations <histbook.vega.Combination>` that can be plotted."""
 
     def __init__(self, source, item):
@@ -592,30 +618,28 @@ class Plotable(object):
         marks, encodings, transforms = self._vegalite(axis, domains, "a")
 
         if len(marks) == 1:
-            return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                    "width": self._last.width,
-                    "height": self._last.height,
-                    "title": self._last.title,
-                    "config": self._last.config,
-                    "data": {"values": data},
-                    "mark": marks[0],
-                    "encoding": encodings[0],
-                    "transform": transforms[0]}
+            out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                   "data": {"values": data},
+                   "mark": marks[0],
+                   "encoding": encodings[0],
+                   "transform": transforms[0]}
 
         else:
-            return {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                    "width": self._last.width,
-                    "height": self._last.height,
-                    "title": self._last.title,
-                    "config": self._last.config,
-                    "data": {"values": data},
-                    "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]}
+            out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                   "data": {"values": data},
+                   "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]}
 
-    def to(self, fcn):
-        """Call ``fcn`` on the Vega-Lite JSON for this plot."""
-        return fcn(self.vegalite())
+        if self._last.width is not None:
+            out["width"] = self._last.width
+        if self._last.height is not None:
+            out["height"] = self._last.height
+        if self._last.title is not None:
+            out["title"] = self._last.title
+        if self._last.config is not None:
+            out["config"] = self._last.config
+        return out
 
-class Combination(object):
+class Combination(PlotableFrontends):
     """Abstract class for :py:class:`Plotables <histbook.vega.Plotable>` that have been combined as an overlay or side-by-side plots."""
 
     def __init__(self, *plotables):
@@ -643,9 +667,6 @@ class Combination(object):
             out.append("abcdefghijklmnopqrstuvwxyz"[i % 26])
             i //= 26
         return "".join(reversed(out))
-
-    def to(self, fcn):
-        return fcn(self.vegalite())
 
 class overlay(Combination):
     """:py:class:`Plotable <histbook.vega.Plotable>` overlaying two or more independently produced :py:class:`Plotables <histbook.vega.Plotable>`."""
