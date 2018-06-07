@@ -55,9 +55,9 @@ Recommended dependencies:
 =========================
 
 - `Pandas <https://pandas.pydata.org/>`__ for more convenient programmatic access to bin contents
-- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook.
-- `Altair <https://altair-viz.github.io/>`__ to view plots in Jupyter Notebook or JupyterLab, and to mix histograms with Altair graphics.
-- `VegaScope <https://pypi.org/project/vegascope/>`__ to view plots in a web browser *without* Jupyter.
+- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook
+- `Altair <https://altair-viz.github.io/>`__ to view plots in Jupyter Notebook or JupyterLab, and to mix histograms with Altair graphics
+- `VegaScope <https://pypi.org/project/vegascope/>`__ to view plots in a web browser *without* Jupyter
 - `ROOT <https://root.cern/>`__ to analyze histograms in a complete statistical toolkit
 - `uproot <https://pypi.org/project/uproot/>`__ to access ROOT files without the full ROOT framework
 
