@@ -397,6 +397,9 @@ class PlotableFrontends(object):
         import altair
         return self.to(lambda x: altair.Chart.from_dict(x, validate=validate))
 
+    def _repr_mimebundle_(self, include=None, exclude=None, **kwargs):
+        return {"application/vnd.vegalite.v2+json": self.vegalite()}
+
 class Plotable(PlotableFrontends):
     """Mix-in for :py:class:`Channels <histbook.vega.Channel>` and :py:class:`Combinations <histbook.vega.Combination>` that can be plotted."""
 
