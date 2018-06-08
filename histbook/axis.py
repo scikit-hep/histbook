@@ -194,11 +194,9 @@ class Axis(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    _packtype = []
-
     @staticmethod
     def _unpack(args):
-        return Axis._packtype[args[0]](*args[1:])
+        return args[0](*args[1:])
 
 class GroupAxis(Axis):
     """Abstract class for histogram axes that fill bin contents as a dict (dynamic memory allocation)."""
@@ -287,9 +285,7 @@ class groupby(GroupAxis):
         return [IntervalPair((n, content[n])) for n in sorted(content)]
 
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr))
-
-Axis._packtype.append(groupby)
+        return (self.__class__, getattr(self, "_original", self._expr))
 
 class groupbin(GroupAxis, _RebinFactor):
     """
@@ -467,9 +463,7 @@ class groupbin(GroupAxis, _RebinFactor):
         return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
 
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
-
-Axis._packtype.append(groupbin)
+        return (self.__class__, getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
 
 class bin(FixedAxis, _RebinFactor, _RebinSplit):
     """
@@ -685,9 +679,7 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
                              ([IntervalNaN()] if self.nanflow else []))
             
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
-Axis._packtype.append(bin)
+        return (self.__class__, getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
 class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     """
@@ -873,9 +865,7 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
-
-Axis._packtype.append(intbin)
+        return (self.__class__, getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
 
 class split(FixedAxis, _RebinFactor, _RebinSplit):
     """
@@ -1138,9 +1128,7 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
                              ([IntervalNaN()] if self.nanflow else []))
 
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
-Axis._packtype.append(split)
+        return (self.__class__, getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
 class cut(FixedAxis):
     """
@@ -1205,9 +1193,7 @@ class cut(FixedAxis):
         return [False, True]
 
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr))
-
-Axis._packtype.append(cut)
+        return (self.__class__, getattr(self, "_original", self._expr))
 
 class _nullaxis(FixedAxis):
     def __repr__(self):
@@ -1281,6 +1267,4 @@ class profile(ProfileAxis):
         return hash((self.__class__, self._expr))
 
     def _pack(self):
-        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr))
-
-Axis._packtype.append(profile)
+        return (self.__class__, getattr(self, "_original", self._expr))
