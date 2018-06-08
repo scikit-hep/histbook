@@ -776,3 +776,9 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
                 add(self._content[n], other._content)
             else:
                 self._content[n] = Hist._copycontent(other._content)
+
+    # def __getstate__():
+    #     return None
+
+    # def __setstate__(state):
+    #     pass
