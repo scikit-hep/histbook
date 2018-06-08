@@ -231,6 +231,9 @@ class groupby(GroupAxis):
     def __init__(self, expr):
         self._expr = expr
 
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr))
+
     def __repr__(self):
         return "groupby({0})".format(repr(self._expr))
 
@@ -284,9 +287,6 @@ class groupby(GroupAxis):
             raise TypeError("groupby content must be a dict")
         return [IntervalPair((n, content[n])) for n in sorted(content)]
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
-
 class groupbin(GroupAxis, _RebinFactor):
     """
     Describes an axis of sparse, numeric values. 
@@ -319,6 +319,9 @@ class groupbin(GroupAxis, _RebinFactor):
         self._origin = self._real(origin, "origin")
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._binwidth)]
@@ -462,9 +465,6 @@ class groupbin(GroupAxis, _RebinFactor):
             raise TypeError("groupbin content must be a dict")
         return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
-
 class bin(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of regularly spaced, dense, numeric values. 
@@ -509,6 +509,9 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
     def _checktot(self):
         if self.totbins == 0:
@@ -678,8 +681,6 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
                              ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
             
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
 class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     """
@@ -711,6 +712,9 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         self._underflow = self._bool(underflow, "underflow")
         self._overflow = self._bool(overflow, "overflow")
         self._checktot()
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
 
     def _checktot(self):
         if self._min > self._max:
@@ -864,9 +868,6 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
                              [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
-
 class split(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of irregularly spaced, dense, numeric values. 
@@ -908,6 +909,9 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
     def _checktot(self):
         if self.totbins == 0:
@@ -1127,9 +1131,6 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
                              ([Interval(float(self._edges[-1]), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
 class cut(FixedAxis):
     """
     Describes an axis of two bins: those that fail and those that pass a boolean expression.
@@ -1144,6 +1145,9 @@ class cut(FixedAxis):
 
     def __init__(self, expr):
         self._expr = expr
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr))
 
     def __repr__(self):
         return "cut({0})".format(repr(self._expr))
@@ -1191,9 +1195,6 @@ class cut(FixedAxis):
     def keys(self, content=None):
         """Returns key labels in the order of the bin content, to index the content."""
         return [False, True]
-
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
 
 class _nullaxis(FixedAxis):
     def __repr__(self):
@@ -1243,6 +1244,9 @@ class profile(ProfileAxis):
     def __init__(self, expr):
         self._expr = expr
 
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr))
+
     def __repr__(self):
         return "profile({0})".format(repr(self._expr))
 
@@ -1265,6 +1269,3 @@ class profile(ProfileAxis):
 
     def __hash__(self):
         return hash((self.__class__, self._expr))
-
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
