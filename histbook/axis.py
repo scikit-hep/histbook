@@ -194,6 +194,12 @@ class Axis(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    _packtype = []
+
+    @staticmethod
+    def _unpack(args):
+        return Axis._packtype[args[0]](*args[1:])
+
 class GroupAxis(Axis):
     """Abstract class for histogram axes that fill bin contents as a dict (dynamic memory allocation)."""
 
@@ -279,6 +285,11 @@ class groupby(GroupAxis):
         if not isinstance(content, dict):
             raise TypeError("groupby content must be a dict")
         return [IntervalPair((n, content[n])) for n in sorted(content)]
+
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr))
+
+Axis._packtype.append(groupby)
 
 class groupbin(GroupAxis, _RebinFactor):
     """
@@ -454,6 +465,11 @@ class groupbin(GroupAxis, _RebinFactor):
         if not isinstance(content, dict):
             raise TypeError("groupbin content must be a dict")
         return [IntervalPair((Interval(n, n + float(self._binwidth), closedlow=self._closedlow, closedhigh=(not self._closedlow)), content[n])) for n in sorted(content)]
+
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
+
+Axis._packtype.append(groupbin)
 
 class bin(FixedAxis, _RebinFactor, _RebinSplit):
     """
@@ -668,6 +684,11 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
                              ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
             
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
+Axis._packtype.append(bin)
+
 class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of integer values. 
@@ -850,6 +871,11 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         return IntervalTuple(([Interval(float("-inf"), int(self._min), closedlow=True, closedhigh=False)] if self.underflow else []) +
                              [i for i in range(int(self._min), int(self._max) + 1)] +
                              ([Interval(int(self._max), float("inf"), closedlow=False, closedhigh=True)] if self.overflow else []))
+
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
+
+Axis._packtype.append(intbin)
 
 class split(FixedAxis, _RebinFactor, _RebinSplit):
     """
@@ -1111,6 +1137,11 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
                              ([Interval(float(self._edges[-1]), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
 
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
+Axis._packtype.append(split)
+
 class cut(FixedAxis):
     """
     Describes an axis of two bins: those that fail and those that pass a boolean expression.
@@ -1172,6 +1203,11 @@ class cut(FixedAxis):
     def keys(self, content=None):
         """Returns key labels in the order of the bin content, to index the content."""
         return [False, True]
+
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr))
+
+Axis._packtype.append(cut)
 
 class _nullaxis(FixedAxis):
     def __repr__(self):
@@ -1243,3 +1279,8 @@ class profile(ProfileAxis):
 
     def __hash__(self):
         return hash((self.__class__, self._expr))
+
+    def _pack(self):
+        return (Axis._packtype.index(self.__class__), getattr(self, "_original", self._expr))
+
+Axis._packtype.append(profile)

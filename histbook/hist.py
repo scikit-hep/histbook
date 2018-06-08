@@ -778,9 +778,10 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
                 self._content[n] = Hist._copycontent(other._content)
 
     def __getstate__(self):
-        return (self._group + self._fixed + self._profile, self._weight, None if len(self._defs) == 0 else self._defs, self._content)
+        packed = tuple(x._pack() for x in self._group + self._fixed + self._profile)
+        return (packed, self._weight, None if len(self._defs) == 0 else self._defs, self._content)
 
     def __setstate__(self, state):
-        axis, weight, defs, content = state
-        self.__init__(*axis, weight=weight, defs=({} if defs is None else defs))
+        packed, weight, defs, content = state
+        self.__init__(*[histbook.axis.Axis._unpack(x) for x in packed], weight=weight, defs=({} if defs is None else defs))
         self._content = content
