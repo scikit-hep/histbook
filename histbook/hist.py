@@ -38,6 +38,7 @@ COUNTTYPE = numpy.float64
 
 import histbook.axis
 import histbook.calc
+import histbook.calc.spark
 import histbook.export
 import histbook.expr
 import histbook.proj
