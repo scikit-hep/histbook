@@ -194,6 +194,10 @@ class Axis(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    @staticmethod
+    def _unpack(args):
+        return args[0](*args[1:])
+
 class GroupAxis(Axis):
     """Abstract class for histogram axes that fill bin contents as a dict (dynamic memory allocation)."""
 
@@ -226,6 +230,9 @@ class groupby(GroupAxis):
 
     def __init__(self, expr):
         self._expr = expr
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr))
 
     def __repr__(self):
         return "groupby({0})".format(repr(self._expr))
@@ -312,6 +319,9 @@ class groupbin(GroupAxis, _RebinFactor):
         self._origin = self._real(origin, "origin")
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._binwidth)]
@@ -500,6 +510,9 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
 
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
     def _checktot(self):
         if self.totbins == 0:
             raise ValueError("at least one bin is required (may be over/under/nanflow)")
@@ -668,6 +681,7 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
                              ([Interval(float(self._high), float("inf"), closedlow=self._closedlow, closedhigh=True)] if self.overflow else []) +
                              ([IntervalNaN()] if self.nanflow else []))
             
+
 class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     """
     Describes an axis of integer values. 
@@ -698,6 +712,9 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         self._underflow = self._bool(underflow, "underflow")
         self._overflow = self._bool(overflow, "overflow")
         self._checktot()
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
 
     def _checktot(self):
         if self._min > self._max:
@@ -892,6 +909,9 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
         self._nanflow = self._bool(nanflow, "nanflow")
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
     def _checktot(self):
         if self.totbins == 0:
@@ -1126,6 +1146,9 @@ class cut(FixedAxis):
     def __init__(self, expr):
         self._expr = expr
 
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr))
+
     def __repr__(self):
         return "cut({0})".format(repr(self._expr))
 
@@ -1220,6 +1243,9 @@ class profile(ProfileAxis):
     """
     def __init__(self, expr):
         self._expr = expr
+
+    def _pack(self):
+        return (self.__class__, getattr(self, "_original", self._expr))
 
     def __repr__(self):
         return "profile({0})".format(repr(self._expr))
