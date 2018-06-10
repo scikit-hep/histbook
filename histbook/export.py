@@ -88,7 +88,10 @@ class Exportable(object):
                 elif isinstance(axis, histbook.axis.groupbin):
                     closed = "left" if axis.closedlow else "right"
                     for n in sorted(content):
-                        index(j + 1, content[n], key + (pd.Interval(n, n + float(axis.binwidth), closed=closed),))
+                        if n == "NaN":
+                            index(j + 1, content[n], key + ("{NaN}",))
+                        else:
+                            index(j + 1, content[n], key + (pd.Interval(n, n + float(axis.binwidth), closed=closed),))
 
                 else:
                     if content is not None:
