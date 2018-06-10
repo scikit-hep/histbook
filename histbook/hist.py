@@ -32,12 +32,14 @@ import collections
 import functools
 import numbers
 import sys
+import threading
 
 import numpy
 COUNTTYPE = numpy.float64
 
 import histbook.axis
 import histbook.calc
+import histbook.calc.spark
 import histbook.export
 import histbook.expr
 import histbook.proj
@@ -234,18 +236,31 @@ class Book(collections.MutableMapping, Fillable):
         **more : dict \u2192 Numpy array or number
             more field values
         """
-        if arrays is None:
-            arrays = more
-        elif len(more) == 0:
-            pass
-        else:
-            arrays = _ChainedDict(arrays, more)
 
-        for x in self._hists.values():
-            x._prefill()
-        length = self._fill(arrays)
-        for x in self._hists.values():
-            x._postfill(arrays, length)
+        if histbook.calc.spark.isspark(arrays, more):
+            # special SparkSQL
+            threads = [threading.Thread(target=histbook.calc.spark.fillspark(x, arrays)) for x in self._hists.values()]
+            for x in self._hists.values():
+                x._prefill()
+            for x in threads:
+                x.start()
+            for x in threads:
+                x.join()
+
+        else:
+            # standard Numpy
+            if arrays is None:
+                arrays = more
+            elif len(more) == 0:
+                pass
+            else:
+                arrays = _ChainedDict(arrays, more)
+
+            for x in self._hists.values():
+                x._prefill()
+            length = self._fill(arrays)
+            for x in self._hists.values():
+                x._postfill(arrays, length)
 
     def __add__(self, other):
         if not isinstance(other, Book):
@@ -487,16 +502,24 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
             self._content = Hist._copycontent(self._content)
             self._copyonfill = False
 
-        if arrays is None:
-            arrays = more
-        elif len(more) == 0:
-            pass
-        else:
-            arrays = _ChainedDict(arrays, more)
+        if histbook.calc.spark.isspark(arrays, more):
+            # special SparkSQL
+            wait = histbook.calc.spark.fillspark(self, arrays)
+            self._prefill()
+            wait()
 
-        self._prefill()
-        length = self._fill(arrays)
-        self._postfill(arrays, length)
+        else:
+            # standard Numpy
+            if arrays is None:
+                arrays = more
+            elif len(more) == 0:
+                pass
+            else:
+                arrays = _ChainedDict(arrays, more)
+
+            self._prefill()
+            length = self._fill(arrays)
+            self._postfill(arrays, length)
 
     def _prefill(self):
         if self._content is None:
