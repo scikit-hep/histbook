@@ -28,6 +28,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import math
+
 import numpy
 
 import histbook.axis
@@ -43,15 +45,137 @@ def isspark(arrays, more):
 
 def tocolumns(df, expr):
     if isinstance(expr, histbook.expr.Const):
-        import pyspark.sql.functions
-        return pyspark.sql.functions.lit(expr.value)
+        import pyspark.sql.functions as fcns
+        return fcns.lit(expr.value)
     elif isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return df[expr.value]
     elif isinstance(expr, histbook.expr.Call):
-        if expr.fcn == "numpy.multiply":
-            return tocolumns(df, expr.args[0]) * tocolumns(df, expr.args[1])
+        if expr.fcn == "abs":
+            return fcns.abs(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "max":
+            return fcns.greatest(*[tocolumns(df, x) for x in expr.args])
+        elif expr.fcn == "min":
+            return fcns.least(*[tocolumns(df, x) for x in expr.args])
+        elif expr.fcn == "acos":
+            return fcns.acos(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "acosh":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "asin":
+            return fcns.asin(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "asinh":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "atan2":
+            return fcns.atan2(tocolumns(df, expr.args[0]), tocolumns(df, expr.args[1]))
+        elif expr.fcn == "atan":
+            return fcns.atan(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "atanh":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "ceil":
+            return fcns.ceil(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "copysign":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "cos":
+            return fcns.cos(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "cosh":
+            return fcns.cosh(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "rad2deg":
+            return tocolumns(df, expr.args[0]) * (180.0 / math.pi)
+        elif expr.fcn == "erfc":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "erf":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "exp":
+            return fcns.exp(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "expm1":
+            return fcns.expm1(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "factorial":
+            return fcns.factorial(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "floor":
+            return fcns.floor(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "fmod":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "gamma":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "hypot":
+            return fcns.hypot(tocolumns(df, expr.args[0]), tocolumns(df, expr.args[1]))
+        elif expr.fcn == "isinf":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "isnan":
+            return fcns.isnan(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "lgamma":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "log10":
+            return fcns.log10(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "log1p":
+            return fcns.log1p(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "log":
+            return fcns.log(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "pow":
+            return fcns.pow(tocolumns(df, expr.args[0]), tocolumns(df, expr.args[1]))
+        elif expr.fcn == "deg2rad":
+            return tocolumns(df, expr.args[0]) * (math.pi / 180.0)
+        elif expr.fcn == "sinh":
+            return fcns.sinh(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "sin":
+            return fcns.sin(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "sqrt":
+            return fcns.sqrt(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "tanh":
+            return fcns.tanh(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "tan":
+            return fcns.tan(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "trunc":
+            raise NotImplementedError(expr.fcn)  # FIXME (fcns.trunc is for dates)
+        elif expr.fcn == "xor":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "conjugate":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "exp2":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "heaviside":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "isfinite":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "left_shift" and isinstance(expr.args[1], histbook.expr.Const):
+            return fcns.shiftLeft(tocolumns(df, expr.args[0]), expr.args[1].value)
+        elif expr.fcn == "log2":
+            return fcns.log2(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "logaddexp2":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "logaddexp":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "mod":
+            return tocolumns(df, expr.args[0]) % tocolumns(df, expr.args[1])
+        elif expr.fcn == "right_shift" and isinstance(expr.args[1], histbook.expr.Const):
+            return fcns.shiftRight(tocolumns(df, expr.args[0]), expr.args[1].value)
+        elif expr.fcn == "rint":
+            return fcns.rint(tocolumns(df, expr.args[0]))
+        elif expr.fcn == "sign":
+            raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "numpy.equal":
+            return tocolumns(df, expr.args[0]) == tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.not_equal":
+            return tocolumns(df, expr.args[0]) != tocolumns(df, expr.args[1])
         elif expr.fcn == "numpy.less":
             return tocolumns(df, expr.args[0]) < tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.less_equal":
+            return tocolumns(df, expr.args[0]) <= tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.isin":
+            return tocolumns(df, expr.args[0]) in tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.logical_not":
+            return ~tocolumns(df, expr.args[0])
+        elif expr.fcn == "numpy.add":
+            return tocolumns(df, expr.args[0]) + tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.subtract":
+            return tocolumns(df, expr.args[0]) - tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.multiply":
+            return tocolumns(df, expr.args[0]) * tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.true_divide":
+            return tocolumns(df, expr.args[0]) / tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.logical_or":
+            return tocolumns(df, expr.args[0]) | tocolumns(df, expr.args[1])
+        elif expr.fcn == "numpy.logical_and":
+            return tocolumns(df, expr.args[0]) & tocolumns(df, expr.args[1])
         else:
             raise NotImplementedError(expr.fcn)
     else:
