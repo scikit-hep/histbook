@@ -196,7 +196,7 @@ def fillspark(hist, df):
 
         elif isinstance(axis, histbook.axis.groupbin):
             scaled = (exprcol - float(axis.origin)) * (1.0/float(axis.binwidth))
-            if bin.closedlow:
+            if axis.closedlow:
                 discretized = fcns.floor(scaled)
             else:
                 discretized = fcns.ceil(scaled) - 1
@@ -204,7 +204,7 @@ def fillspark(hist, df):
 
         elif isinstance(axis, histbook.axis.bin):
             scaled = (exprcol - float(axis.low)) * (int(axis.numbins) / (float(axis.high) - float(axis.low)))
-            if bin.closedlow:
+            if axis.closedlow:
                 discretized = fcns.floor(scaled) + 1
             else:
                 discretized = fcns.ceil(scaled)
@@ -287,9 +287,10 @@ def fillspark(hist, df):
 
         return content
 
-    hist._prefill()
+    query = df2.groupBy(df2[df2.columns[0]]).agg(*aggs)
 
-    out = df2.groupBy(df2[df2.columns[0]]).agg(*aggs).collect()
+    def wait():
+        for row in query.collect():
+            recurse(row[0], row[1:], hist._group + hist._fixed, hist._content)
 
-    for row in out:
-        recurse(row[0], row[1:], hist._group + hist._fixed, hist._content)
+    return wait
