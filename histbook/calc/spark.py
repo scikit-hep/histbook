@@ -190,6 +190,7 @@ def fillspark(hist, df):
     indexes = []
     for axis in hist._group + hist._fixed:
         exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
+
         if isinstance(axis, histbook.axis.groupby):
             indexes.append(exprcol)
 
@@ -229,23 +230,31 @@ def fillspark(hist, df):
         else:
             raise AssertionError(axis)
 
-    aggs = []
-    for axis in hist._profile:
-        raise NotImplementedError   # add aggregations
-
     index = fcns.struct(*indexes).alias("@index")
-
     if hist._weight is None:
-        df2 = df.select(index)
-        aggs.append(fcns.count(df2[df2.columns[0]]))
-
+        selectcols = [index]
     else:
-        exprcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
-        df2 = df.select(index, exprcol, exprcol*exprcol)
-        aggs.append(fcns.sum(df2[df2.columns[1]]))
-        aggs.append(fcns.sum(df2[df2.columns[2]]))
+        weightcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
+        selectcols = [index, weightcol, weightcol*weightcol]
+        
+    for axis in hist._profile:
+        exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
+        if hist._weight is None:
+            selectcols.append(exprcol)
+            selectcols.append(exprcol*exprcol)
+        else:
+            selectcols.append(exprcol*weightcol)
+            selectcols.append(exprcol*exprcol*weightcol)
 
-    out = df2.groupBy(df2[df2.columns[0]]).agg(*aggs).collect()
+    aggs = []
+    if hist._weight is None:
+        df2 = df.select(*selectcols)
+        aggs.append(fcns.count(df2[df2.columns[0]]))
+    else:
+        df2 = df.select(*selectcols)
+
+    for n in df2.columns[1:]:
+        aggs.append(fcns.sum(df2[n]))
 
     def getornew(content, key, nextaxis):
         if key in content:
@@ -278,6 +287,9 @@ def fillspark(hist, df):
 
         return content
 
+    hist._prefill()
+
+    out = df2.groupBy(df2[df2.columns[0]]).agg(*aggs).collect()
+
     for row in out:
-        hist._prefill()
         recurse(row[0], row[1:], hist._group + hist._fixed, hist._content)
