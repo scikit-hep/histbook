@@ -31,6 +31,7 @@
 import histbook.axis
 import histbook.instr
 import histbook.expr
+import histbook.hist
 
 def isspark(arrays, more):
     out = arrays.__class__.__name__ == "DataFrame" and arrays.__class__.__module__ == "pyspark.sql.dataframe"
@@ -48,83 +49,90 @@ def tocolumns(df, expr):
         raise NotImplementedError
     else:
         raise AssertionError(expr)
-    
+
+df = spark.read.csv("businesses_plus.csv", header=True)
+from histbook import *
+
 def fillspark(hist, df):
-    pass
-    
+    import pyspark.sql.functions as fcns
+    indexes = []
+    for axis in hist._group + hist._fixed:
+        exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
+        if isinstance(axis, histbook.axis.groupby):
+            indexes.append(exprcol)
+        elif isinstance(axis, histbook.axis.groupbin):
+            scaled = (exprcol - float(axis.origin)) * (1.0/float(axis.binwidth))
+            if bin.closedlow:
+                discretized = fcns.floor(scaled) + 1
+            else:
+                discretized = fcns.ceil(scaled)
+            indexes.append(fcns.nanvl(discretized * float(axis.binwidth) + float(axis.origin), fcns.lit("NaN")))
+        elif isinstance(axis, histbook.axis.bin):
+            scaled = (exprcol - float(axis.low)) * (int(axis.numbins) / (float(axis.high) - float(axis.low)))
+            if bin.closedlow:
+                discretized = fcns.floor(scaled) + 1
+            else:
+                discretized = fcns.ceil(scaled)
+            indexes.append(fcns.when(fcns.isnan(exprcol), int(axis.numbins) + 2).otherwise(fcns.greatest(fcns.lit(0), fcns.least(fcns.lit(int(axis.numbins) + 1), discretized))))
+        elif isinstance(axis, histbook.axis.intbin):
+            indexes.append(fcns.greatest(fcns.lit(0), fcns.least(fcns.lit(int(axis.max) - int(axis.min) + 1), fcns.round(exprcol - int(axis.min) + 1))))
+        elif isinstance(axis, histbook.axis.split):
+            if axis.closedlow:
+                def build(x, i):
+                    if i == 0:
+                        return build(fcns.when(exprcol < float(axis.edges[0])), i + 1)
+                    elif i < len(axis.edges):
+                        return build(x.when(exprcol < float(axis.edges[i])), i + 1)
+                    else:
+                        return x.otherwise(i)
+            else:
+                def build(x, i):
+                    if i < len(axis.edges):
+                        return build(x.when(exprcol <= float(axis.edges[i])), i + 1)
+                    else:
+                        return x.otherwise(i)
+            indexes.append(build(fcns.when(fcns.isnan(exprcol), len(axis.edges) + 1), 0))
+        elif isinstance(axis, histbook.axis.cut):
+            indexes.append(fcns.when(exprcol, 0, 1))
+        else:
+            raise AssertionError(axis)
+    aggs = []
+    for axis in hist._profile:
+        raise NotImplementedError   # add aggregations
+    index = fcns.struct(*indexes).alias("@index")
+    if hist._weight is None:
+        df2 = df.select(index)
+        aggs.append(fcns.count(df2[df2.columns[0]]))
+    else:
+        exprcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
+        df2 = df.select(index, exprcol, exprcol*exprcol)
+        aggs.append(fcns.sum(df2[df2.columns[1]]))
+        aggs.append(fcns.sum(df2[df2.columns[2]]))
+    # df2.groupBy(df2[df2.columns[0]]).agg(*aggs).show()
+    out = df2.groupBy(df2[df2.columns[0]]).agg(*aggs).collect()
+    def getornew(content, key, nextaxis):
+        if key in content:
+            return content[key]
+        elif isinstance(nextaxis, histbook.axis.GroupAxis):
+            return {}
+        else:
+            return numpy.zeros(hist._shape, dtype=histbook.hist.COUNTTYPE)
+    def recurse(index, columns, axis, content):
+        if len(axis) == 0:
+            content += columns
+        elif isinstance(axis[0], (histbook.axis.groupby, histbook.axis.groupbin)):
+            recurse(index[1:], columns, axis[1:], getornew(content, index[0], axis[1] if len(axis) > 1 else None))
+        elif isinstance(axis[0], (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
+            i = index[0] - (1 if not axis[0].underflow else 0)
+            if i < axis[0].totbins:
+                recurse(index[1:], columns, axis[1:], content[i])
+        elif isinstance(axis[0], histbook.axis.cut):
+            recurse(index[1:], columns, axis[1:], content[0 if index[0] else 1])
+        else:
+            raise AssertionError(axis[0])
+    for row in out:
+        hist._prefill()
+        recurse(row[0], row[1:], hist._group + hist._fixed, hist._content)
 
-
-
-# df = spark.read.csv("businesses_plus.csv", header=True)
-# from histbook import *
-# hist = Hist(bin("latitude", 3, 37.7, 37.8), bin("longitude", 3, -122.5, -121.7))
-
-# import pyspark.sql.functions
-# indexes = []
-# for axis in hist._group + hist._fixed:
-#     exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
-#     if isinstance(axis, histbook.axis.groupby):
-#         raise NotImplementedError
-#     elif isinstance(axis, histbook.axis.groupbin):
-#         raise NotImplementedError
-#     elif isinstance(axis, histbook.axis.bin):
-#         scaled = (exprcol - axis.low) * (axis.numbins / (axis.high - axis.low))
-#         if bin.closedlow:
-#             discretized = pyspark.sql.functions.floor(scaled) + 1
-#         else:
-#             discretized = pyspark.sql.functions.ceil(scaled)
-#         indexes.append(pyspark.sql.functions.greatest(pyspark.sql.functions.lit(0), pyspark.sql.functions.least(pyspark.sql.functions.lit(axis.numbins + 1), discretized)))
-#     elif isinstance(axis, histbook.axis.intbin):
-#         raise NotImplementedError
-#     elif isinstance(axis, histbook.axis.split):
-#         raise NotImplementedError
-#     elif isinstance(axis, histbook.axis.cut):
-#         raise NotImplementedError
-#     elif isinstance(axis, histbook.axis.profile):
-#         raise NotImplementedError
-#     else:
-#         raise AssertionError(axis)
-
-# aggs = []
-# for axis in hist._profile:
-#     raise NotImplementedError   # add aggregations
-
-# index = pyspark.sql.functions.struct(*indexes).alias("@index")
-
-# if hist._weight is None:
-#     df2 = df.select(index)
-#     aggs.append(pyspark.sql.functions.count(df2[df2.columns[0]]))
-# else:
-#     exprcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
-#     df2 = df.select(index, exprcol, exprcol*exprcol)
-#     aggs.append(pyspark.sql.functions.sum(df2[df2.columns[1]]))
-#     aggs.append(pyspark.sql.functions.sum(df2[df2.columns[2]]))
-
-# # df2.groupBy(df2[df2.columns[0]]).agg(*aggs).show()
-
-# out = df2.groupBy(df2[df2.columns[0]]).agg(*aggs).collect()
-
-# def recurse(index, columns, axis, content):
-#     if len(axis) == 0:
-#         content += columns
-#     elif isinstance(axis[0], histbook.axis.groupby):
-#         raise NotImplementedError
-#     elif isinstance(axis[0], histbook.axis.groupbin):
-#         raise NotImplementedError
-#     elif isinstance(axis[0], histbook.axis.bin):
-#         i = index[0] - (1 if not axis[0].underflow else 0)
-#         if i < axis[0].totbins:
-#             recurse(index[1:], columns, axis[1:], content[i])
-#     elif isinstance(axis[0], histbook.axis.intbin):
-#         raise NotImplementedError
-#     elif isinstance(axis[0], histbook.axis.split):
-#         raise NotImplementedError
-#     elif isinstance(axis[0], histbook.axis.cut):
-#         raise NotImplementedError
-#     else:
-#         raise AssertionError(axis[0])
-
-# for row in out:
-#     hist._prefill()
-#     recurse(row[0], row[1:], hist._group + hist._fixed, hist._content)
-
+hist = Hist(bin("latitude", 3, 37.7, 37.8), bin("longitude", 3, -122.5, -121.7))
+fillspark(hist, df)
