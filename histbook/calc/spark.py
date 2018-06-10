@@ -47,8 +47,10 @@ def tocolumns(df, expr):
     if isinstance(expr, histbook.expr.Const):
         import pyspark.sql.functions as fcns
         return fcns.lit(expr.value)
+
     elif isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return df[expr.value]
+
     elif isinstance(expr, histbook.expr.Call):
         if expr.fcn == "abs":
             return fcns.abs(tocolumns(df, expr.args[0]))
@@ -178,16 +180,19 @@ def tocolumns(df, expr):
             return tocolumns(df, expr.args[0]) & tocolumns(df, expr.args[1])
         else:
             raise NotImplementedError(expr.fcn)
+
     else:
         raise AssertionError(expr)
 
 def fillspark(hist, df):
     import pyspark.sql.functions as fcns
+
     indexes = []
     for axis in hist._group + hist._fixed:
         exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
         if isinstance(axis, histbook.axis.groupby):
             indexes.append(exprcol)
+
         elif isinstance(axis, histbook.axis.groupbin):
             scaled = (exprcol - float(axis.origin)) * (1.0/float(axis.binwidth))
             if bin.closedlow:
@@ -195,6 +200,7 @@ def fillspark(hist, df):
             else:
                 discretized = fcns.ceil(scaled) - 1
             indexes.append(fcns.nanvl(discretized * float(axis.binwidth) + float(axis.origin), fcns.lit("NaN")))
+
         elif isinstance(axis, histbook.axis.bin):
             scaled = (exprcol - float(axis.low)) * (int(axis.numbins) / (float(axis.high) - float(axis.low)))
             if bin.closedlow:
@@ -202,8 +208,10 @@ def fillspark(hist, df):
             else:
                 discretized = fcns.ceil(scaled)
             indexes.append(fcns.when(fcns.isnull(exprcol) | fcns.isnan(exprcol), int(axis.numbins) + 2).otherwise(fcns.greatest(fcns.lit(0), fcns.least(fcns.lit(int(axis.numbins) + 1), discretized))))
+
         elif isinstance(axis, histbook.axis.intbin):
             indexes.append(fcns.greatest(fcns.lit(0), fcns.least(fcns.lit(int(axis.max) - int(axis.min) + 1), fcns.round(exprcol - int(axis.min) + 1))))
+
         elif isinstance(axis, histbook.axis.split):
             def build(x, i):
                 if i < len(axis.edges):
@@ -214,24 +222,31 @@ def fillspark(hist, df):
                 else:
                     return x.otherwise(i)
             indexes.append(build(fcns.when(fcns.isnull(exprcol) | fcns.isnan(exprcol), len(axis.edges) + 1), 0))
+
         elif isinstance(axis, histbook.axis.cut):
             indexes.append(fcns.when(exprcol, 0).otherwise(1))
+
         else:
             raise AssertionError(axis)
+
     aggs = []
     for axis in hist._profile:
         raise NotImplementedError   # add aggregations
+
     index = fcns.struct(*indexes).alias("@index")
+
     if hist._weight is None:
         df2 = df.select(index)
         aggs.append(fcns.count(df2[df2.columns[0]]))
+
     else:
         exprcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
         df2 = df.select(index, exprcol, exprcol*exprcol)
         aggs.append(fcns.sum(df2[df2.columns[1]]))
         aggs.append(fcns.sum(df2[df2.columns[2]]))
-    # df2.groupBy(df2[df2.columns[0]]).agg(*aggs).show()
+
     out = df2.groupBy(df2[df2.columns[0]]).agg(*aggs).collect()
+
     def getornew(content, key, nextaxis):
         if key in content:
             return content[key]
@@ -239,23 +254,30 @@ def fillspark(hist, df):
             return {}
         else:
             return numpy.zeros(hist._shape, dtype=histbook.hist.COUNTTYPE)
+
     def recurse(index, columns, axis, content):
         if len(axis) == 0:
             content += columns
+
         elif isinstance(axis[0], (histbook.axis.groupby, histbook.axis.groupbin)):
             content[index[0]] = recurse(index[1:], columns, axis[1:], getornew(content, index[0], axis[1] if len(axis) > 1 else None))
             if isinstance(axis[0], histbook.axis.groupbin) and None in content:
                 content["NaN"] = content[None]
                 del content[None]
+
         elif isinstance(axis[0], (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
             i = index[0] - (1 if not axis[0].underflow else 0)
             if int(i) < axis[0].totbins:
                 recurse(index[1:], columns, axis[1:], content[int(i)])
+
         elif isinstance(axis[0], histbook.axis.cut):
             recurse(index[1:], columns, axis[1:], content[0 if index[0] else 1])
+
         else:
             raise AssertionError(axis[0])
+
         return content
+
     for row in out:
         hist._prefill()
         recurse(row[0], row[1:], hist._group + hist._fixed, hist._content)
