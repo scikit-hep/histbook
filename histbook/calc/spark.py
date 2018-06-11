@@ -155,6 +155,8 @@ def tocolumns(df, expr):
             return fcns.rint(tocolumns(df, expr.args[0]))
         elif expr.fcn == "sign":
             raise NotImplementedError(expr.fcn)  # FIXME
+        elif expr.fcn == "where":
+            return fcns.when(tocolumns(df, expr.args[0]), tocolumns(df, expr.args[1])).otherwise(tocolumns(df, expr.args[2]))
         elif expr.fcn == "numpy.equal":
             return tocolumns(df, expr.args[0]) == tocolumns(df, expr.args[1])
         elif expr.fcn == "numpy.not_equal":
@@ -231,31 +233,35 @@ def fillspark(hist, df):
         else:
             raise AssertionError(axis)
 
-    index = fcns.struct(*indexes).alias("@index")
-    if hist._weight is None:
-        selectcols = [index]
-    else:
+    aliasnum = [-1]
+    def alias(x):
+        aliasnum[0] += 1
+        return x.alias("@" + str(aliasnum[0]))
+
+    index = alias(fcns.struct(*indexes))
+
+    selectcols = [index]
+    if hist._weight is not None:
         weightcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
-        selectcols = [index, weightcol, weightcol*weightcol]
-        
     for axis in hist._profile:
         exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
         if hist._weight is None:
-            selectcols.append(exprcol)
-            selectcols.append(exprcol*exprcol)
+            selectcols.append(alias(exprcol))
+            selectcols.append(alias(exprcol*exprcol))
         else:
-            selectcols.append(exprcol*weightcol)
-            selectcols.append(exprcol*exprcol*weightcol)
+            selectcols.append(alias(exprcol*weightcol))
+            selectcols.append(alias(exprcol*exprcol*weightcol))
 
-    aggs = []
     if hist._weight is None:
         df2 = df.select(*selectcols)
-        aggs.append(fcns.count(df2[df2.columns[0]]))
     else:
+        selectcols.append(alias(weightcol))
+        selectcols.append(alias(weightcol*weightcol))
         df2 = df.select(*selectcols)
 
-    for n in df2.columns[1:]:
-        aggs.append(fcns.sum(df2[n]))
+    aggs = [fcns.sum(df2[n]) for n in df2.columns[1:]]
+    if hist._weight is None:
+        aggs.append(fcns.count(df2[df2.columns[0]]))
 
     def getornew(content, key, nextaxis):
         if key in content:

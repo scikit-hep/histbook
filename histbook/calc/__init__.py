@@ -147,6 +147,8 @@ library["gamma"] = vectorized_gamma(False)
 lgamma = library["lgamma"] = vectorized_gamma(True)
 library["factorial"] = lambda values: numpy.round(numpy.exp(lgamma(numpy.round(values) + 1)))
 
+library["where"] = lambda condition, yes, no: numpy.where(condition, yes, no)
+
 def histbook_groupby(values):
     uniques, inverse = numpy.unique(values, return_inverse=True)
     inverse = inverse.astype(INDEXTYPE)

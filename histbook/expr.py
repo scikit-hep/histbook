@@ -347,7 +347,8 @@ class Expr(object):
                     
                 if fcn is None:
                     raise ExpressionError("unhandled function in expression: {0}".format(meta.dump_python_source(node).strip()))
-                return Call(fcn, *(recurse(x) for x in node.args))
+
+                return Call(fcn, *(recurse(x, relations=(i == 0 and fcn == "where")) for i, x in enumerate(node.args)))
 
             else:
                 ExpressionError("unhandled syntax in expression: {0}".format(meta.dump_python_source(node).strip()))
@@ -463,6 +464,7 @@ _recognize(numpy, "sqrt", "sqrt")
 _recognize(numpy, "tanh", "tanh")
 _recognize(numpy, "tan", "tan")
 _recognize(numpy, "trunc", "trunc")
+_recognize(numpy, "where", "where")
 
 class Const(Expr):
     """Represents a literal constant in the expression tree, such as a number, boolean, or ``None``."""

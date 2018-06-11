@@ -450,7 +450,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         self._copyonfill = False
 
         if fill is not None:
-            if not isinstance(fill, dict):
+            if not histbook.calc.spark.isspark(fill, {}) and not isinstance(fill, dict):
                 if len(self._group + self._fixed + self._profile) == 1:
                     fill = {str((self._group + self._fixed + self._profile)[0]._parsed): fill}
                 else:
