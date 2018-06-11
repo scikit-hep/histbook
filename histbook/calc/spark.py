@@ -44,8 +44,9 @@ def isspark(arrays, more):
     return out
 
 def tocolumns(df, expr):
+    import pyspark.sql.functions as fcns
+
     if isinstance(expr, histbook.expr.Const):
-        import pyspark.sql.functions as fcns
         return fcns.lit(expr.value)
 
     elif isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
