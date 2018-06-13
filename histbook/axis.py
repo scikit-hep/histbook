@@ -561,6 +561,16 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
     def closedlow(self):
         return self._closedlow
 
+    @property
+    def binwidth(self):
+        numer = float(self._high) - float(self._low)
+        denom = float(self._numbins)
+        approx = numer / denom
+        delta = approx - numpy.nextafter(approx, 0)
+        while approx * denom >= numer:
+            approx -= delta
+        return approx
+
     def relabel(self, label):
         """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
         return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
@@ -747,6 +757,10 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def overflow(self):
         return self._overflow
+
+    @property
+    def binwidth(self):
+        return 1
 
     def relabel(self, label):
         """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
