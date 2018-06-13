@@ -262,6 +262,18 @@ class Book(collections.MutableMapping, Fillable):
             for x in self._hists.values():
                 x._postfill(arrays, length)
 
+    def cleared(self):
+        """Return a copy with all bins in all histograms set to zero."""
+        out = Book()
+        for n, x in other.items():
+            out[n] = x.cleared()
+        return out
+
+    def clear(self):
+        """Effectively reset all bins in all histograms to zero."""
+        for x in self._hists.values():
+            x.clear()
+
     def __add__(self, other):
         if not isinstance(other, Book):
             raise TypeError("histogram Books can only be added to other histogram Books")
@@ -285,6 +297,20 @@ class Book(collections.MutableMapping, Fillable):
             else:
                 self[n] = x
 
+        return self
+
+    def __mul__(self, value):
+        out = Book()
+        for n, x in self._hists.items():
+            out[n] = x.__mul__(value)
+        return out
+
+    def __rmul__(self, value):
+        return self.__mul__(value)
+
+    def __imul__(self, value):
+        for x in self._hists.values():
+            x.__imul__(value)
         return self
 
     @staticmethod
@@ -638,6 +664,17 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None
 
+    def cleared(self):
+        """Return a copy with all bins set to zero."""
+        out = self.__class__.__new__(self.__class__)
+        out.__dict__.update(self.__dict__)
+        out._content = None
+        return out
+
+    def clear(self):
+        """Effectively reset all bins to zero."""
+        self._content = None
+
     def __add__(self, other):
         if not isinstance(other, Hist):
             raise TypeError("histograms can only be added to other histograms")
@@ -706,6 +743,37 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
 
         else:
             add(self._content, other._content)
+
+        return self
+
+    def __mul__(self, value):
+        if not isinstance(value, (numbers.Real, numpy.integer, numpy.floating)):
+            raise TypeError("Hist can only be multiplied by a scalar number.")
+
+        def recurse(content):
+            if isinstance(content, dict):
+                return dict((n, recurse(x)) for n, x in content.items())
+            else:
+                return content * value
+
+        out = self.__class__.__new__(self.__class__)
+        out.__dict__.update(self.__dict__)
+        out._content = recurse(self._content)
+        return out
+
+    def __rmul__(self, value):
+        return self.__mul__(value)
+
+    def __imul__(self, value):
+        if not isinstance(value, (numbers.Real, numpy.integer, numpy.floating)):
+            raise TypeError("Hist can only be multiplied by a scalar number.")
+
+        def recurse(content):
+            if isinstance(content, dict):
+                for x in content.values():
+                    recurse(x)
+            else:
+                content *= 0
 
         return self
 
