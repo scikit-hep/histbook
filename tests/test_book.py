@@ -28,10 +28,29 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from histbook.axis import groupby, groupbin, bin, intbin, split, cut, profile
-from histbook.book import Book
-from histbook.hist import Hist
-from histbook.vega import overlay, beside, below, grid
+import unittest
 
-# convenient access to the version number
-from histbook.version import __version__
+import numpy
+
+from histbook.axis import *
+from histbook.hist import *
+from histbook.book import *
+
+class TestBook(unittest.TestCase):
+    def runTest(self):
+        pass
+
+    def test_book(self):
+        b = Book()
+        b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
+        b["two"] = Hist(split("x", 1.5, nanflow=False))
+        b.fill(x=[1, 1, 1, 2, 2])
+        self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
+        self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
+
+        b = Book()
+        b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
+        b["two"] = Hist(split("y", 1.5, nanflow=False))
+        b.fill(x=[1, 1, 1, 2, 2], y=[1, 1, 1, 2, 2])
+        self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
+        self.assertEqual(b["two"]._content.tolist(), [[3], [2]])

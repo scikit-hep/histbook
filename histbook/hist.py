@@ -28,343 +28,25 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import collections
-import functools
 import numbers
-import sys
 import threading
 
 import numpy
-COUNTTYPE = numpy.float64
 
 import histbook.axis
 import histbook.calc
 import histbook.calc.spark
 import histbook.export
 import histbook.expr
+import histbook.fill
 import histbook.proj
 import histbook.instr
+import histbook.util
 import histbook.vega
 
-class _ChainedDict(object):
-    def __init__(self, one, two):
-        self._one = one
-        self._two = two
+class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Exportable, histbook.vega.PlottingChain):
+    COUNTTYPE = numpy.float64
 
-    def __getitem__(self, n):
-        if n in self._two:         # self._two is a real dict
-            return self._two[n]    # and it has precedence
-        else:
-            return self._one[n]    # self._one might only have __getitem__
-        
-class Fillable(object):
-    """Mix-in for objects with a ``fill`` method, like `Hist <histbook.hist.Hist>` and `Book <histbook.hist.Book>`."""
-
-    @property
-    def fields(self):
-        """Names of fields that must be provided in the ``fill`` method."""
-
-        if self._fields is None:
-            table = {}
-            goals = set(self._goals)
-
-            for x in goals:
-                x.clear()
-            for x in goals:
-                x.grow(table)
-            
-            fields = histbook.instr.sources(goals, table)
-
-            self._instructions = self._streamline(0, list(histbook.instr.instructions(fields, goals)))
-            self._fields = sorted(x.goal.value for x in fields)
-
-        return self._fields
-
-    def _showgoals(self):
-        self.fields  # for the side-effect of creating self._instructions
-
-        numbers = {}
-        order = []
-        def recurse(node):
-            for x in node.requires:
-                recurse(x)
-            if node not in numbers:
-                number = numbers[node] = len(numbers)
-                order.append(node)
-        for goal in sorted(self._goals):
-            recurse(goal)
-        print("goals:")
-        print("------")
-        for node in order:
-            print("#{0:<3d} requires {1:<10s} requiredby {2:<10s} ({3} total) for {4}".format(numbers[node], " ".join(map(repr, sorted(numbers[x] for x in node.requires))), " ".join(map(repr, sorted(numbers[x] for x in node.requiredby))), node.numrequiredby, repr(str(node.goal))))
-        print("")
-        print("instructions:")
-        print("-------------")
-        for instruction in self._instructions:
-            print(instruction)
-        print("")
-        
-    def _fill(self, arrays):
-        self.fields  # for the side-effect of creating self._instructions
-        
-        length = None
-        firstinstruction = None
-        firstarray = None
-        for instruction in self._instructions:
-            if isinstance(instruction, histbook.instr.Param) and not isinstance(instruction.extern, histbook.expr.BroadcastConst):
-                try:
-                    array = arrays[instruction.extern.value]
-                except KeyError:
-                    if instruction.extern.value in histbook.expr.Expr.maybeconstants:
-                        continue
-                    else:
-                        raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
-
-                if not isinstance(array, numpy.ndarray):
-                    array = numpy.array(array)
-                if array.shape != ():
-                    length = array.shape[0]
-                    firstinstruction = instruction.name
-                    firstarray = array
-                    break
-
-        if length is None:
-            length = 1
-
-        symbols = {}
-        for instruction in self._instructions:
-            if isinstance(instruction, histbook.instr.Param):
-                if isinstance(instruction.extern, histbook.expr.BroadcastConst):
-                    array = numpy.full(length, instruction.extern.value)
-                elif instruction.name == firstinstruction:
-                    array = firstarray
-                else:
-                    try:
-                        array = arrays[instruction.extern.value]
-                    except KeyError:
-                        if instruction.extern.value in histbook.expr.Expr.maybeconstants:
-                            array = numpy.full(length, histbook.expr.Expr.maybeconstants[instruction.extern.value])
-                        else:
-                            raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
-
-                if not isinstance(array, numpy.ndarray):
-                    array = numpy.array(array)
-                if array.shape == ():
-                    array = numpy.full(length, array)
-
-                if length != array.shape[0]:
-                    raise ValueError("array {0} has len {1} but other arrays have len {2}".format(repr(str(instruction.extern)), len(array), length))
-
-                symbols[instruction.name] = array
-
-            elif isinstance(instruction, histbook.instr.Assign):
-                symbols[instruction.name] = histbook.calc.calculate(instruction.expr, symbols)
-
-            elif isinstance(instruction, histbook.instr.Export):
-                data = symbols[instruction.name]
-                for i, j in instruction.destination:
-                    self._destination[i][j] = data
-
-            elif isinstance(instruction, histbook.instr.Delete):
-                del symbols[instruction.name]
-
-            else:
-                raise AssertionError(instruction)
-
-        return length
-
-class Book(collections.MutableMapping, Fillable):
-    """
-    A collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) that can be filled with a single ``fill`` call.
-
-    Behaves like a dict (item assignment, ``keys``, ``values``).
-    """
-
-    def __init__(self, hists={}, **more):
-        u"""
-        Parameters
-        ----------
-        hists : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
-            initial histograms
-
-        **more : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
-            more initial histograms
-        """
-        self._fields = None
-        self._hists = collections.OrderedDict()
-        for n, x in hists.items():
-            self._hists[n] = x
-        for n, x in more.items():
-            self._hists[n] = x
-
-    def __repr__(self):
-        return "Book({0} histogram{1})".format(len(self), "" if len(self) == 1 else "s")
-
-    def __str__(self):
-        return "Book({" + ",\n      ".join("{0}: {1}".format(repr(n), repr(x)) for n, x in self.items()) + "})"
-
-    def __len__(self):
-        return len(self._hists)
-
-    def __contains__(self, name):
-        return name in self._hists
-
-    def __getitem__(self, name):
-        return self._hists[name]
-
-    def __setitem__(self, name, value):
-        if isinstance(value, Book):
-            for n, x in value.items():
-                self._hists[name + "/" + n] = x.copyonfill()
-                self._fields = None
-        elif isinstance(value, Hist):
-            self._hists[name] = value.copyonfill()
-            self._fields = None
-        else:
-            raise TypeError("histogram books can only be filled with histograms or other histogram books, not {0}".format(type(value)))
-
-    def __delitem__(self, name):
-        del self._hists[name]
-
-    def __iter__(self):
-        if sys.version_info[0] < 3:
-            return self._hists.iterkeys()
-        else:
-            return self._hists.keys()
-
-    def keys(self):
-        return self._hists.keys()
-
-    def values(self):
-        return self._hists.values()
-
-    @property
-    def _goals(self):
-        return functools.reduce(set.union, (x._goals for x in self.values()))
-
-    def _streamline(self, i, instructions):
-        self._destination = []
-        for i, x in enumerate(self._hists.values()):
-            self._destination.append(x._destination[0])
-            x._streamline(i, instructions)
-        return instructions
-
-    def fill(self, arrays=None, **more):
-        u"""
-        Fill the histogram: identify bins for independent variables, increase their counts by ``1`` or ``weight``, and increment any profile (dependent variable) means and errors in the means.
-
-        All arrays must have the same length (one-dimensional shape). Numbers are treated as one-element arrays.
-
-        All histograms in the book are filled with the same inputs.
-
-        Parameters
-        ----------
-        arrays : dict \u2192 Numpy array or number
-            field values to use in the calculation of independent and dependent variables (axes)
-
-        **more : dict \u2192 Numpy array or number
-            more field values
-        """
-
-        if histbook.calc.spark.isspark(arrays, more):
-            # special SparkSQL
-            threads = [threading.Thread(target=histbook.calc.spark.fillspark(x, arrays)) for x in self._hists.values()]
-            for x in self._hists.values():
-                x._prefill()
-            for x in threads:
-                x.start()
-            for x in threads:
-                x.join()
-
-        else:
-            # standard Numpy
-            if arrays is None:
-                arrays = more
-            elif len(more) == 0:
-                pass
-            else:
-                arrays = _ChainedDict(arrays, more)
-
-            for x in self._hists.values():
-                x._prefill()
-            length = self._fill(arrays)
-            for x in self._hists.values():
-                x._postfill(arrays, length)
-
-    def cleared(self):
-        """Return a copy with all bins in all histograms set to zero."""
-        out = Book()
-        for n, x in other.items():
-            out[n] = x.cleared()
-        return out
-
-    def clear(self):
-        """Effectively reset all bins in all histograms to zero."""
-        for x in self._hists.values():
-            x.clear()
-
-    def __add__(self, other):
-        if not isinstance(other, Book):
-            raise TypeError("histogram Books can only be added to other histogram Books")
-
-        out = Book(self._hists)
-        for n, x in other.items():
-            if n in out:
-                out[n] += x
-            else:
-                out[n] = x
-
-        return out
-
-    def __iadd__(self, other):
-        if not isinstance(other, Book):
-            raise TypeError("histogram Books can only be added to other histogram Books")
-
-        for n, x in other.items():
-            if n in self:
-                self[n] += x
-            else:
-                self[n] = x
-
-        return self
-
-    def __mul__(self, value):
-        out = Book()
-        for n, x in self._hists.items():
-            out[n] = x.__mul__(value)
-        return out
-
-    def __rmul__(self, value):
-        return self.__mul__(value)
-
-    def __imul__(self, value):
-        for x in self._hists.values():
-            x.__imul__(value)
-        return self
-
-    @staticmethod
-    def group(by="source", **books):
-        """
-        Combine histograms, maintaining their distinctiveness by adding a new categorical axis to each.
-
-        To combine histograms by adding bins, just use the ``+`` operator.
-
-        Parameters
-        ----------
-        by : string
-            name of the new axis (must not already exist)
-
-        **books : :py:class:`Book <histbook.hist.Book>`
-            books to combine (histograms with the same names must have the same axes)
-        """
-        if any(not isinstance(x, Book) for x in books.values()):
-            raise TypeError("only histogram Books can be grouped")
-        out = Book()
-        for n in functools.reduce(set.union, (set(x.keys()) for x in books.values())):
-            out._hists[n] = Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
-        return out
-
-class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, histbook.vega.PlottingChain):
     @property
     def _source(self):
         return self
@@ -570,7 +252,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
             elif len(more) == 0:
                 pass
             else:
-                arrays = _ChainedDict(arrays, more)
+                arrays = histbook.util.ChainedDict(arrays, more)
 
             self._prefill()
             length = self._fill(arrays)
@@ -579,7 +261,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
     def _prefill(self):
         if self._content is None:
             if len(self._group) == 0:
-                self._content = numpy.zeros(self._shape, dtype=COUNTTYPE)
+                self._content = numpy.zeros(self._shape, dtype=self.COUNTTYPE)
             else:
                 self._content = {}
 
@@ -663,7 +345,7 @@ class Hist(Fillable, histbook.proj.Projectable, histbook.export.Exportable, hist
                     
                     if unique not in content:
                         if j + 1 == len(self._group):
-                            content[unique] = numpy.zeros(self._shape, dtype=COUNTTYPE)
+                            content[unique] = numpy.zeros(self._shape, dtype=self.COUNTTYPE)
                         else:
                             content[unique] = {}
 
