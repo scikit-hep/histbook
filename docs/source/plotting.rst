@@ -34,3 +34,7 @@ The plotting interface is fluent, meaning that the graphical content of the plot
 .. autoclass:: histbook.vega.below
    :members: 
    :inherited-members:
+
+.. autoclass:: histbook.vega.grid
+   :members: 
+   :inherited-members:
