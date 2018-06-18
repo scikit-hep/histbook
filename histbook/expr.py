@@ -358,6 +358,11 @@ class Expr(object):
         else:
             return recurse(pyast, relations=True)
         
+    maybeconstants = {"pi": numpy.pi, "Pi": numpy.pi,
+                      "e": numpy.e, "E": numpy.e,
+                      "inf": numpy.inf, "Inf": numpy.inf, "infinity": numpy.inf, "Infinity": numpy.inf,
+                      "nan": numpy.nan, "NaN": numpy.nan, "Nan": numpy.nan}
+
     recognized = {abs: "abs", max: "max", min: "min"}
 
 class _Placeholder(object):

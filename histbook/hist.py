@@ -106,9 +106,7 @@ class Fillable(object):
         
     def _fill(self, arrays):
         self.fields  # for the side-effect of creating self._instructions
-
-        maybeconstants = {"pi": numpy.pi, "Pi": numpy.pi, "e": numpy.e, "E": numpy.e, "inf": numpy.inf, "Inf": numpy.inf, "infinity": numpy.inf, "Infinity": numpy.inf, "nan": numpy.nan, "NaN": numpy.nan, "Nan": numpy.nan}
-
+        
         length = None
         firstinstruction = None
         firstarray = None
@@ -117,7 +115,7 @@ class Fillable(object):
                 try:
                     array = arrays[instruction.extern.value]
                 except KeyError:
-                    if instruction.extern.value in maybeconstants:
+                    if instruction.extern.value in histbook.expr.Expr.maybeconstants:
                         continue
                     else:
                         raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
@@ -144,8 +142,8 @@ class Fillable(object):
                     try:
                         array = arrays[instruction.extern.value]
                     except KeyError:
-                        if instruction.extern.value in maybeconstants:
-                            array = numpy.full(length, maybeconstants[instruction.extern.value])
+                        if instruction.extern.value in histbook.expr.Expr.maybeconstants:
+                            array = numpy.full(length, histbook.expr.Expr.maybeconstants[instruction.extern.value])
                         else:
                             raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
 

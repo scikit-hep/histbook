@@ -191,7 +191,7 @@ Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it
 .. code-block:: python
 
     >>> r = lambda x, y: math.sqrt(x**2 + y**2)
-    >>> phi = lambda y, x: math.arctan2(y, x)
+    >>> phi = lambda y, x: math.atan2(y, x)
     >>> beside(hist.step(r), hist.step(phi)).to(canvas)
 
 The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)

@@ -320,19 +320,56 @@ class Projectable(object):
         if not isinstance(expr, (histbook.expr.Relation, histbook.expr.Logical, histbook.expr.Predicate, histbook.expr.Name)):
             raise TypeError("select expression must be boolean, not {0}".format(repr(str(expr))))
 
+        def asconst(expr):
+            if isinstance(expr, histbook.expr.Const):
+                return expr
+
+            elif isinstance(expr, histbook.expr.Name) and expr.value in histbook.expr.Expr.maybeconstants:
+                return histbook.expr.Const(histbook.expr.Expr.maybeconstants[expr.value])
+
+            elif isinstance(expr, histbook.expr.PlusMinus):
+                out = expr.const
+                for x in expr.pos:
+                    c = asconst(x)
+                    if c is None:
+                        return None
+                    out += c.value
+                for x in expr.neg:
+                    c = asconst(x)
+                    if c is None:
+                        return None
+                    out -= c.value
+                return histbook.expr.Const(out)
+
+            elif isinstance(expr, histbook.expr.TimesDiv):
+                out = expr.const
+                for x in expr.pos:
+                    c = asconst(x)
+                    if c is None:
+                        return None
+                    out *= c.value
+                for x in expr.neg:
+                    c = asconst(x)
+                    if c is None:
+                        return None
+                    out /= c.value
+                return histbook.expr.Const(out)
+
+            else:
+                return None
+
         def normalizeexpr(expr):
             if isinstance(expr, histbook.expr.Relation):
                 cutcmp = expr.cmp
-                if isinstance(expr.left, histbook.expr.Const):
-                    cutvalue, cutexpr = expr.left, expr.right
+                if asconst(expr.left) is not None and asconst(expr.right) is None:
+                    cutvalue, cutexpr = asconst(expr.left), expr.right
                     cutcmp = {"<": ">", "<=": ">="}.get(cutcmp, cutcmp)
-                else:
-                    cutexpr, cutvalue = expr.left, expr.right
-
-                if not isinstance(cutvalue, histbook.expr.Const):
-                    raise TypeError("select expression must have a constant left or right hand side, not {0}".format(repr(str(expr))))
-                if isinstance(cutexpr, histbook.expr.Const):
+                elif asconst(expr.left) is None and asconst(expr.right) is not None:
+                    cutexpr, cutvalue = expr.left, asconst(expr.right)
+                elif asconst(expr.left) is not None and asconst(expr.right) is not None:
                     raise TypeError("select expression must have a variable left or right hand side, not {0}".format(repr(str(expr))))
+                else:
+                    raise TypeError("select expression must have a constant left or right hand side, not {0}".format(repr(str(expr))))
 
                 cutvalue = cutvalue.value   # unbox to Python
 
