@@ -344,7 +344,10 @@ def calculate(expr, symbols):
     Numpy array or number
     """
 
-    if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
+    if isinstance(expr, histbook.expr.BroadcastConst):
+        return symbols[expr.name]
+
+    elif isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]
 
     elif isinstance(expr, histbook.expr.Const):

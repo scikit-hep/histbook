@@ -249,6 +249,8 @@ class groupby(GroupAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.groupby", parsed))]
 
     def __eq__(self, other):
@@ -360,6 +362,8 @@ class groupbin(GroupAxis, _RebinFactor):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.groupbin{0}{1}".format("N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._binwidth), histbook.expr.Const(self._origin)))]
 
     def __eq__(self, other):
@@ -590,6 +594,8 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.bin{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._numbins), histbook.expr.Const(self._low), histbook.expr.Const(self._high)))]
 
     def __eq__(self, other):
@@ -788,6 +794,8 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.intbin{0}{1}".format("U" if self._underflow else "_", "O" if self._overflow else "_"), parsed, histbook.expr.Const(self._min), histbook.expr.Const(self._max)))]
 
     def __eq__(self, other):
@@ -990,6 +998,8 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.split{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]
 
     def __eq__(self, other):
@@ -1185,6 +1195,8 @@ class cut(FixedAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.cut", parsed))]
 
     def __eq__(self, other):
@@ -1275,6 +1287,8 @@ class profile(ProfileAxis):
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
+        if isinstance(parsed, histbook.expr.Const):
+            parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(parsed),
                 histbook.instr.CallGraphGoal(histbook.expr.Call("numpy.multiply", parsed, parsed))]
 

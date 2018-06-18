@@ -80,7 +80,7 @@ class Expr(object):
         Parameters
         ----------
         expression : lambda or string
-            expression involving constants (literals and ``pi``, ``e``, ``inf``, and ``nan``), field variables, and functions in ``Expr.recognized``; if a lambda, the fields are given by function parameters, if a string, any unrecognized names will be identified as fields
+            expression involving constants (literals and ``pi``, ``e``, ``inf``, and ``nan``/``NaN``), field variables, and functions in ``Expr.recognized``; if a lambda, the fields are given by function parameters, if a string, any unrecognized names will be identified as fields
 
         defs : ``None`` or dict
             if not ``None``, provides names to recognize in ``expression`` (to avoid repetitive code)
@@ -88,7 +88,7 @@ class Expr(object):
         returnlabel : bool
             if ``True``, return value is a 2-tuple: :py:class:`Expr <histbook.expr.Expr>` and string representing the expression; otherwise *(default)*, just the :py:class:`Expr <histbook.expr.Expr>`
         """
-        _defs = {"pi": Const(math.pi), "e": Const(math.e), "inf": Const(float("inf")), "nan": Const(float("nan"))}
+        _defs = {}
         if defs is not None:
             for n, x in defs.items():
                 if isinstance(x, Expr):
@@ -568,6 +568,51 @@ class Name(Expr):
     def rename(self, names):
         assert self in names
         return Name(names[self])
+
+class BroadcastConst(Name):
+    """Represents a literal constant in the expression tree that should be broadcast to the length of field data."""
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def _reprargs(self):
+        return (repr(self.name), repr(self.value))
+
+    def __str__(self):
+        if self.name is None:
+            return str(self.value)
+        else:
+            return self.name
+
+    def __hash__(self):
+        if isinstance(self.value, set):
+            value = (set, tuple(sorted(self.value)))
+        else:
+            value = self.value
+        return hash((Const, self.name, value))
+
+    def __eq__(self, other):
+        return self.__class__.__name__ == other.__class__.__name__ and self.name == other.name and self.value == other.value
+
+    def __lt__(self, other):
+        if self.__class__.__name__ == other.__class__.__name__:
+            if type(self.name).__name__ == type(other.name).__name__:
+                if self.name == other.name:
+                    if type(self.value).__name__ == type(other.value).__name__:
+                        return self.value < other.value
+                    else:
+                        return type(self.value).__name__ < type(other.value).__name__
+                else:
+                    self.name < other.name
+            else:
+                return type(self.name).__name__ < type(other.name).__name__
+        else:
+            return self.__class__.__name__ < other.__class__.__name__
+
+    def rename(self, names):
+        assert self in names
+        return BroadcastConst(names[self], self.value)
 
 class Call(Expr):
     """Represents a function call in the expression tree."""

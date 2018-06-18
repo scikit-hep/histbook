@@ -54,12 +54,14 @@ class Exportable(object):
         axis = [x if isinstance(x, histbook.axis.Axis) else self.axis[x] for x in axis]
 
         opts["recarray"] = True
+        opts["columns"] = True
+
         if all(isinstance(x, histbook.axis.ProfileAxis) for x in axis):
-            content = self.table(*axis, **opts)
+            (content, columns) = self.table(*axis, **opts)
             allaxis = self._group + self._fixed
 
         elif all(isinstance(x, histbook.axis.cut) for x in axis):
-            content, denomhist = self._fraction(axis, opts, True)
+            (content, columns), denomhist = self._fraction(axis, opts, True)
             allaxis = denomhist._group + denomhist._fixed
 
         else:
@@ -144,10 +146,14 @@ class Exportable(object):
 
         index(0, content, ())
 
-        arrays = numpy.concatenate(arrays)
-        return pd.DataFrame(index=pd.MultiIndex.from_arrays(keys, names=names),
-                            columns=arrays.dtype.names,
-                            data=arrays.view(arrays.dtype[arrays.dtype.names[0]]).reshape(len(keys[0]), -1))
+        if len(arrays) == 0:
+            return pd.DataFrame(index=pd.MultiIndex.from_arrays(keys, names=names),
+                                columns=columns)
+        else:
+            arrays = numpy.concatenate(arrays)
+            return pd.DataFrame(index=pd.MultiIndex.from_arrays(keys, names=names),
+                                columns=arrays.dtype.names,
+                                data=arrays.view(arrays.dtype[arrays.dtype.names[0]]).reshape(len(keys[0]), -1))
 
     def root(self, *axis, **opts):
         """

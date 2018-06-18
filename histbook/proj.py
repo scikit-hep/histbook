@@ -470,11 +470,15 @@ class Projectable(object):
 
         recarray : bool
             if ``True`` *(default)*, return results as a Numpy record array, which is rank-2 with named columns; if ``False``, return a plain Numpy array, which is rank-N for N axes and has no column labels.
+
+        columns : bool
+            if ``True`` *(not default)*, return a 2-tuple in which the second argument is a list of column labels.
         """
         count = opts.pop("count", True)
         effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
         recarray = opts.pop("recarray", True)
+        showcolumns = opts.pop("columns", False)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist.table: {0}".format(" ".join(opts)))
 
@@ -549,7 +553,12 @@ class Projectable(object):
             else:
                 return handlearray(content)
 
-        return handle(self._content)
+        out = handle(self._content)
+
+        if showcolumns:
+            return out, columns
+        else:
+            return out
 
     def fraction(self, *cut, **opts):
         """
@@ -573,6 +582,9 @@ class Projectable(object):
 
         recarray : bool
             if ``True`` *(default)*, return results as a Numpy record array, which is rank-2 with named columns; if ``False``, return a plain Numpy array, which is rank-N for N axes and has no column labels.
+
+        columns : bool
+            if ``True`` *(not default)*, return a 2-tuple in which the second argument is a list of column labels.
         """
         return self._fraction(cut, opts, False)
 
@@ -583,6 +595,7 @@ class Projectable(object):
         if isinstance(levels, (numbers.Real, numpy.floating, numpy.integer)):
             levels = (levels,)
         recarray = opts.pop("recarray", True)
+        showcolumns = opts.pop("columns", False)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist.table: {0}".format(" ".join(opts)))
 
@@ -700,6 +713,10 @@ class Projectable(object):
                 return handlearray(denomcontent, cutcontent)
 
         out = handle(denomhist._content, [x._content for x in cuthist])
+
+        if showcolumns:
+            out = out, columns
+
         if return_denomhist:
             return out, denomhist
         else:

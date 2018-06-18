@@ -108,23 +108,46 @@ class Fillable(object):
         self.fields  # for the side-effect of creating self._instructions
 
         length = None
+        firstinstruction = None
+        firstarray = None
+        for instruction in self._instructions:
+            if isinstance(instruction, histbook.instr.Param) and not isinstance(instruction.extern, histbook.expr.BroadcastConst):
+                try:
+                    array = arrays[instruction.extern.value]
+                except KeyError:
+                    raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
+
+                if not isinstance(array, numpy.ndarray):
+                    array = numpy.array(array)
+                if array.shape != ():
+                    length = array.shape[0]
+                    firstinstruction = instruction.name
+                    firstarray = array
+                    break
+
+        if length is None:
+            length = 1
+
         symbols = {}
         for instruction in self._instructions:
             if isinstance(instruction, histbook.instr.Param):
-                try:
-                    array = arrays[instruction.extern]
-                except KeyError:
-                    raise ValueError("required field {0} not found in fill arguments".format(repr(instruction.extern)))
+                if isinstance(instruction.extern, histbook.expr.BroadcastConst):
+                    array = numpy.full(length, instruction.extern.value)
+                elif instruction.name == firstinstruction:
+                    array = firstarray
+                else:
+                    try:
+                        array = arrays[instruction.extern.value]
+                    except KeyError:
+                        raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
 
                 if not isinstance(array, numpy.ndarray):
                     array = numpy.array(array)
                 if array.shape == ():
-                    array.shape = (1,)
+                    array = numpy.full(length, array)
 
-                if length is None:
-                    length = len(array)
-                elif length != len(array):
-                    raise ValueError("array {0} has len {1} but other arrays have len {2}".format(repr(instruction.extern), len(array), length))
+                if length != array.shape[0]:
+                    raise ValueError("array {0} has len {1} but other arrays have len {2}".format(repr(str(instruction.extern)), len(array), length))
 
                 symbols[instruction.name] = array
 
