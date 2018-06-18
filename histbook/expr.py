@@ -358,7 +358,7 @@ class Expr(object):
         else:
             return recurse(pyast, relations=True)
         
-    recognized = {abs: "abs", max: "fmax", min: "fmin"}
+    recognized = {abs: "abs", max: "max", min: "min"}
 
 class _Placeholder(object):
     count = 0
@@ -381,6 +381,9 @@ def _recognize(module, pyname, name):
         Expr.recognized[_Placeholder()] = name
 
 Expr.recognized[_Placeholder()] = "fabs"
+Expr.recognized[_Placeholder()] = "fmin"
+Expr.recognized[_Placeholder()] = "fmax"
+Expr.recognized[_Placeholder()] = "fmod"
 
 _recognize(math, "acos", "arccos")
 _recognize(math, "acosh", "arccosh")
@@ -400,7 +403,7 @@ _recognize(math, "exp", "exp")
 _recognize(math, "expm1", "expm1")
 _recognize(math, "factorial", "factorial")    # not in numexpr
 _recognize(math, "floor", "floor")
-_recognize(math, "fmod", "fmod")
+_recognize(math, "fmod", "mod")
 _recognize(math, "gamma", "gamma")    # not in numexpr (has lgamma and tgamma)
 _recognize(math, "hypot", "hypot")
 _recognize(math, "isinf", "isinf")
@@ -454,7 +457,7 @@ _recognize(numpy, "minimum", "fmin")
 _recognize(numpy, "power", "pow")    # not in numexpr (only as operator **)
 _recognize(numpy, "rad2deg", "rad2deg")    # not in numexpr
 _recognize(numpy, "radians", "deg2rad")    # not in numexpr
-_recognize(numpy, "remainder", "fmod")
+_recognize(numpy, "remainder", "mod")
 _recognize(numpy, "rint", "rint")
 _recognize(numpy, "round", "round")
 _recognize(numpy, "sign", "sign")    # not in numexpr

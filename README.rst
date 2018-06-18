@@ -179,10 +179,10 @@ This example was deliberately simple. We can extend the binning to two dimension
 
     >>> import math
     >>> hist = Hist(bin("sqrt(x**2 + y**2)", 5, 0, 1),
-    ...             bin("atan2(y, x)", 3, -math.pi, math.pi))
+    ...             bin("arctan2(y, x)", 3, -math.pi, math.pi))
     >>> hist.fill(x=numpy.random.normal(0, 1, 1000000),
     ...           y=numpy.random.normal(0, 1, 1000000))
-    >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("atan2(y,x)")).to(canvas)
+    >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("arctan2(y,x)")).to(canvas)
 
 .. image:: docs/source/intro-2.png
 
@@ -191,7 +191,7 @@ Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it
 .. code-block:: python
 
     >>> r = lambda x, y: math.sqrt(x**2 + y**2)
-    >>> phi = lambda y, x: math.atan2(y, x)
+    >>> phi = lambda y, x: math.arctan2(y, x)
     >>> beside(hist.step(r), hist.step(phi)).to(canvas)
 
 The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)
@@ -203,7 +203,7 @@ The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histog
 .. code-block::
 
                                                         count()  err(count())
-    sqrt(x**2 + y**2) atan2(y, x)                                            
+    sqrt(x**2 + y**2) arctan2(y, x)                                            
     [-inf, 0.0)       [-inf, -3.14159265359)                0.0      0.000000
                       [-3.14159265359, -1.0471975512)       0.0      0.000000
                       [-1.0471975512, 1.0471975512)         0.0      0.000000
@@ -257,7 +257,7 @@ With multiple dimensions, we can project it out different ways. The `overlay <ht
 
 .. code-block:: python
 
-    >>> hist.overlay("atan2(y, x)").step("sqrt(x**2+y**2)").to(canvas)
+    >>> hist.overlay("arctan2(y, x)").step("sqrt(x**2+y**2)").to(canvas)
 
 .. image:: docs/source/intro-3.png
 
@@ -265,7 +265,7 @@ The `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega
 
 .. code-block:: python
 
-    >>> hist.stack("atan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
+    >>> hist.stack("arctan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
 
 .. image:: docs/source/intro-4.png
 
@@ -273,7 +273,7 @@ The underflow, overflow, and nanflow curves are empty. Let's exclude them with a
 
 .. code-block:: python
 
-    >>> hist.select("-pi <= atan2(y, x) < pi").stack(phi).area(r).to(canvas)
+    >>> hist.select("-pi <= arctan2(y, x) < pi").stack(phi).area(r).to(canvas)
 
 .. image:: docs/source/intro-5.png
 
@@ -281,17 +281,17 @@ We can also split side-by-side and top-down:
 
 .. code-block:: python
 
-    >>> hist.select("-pi <= atan2(y, x) < pi").beside(phi).line(r).to(canvas)
+    >>> hist.select("-pi <= arctan2(y, x) < pi").beside(phi).line(r).to(canvas)
 
 .. image:: docs/source/intro-6.png
 
 .. code-block:: python
 
-    >>> hist.select("-pi <= atan2(y, x) < pi").below(phi).marker(r, error=False).to(canvas)
+    >>> hist.select("-pi <= arctan2(y, x) < pi").below(phi).marker(r, error=False).to(canvas)
 
 .. image:: docs/source/intro-7.png
 
-Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This "trellis plot" formed with `beside <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ and `below <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ separated data just as `overlay <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ and `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ separated data. Using all but one together, we could visualize four dimensions at once:
+Notice that the three subfigures are labeled by their ``arctan2(y, x)`` bins. This "trellis plot" formed with `beside <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ and `below <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ separated data just as `overlay <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ and `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ separated data. Using all but one together, we could visualize four dimensions at once:
 
 .. code-block:: python
 
