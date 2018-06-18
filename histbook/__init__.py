@@ -30,4 +30,4 @@
 
 from histbook.axis import groupby, groupbin, bin, intbin, split, cut, profile
 from histbook.hist import Hist, Book
-from histbook.vega import overlay, beside, below
+from histbook.vega import overlay, beside, below, grid

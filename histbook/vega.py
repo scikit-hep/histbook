@@ -1020,3 +1020,43 @@ class below(Combination):
                 out["vconcat"].append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
 
         return out
+
+class grid(Combination):
+    """:py:class:`Plotable1d <histbook.vega.Plotable1d>` displaying two or more independently produced :py:class:`Plotable1ds <histbook.vega.Plotable1d>` in a rectangular grid of `numcol` columns."""
+
+    def __init__(self, numcol, *plotables):
+        super(grid, self).__init__(plotables, (Plotable1d, Plotable2d, overlay))
+        if any(isinstance(x, BesideChannel) for x in self._plotables) or any(isinstance(x, BelowChannel) for x in self._plotables):
+            raise TypeError("cannot place plots in a grid that are already split with beside or below")
+        self.numcol = numcol
+
+    def vegalite(self):
+        allaxis = []
+        alldata = []
+        alldomains = []
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            axis, data, domains = plotable._data((("id", varname),), varname)
+            allaxis.append(axis)
+            alldata.extend(data)
+            alldomains.append(domains)
+
+        out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+               "data": {"values": alldata},
+               "vconcat": [{"hconcat": []}]}
+
+        for i, plotable in enumerate(self._plotables):
+            varname = self._varname(i)
+            marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+            thislayer = [{"filter": {"field": "id", "equal": varname}}]
+
+            if len(out["vconcat"][-1]["hconcat"]) >= self.numcol:
+                out["vconcat"].append({"hconcat": []})
+
+            if len(marks) == 1:
+                out["vconcat"][-1]["hconcat"].append({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer})
+
+            else:
+                out["vconcat"][-1]["hconcat"].append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
+
+        return out
