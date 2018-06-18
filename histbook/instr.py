@@ -253,7 +253,7 @@ def walkdown(sources):
                     for y in recurse(x):
                         yield y
 
-    for source in sources:
+    for source in [x for x in sources if not isinstance(x.goal, histbook.expr.BroadcastConst)] + [x for x in sources if isinstance(x.goal, histbook.expr.BroadcastConst)]:
         for x in recurse(source):
             yield x
 
@@ -358,7 +358,7 @@ def instructions(sources, goals):
 
         elif isinstance(node.goal, (histbook.expr.Name, histbook.expr.Predicate)):
             name = newname(node)
-            yield Param(name, node.goal.value)
+            yield Param(name, node.goal)
             names[node.goal] = name
 
         elif isinstance(node.goal, histbook.expr.Call):

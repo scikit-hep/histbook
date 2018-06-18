@@ -49,17 +49,20 @@ Strict dependencies:
 
 - `Python <http://docs.python-guide.org/en/latest/starting/installation/>`__ (2.7+, 3.4+)
 - `Numpy <https://scipy.org/install.html>`__ (1.8.0+)
-- `meta <https://pypi.org/project/meta/>`__
 
 Recommended dependencies:
 =========================
 
 - `Pandas <https://pandas.pydata.org/>`__ for more convenient programmatic access to bin contents
-- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook
-- `Altair <https://altair-viz.github.io/>`__ to view plots in Jupyter Notebook or JupyterLab, and to mix histograms with Altair graphics
+- `Jupyter Notebook <http://jupyter.org/install>`__ for interlaced histogramming and plotting
+- `JupyterLab <http://jupyterlab.readthedocs.io/en/stable/>`__ for a complete IDE-like environment
+- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook (not needed for JupyterLab)
+- `Altair <https://altair-viz.github.io/>`__ to mix histograms with Altair graphics (usable in both Jupyter Notebook and JupyterLab)
 - `VegaScope <https://pypi.org/project/vegascope/>`__ to view plots in a web browser *without* Jupyter
 - `ROOT <https://root.cern/>`__ to analyze histograms in a complete statistical toolkit
 - `uproot <https://pypi.org/project/uproot/>`__ to access ROOT files without the full ROOT framework
+
+.. TODO NumExpr http://numexpr.readthedocs.io/en/latest/user_guide.html to accelerate the calculation of complex expressions
 
 .. inclusion-marker-3-do-not-remove
 
@@ -105,29 +108,26 @@ Reference documentation
 Getting started
 ---------------
 
-Install histbook, pandas, and your choice of ipyvega/Altair/VegaScope (above).
+Install histbook and pandas. If you'll be using a Jupyter Notebook, install ipyvega. If you'll be using a bare Python terminal, install VegaScope. If you'll be using JupyterLab, no visualization library is necessary.
 
 .. code-block:: bash
 
-    pip install histbook pandas vega altair vegascope --user
+    pip install histbook pandas vega vegascope --user          # "vega" is ipyvega
 
-Then start a Jupyter Notebook (ipyvega or Altair), JupyterLab (Altair), or Python prompt (VegaScope),
+Then start your environment to get a Python prompt.
 
 .. code-block:: python
 
     >>> from histbook import *
     >>> import numpy
 
-and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ graphics.
+and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ graphics, if necessary.
 
 .. code-block:: python
 
     >>> from vega import VegaLite as canvas                    # for ipyvega in Jupyter Notebook
-
-    >>> import altair; canvas = altair.Chart.from_dict         # for Altair in Jupyter Notebook or Lab
-    >>> altair.renderers.enable("notebook")
-
     >>> import vegascope; canvas = vegascope.LocalCanvas()     # for VegaScope in bare Python
+                                                               # JupyterLab doesn't need anything
 
 Let's start by histogramming a simple array of data.
 
@@ -136,7 +136,7 @@ Let's start by histogramming a simple array of data.
     >>> array = numpy.random.normal(0, 1, 1000000)
     >>> histogram = Hist(bin("data", 10, -5, 5))
     >>> histogram.fill(data=array)
-    >>> histogram.step("data").to(canvas)
+    >>> histogram.step("data").to(canvas)                      # for JupyterLab, drop ".to(canvas)"
 
 .. image:: docs/source/intro-1.png
 
@@ -179,20 +179,14 @@ This example was deliberately simple. We can extend the binning to two dimension
 
     >>> import math
     >>> hist = Hist(bin("sqrt(x**2 + y**2)", 5, 0, 1),
-    ...             bin("atan2(y, x)", 3, -math.pi, math.pi))
+    ...             bin("arctan2(y, x)", 3, -math.pi, math.pi))
     >>> hist.fill(x=numpy.random.normal(0, 1, 1000000),
     ...           y=numpy.random.normal(0, 1, 1000000))
-    >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("atan2(y,x)")).to(canvas)
+    >>> beside(hist.step("sqrt(y**2 + x**2)"), hist.step("arctan2(y,x)")).to(canvas)
 
 .. image:: docs/source/intro-2.png
 
-Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically. They could even be entered as Python functions because the language is a declarative subset of Python (functions that return one output for each input in an array).
-
-.. code-block:: python
-
-    >>> r = lambda x, y: math.sqrt(x**2 + y**2)
-    >>> phi = lambda y, x: math.atan2(y, x)
-    >>> beside(hist.step(r), hist.step(phi)).to(canvas)
+Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically.
 
 The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)
 
@@ -203,7 +197,7 @@ The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histog
 .. code-block::
 
                                                         count()  err(count())
-    sqrt(x**2 + y**2) atan2(y, x)                                            
+    sqrt(x**2 + y**2) arctan2(y, x)                                            
     [-inf, 0.0)       [-inf, -3.14159265359)                0.0      0.000000
                       [-3.14159265359, -1.0471975512)       0.0      0.000000
                       [-1.0471975512, 1.0471975512)         0.0      0.000000
@@ -257,7 +251,7 @@ With multiple dimensions, we can project it out different ways. The `overlay <ht
 
 .. code-block:: python
 
-    >>> hist.overlay("atan2(y, x)").step("sqrt(x**2+y**2)").to(canvas)
+    >>> hist.overlay("arctan2(y, x)").step("sqrt(x**2+y**2)").to(canvas)
 
 .. image:: docs/source/intro-3.png
 
@@ -265,7 +259,9 @@ The `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega
 
 .. code-block:: python
 
-    >>> hist.stack("atan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
+    >>> r = "sqrt(x**2 + y**2)"
+    >>> phi = "arctan2(y, x)"
+    >>> hist.stack("arctan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
 
 .. image:: docs/source/intro-4.png
 
@@ -273,7 +269,7 @@ The underflow, overflow, and nanflow curves are empty. Let's exclude them with a
 
 .. code-block:: python
 
-    >>> hist.select("-pi <= atan2(y, x) < pi").stack(phi).area(r).to(canvas)
+    >>> hist.select("-pi <= arctan2(y, x) < pi").stack(phi).area(r).to(canvas)
 
 .. image:: docs/source/intro-5.png
 
@@ -281,17 +277,17 @@ We can also split side-by-side and top-down:
 
 .. code-block:: python
 
-    >>> hist.select("-pi <= atan2(y, x) < pi").beside(phi).line(r).to(canvas)
+    >>> hist.select("-pi <= arctan2(y, x) < pi").beside(phi).line(r).to(canvas)
 
 .. image:: docs/source/intro-6.png
 
 .. code-block:: python
 
-    >>> hist.select("-pi <= atan2(y, x) < pi").below(phi).marker(r, error=False).to(canvas)
+    >>> hist.select("-pi <= arctan2(y, x) < pi").below(phi).marker(r, error=False).to(canvas)
 
 .. image:: docs/source/intro-7.png
 
-Notice that the three subfigures are labeled by their ``atan2(y, x)`` bins. This "trellis plot" formed with `beside <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ and `below <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ separated data just as `overlay <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ and `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ separated data. Using all but one together, we could visualize four dimensions at once:
+Notice that the three subfigures are labeled by their ``arctan2(y, x)`` bins. This "trellis plot" formed with `beside <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.beside>`__ and `below <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.below>`__ separated data just as `overlay <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.overlay>`__ and `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega.PlottingChain.stack>`__ separated data. Using all but one together, we could visualize four dimensions at once:
 
 .. code-block:: python
 

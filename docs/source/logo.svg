@@ -15,9 +15,9 @@
    version="1.1"
    inkscape:version="0.48.4 r9939"
    sodipodi:docname="logo.svg"
-   inkscape:export-filename="/home/pivarski/diana/histbook/docs/source/logo-1000px.png"
-   inkscape:export-xdpi="35.153915"
-   inkscape:export-ydpi="35.153915">
+   inkscape:export-filename="/home/pivarski/diana/histbook/docs/source/logo-500px.png"
+   inkscape:export-xdpi="17.576958"
+   inkscape:export-ydpi="17.576958">
   <defs
      id="defs2990" />
   <sodipodi:namedview
@@ -27,9 +27,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.24748737"
-     inkscape:cx="1606.1092"
-     inkscape:cy="181.16839"
+     inkscape:zoom="0.35"
+     inkscape:cx="1804.9335"
+     inkscape:cy="570.96209"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -37,7 +37,7 @@
      fit-margin-left="20"
      fit-margin-right="20"
      fit-margin-bottom="2"
-     inkscape:window-width="1122"
+     inkscape:window-width="1914"
      inkscape:window-height="1027"
      inkscape:window-x="0"
      inkscape:window-y="0"
@@ -112,48 +112,62 @@
        width="92.675194"
        height="17.424341"
        x="545.21417"
-       y="315.3251" />
+       y="315.3251"
+       rx="10"
+       ry="10" />
     <rect
        y="292.98599"
        x="644.84613"
        height="39.763149"
        width="92.675171"
        id="rect3938"
-       style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+       style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       rx="10"
+       ry="10" />
     <rect
        style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
        id="rect3940"
        width="92.675171"
        height="110.06154"
        x="744.47876"
-       y="222.68779" />
+       y="222.68779"
+       rx="10"
+       ry="10" />
     <rect
        y="60.768093"
        x="844.11066"
        height="271.98135"
        width="92.675232"
        id="rect3942"
-       style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+       style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       rx="10"
+       ry="10" />
     <rect
        style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
        id="rect3944"
        width="92.675232"
        height="379.9888"
        x="943.74261"
-       y="-47.239464" />
+       y="-47.239464"
+       rx="10"
+       ry="10" />
     <rect
        y="155.58014"
        x="1043.3752"
        height="177.16922"
        width="92.675293"
        id="rect3946"
-       style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+       style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       rx="10"
+       ry="10" />
     <rect
        style="color:#000000;fill:#bcbcbc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:10;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
        id="rect3948"
        width="92.675171"
        height="55.015347"
        x="1143.0072"
-       y="277.7341" />
+       y="277.7341"
+       rx="10"
+       ry="10" />
   </g>
 </svg>

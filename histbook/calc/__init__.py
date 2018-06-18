@@ -51,17 +51,16 @@ library["numpy.logical_or"] = numpy.logical_or
 library["numpy.logical_and"] = numpy.logical_and
 library["numpy.logical_not"] = numpy.logical_not
 
-library["abs"] = numpy.absolute
-library["acos"] = numpy.arccos
-library["acosh"] = numpy.arccosh
-library["asin"] = numpy.arcsin
-library["asinh"] = numpy.arcsinh
-library["atan2"] = numpy.arctan2
-library["atan"] = numpy.arctan
-library["atanh"] = numpy.arctanh
-library["xor"] = numpy.bitwise_xor
+library["abs"] = numpy.absolute;          library["fabs"] = numpy.absolute
+library["arccos"] = numpy.arccos
+library["arccosh"] = numpy.arccosh
+library["arcsin"] = numpy.arcsin
+library["arcsinh"] = numpy.arcsinh
+library["arctan2"] = numpy.arctan2
+library["arctan"] = numpy.arctan
+library["arctanh"] = numpy.arctanh
 library["ceil"] = numpy.ceil
-library["conjugate"] = numpy.conjugate
+library["conj"] = numpy.conjugate
 library["copysign"] = numpy.copysign
 library["cos"] = numpy.cos
 library["cosh"] = numpy.cosh
@@ -83,19 +82,17 @@ library["hypot"] = numpy.hypot
 library["isfinite"] = numpy.isfinite
 library["isinf"] = numpy.isinf
 library["isnan"] = numpy.isnan
-library["left_shift"] = numpy.left_shift
 library["log10"] = numpy.log10
 library["log1p"] = numpy.log1p
 library["log2"] = numpy.log2
 library["logaddexp2"] = numpy.logaddexp2
 library["logaddexp"] = numpy.logaddexp
 library["log"] = numpy.log
-library["max"] = numpy.maximum
-library["min"] = numpy.minimum
+library["max"] = numpy.maximum;           library["fmax"] = numpy.maximum
+library["min"] = numpy.minimum;           library["fmin"] = numpy.minimum
 library["pow"] = numpy.power
 library["rad2deg"] = numpy.rad2deg
-library["mod"] = numpy.remainder
-library["right_shift"] = numpy.right_shift
+library["mod"] = numpy.remainder;         library["fmod"] = numpy.remainder
 library["rint"] = numpy.rint
 library["sign"] = numpy.sign
 library["sinh"] = numpy.sinh
@@ -344,7 +341,10 @@ def calculate(expr, symbols):
     Numpy array or number
     """
 
-    if isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
+    if isinstance(expr, histbook.expr.BroadcastConst):
+        return symbols[expr.name]
+
+    elif isinstance(expr, (histbook.expr.Name, histbook.expr.Predicate)):
         return symbols[expr.value]
 
     elif isinstance(expr, histbook.expr.Const):

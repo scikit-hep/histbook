@@ -39,7 +39,6 @@ try:
 except ImportError:
     import pickle
 
-import meta
 import numpy
 
 class ExpressionError(Exception): pass
@@ -80,7 +79,7 @@ class Expr(object):
         Parameters
         ----------
         expression : lambda or string
-            expression involving constants (literals and ``pi``, ``e``, ``inf``, and ``nan``), field variables, and functions in ``Expr.recognized``; if a lambda, the fields are given by function parameters, if a string, any unrecognized names will be identified as fields
+            expression involving constants (literals and ``pi``, ``e``, ``inf``, and ``nan``/``NaN``), field variables, and functions in ``Expr.recognized``; if a lambda, the fields are given by function parameters, if a string, any unrecognized names will be identified as fields
 
         defs : ``None`` or dict
             if not ``None``, provides names to recognize in ``expression`` (to avoid repetitive code)
@@ -88,7 +87,7 @@ class Expr(object):
         returnlabel : bool
             if ``True``, return value is a 2-tuple: :py:class:`Expr <histbook.expr.Expr>` and string representing the expression; otherwise *(default)*, just the :py:class:`Expr <histbook.expr.Expr>`
         """
-        _defs = {"pi": Const(math.pi), "e": Const(math.e), "inf": Const(float("inf")), "nan": Const(float("nan"))}
+        _defs = {}
         if defs is not None:
             for n, x in defs.items():
                 if isinstance(x, Expr):
@@ -103,27 +102,8 @@ class Expr(object):
                     except:
                         raise ExpressionError("object can't be included in an expression as symbol {0} because it refers to an unserializable object".format(repr(n)))
 
-        pyast = None
-        label = None
-        params = None
-        if isinstance(expression, types.FunctionType):   # more specific than callable(...)
-            fcn = meta.decompiler.decompile_func(expression)
-            if isinstance(fcn, ast.FunctionDef) and len(fcn.body) == 1 and isinstance(fcn.body[0], ast.Return):
-                pyast = fcn.body[0].value
-                label = expression.__name__
-            elif isinstance(fcn, ast.Lambda):
-                pyast = fcn.body.value
-                label = meta.dump_python_source(pyast).strip()
-            params = expression.__code__.co_varnames[:expression.__code__.co_argcount]
-
-        elif (sys.version_info[0] < 3 and isinstance(expression, basestring)) or (sys.version_info[0] >= 3 and isinstance(expression, str)):
-            mod = ast.parse(expression)
-            if len(mod.body) == 1 and isinstance(mod.body[0], ast.Expr):
-                pyast = mod.body[0].value
-                label = expression
-                
-        if pyast is None:
-            raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
+        pyast = ast.parse(expression, mode="eval").body
+        label = expression
 
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
@@ -143,7 +123,7 @@ class Expr(object):
             elif isinstance(node, ast.Name):
                 return env.get(node.id, None)
             else:
-                raise ExpressionError("functions must be named, not constructed: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("functions must be named, not constructed: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
         def recurse(node, relations=False):
             if isinstance(node, ast.Num):
@@ -160,7 +140,7 @@ class Expr(object):
                 if all(isinstance(x, Const) for x in content):
                     return Const(set(x.value for x in content))
                 else:
-                    raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
             elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
                 if node.id == "None":
@@ -171,14 +151,6 @@ class Expr(object):
                     return Const(False)
                 elif node.id in _defs:
                     return _defs[node.id]
-                elif params is not None and node.id not in params:
-                    if node.id in env:
-                        try:
-                            return Const(pickle.loads(pickle.dumps(env[node.id])))
-                        except:
-                            raise ExpressionError("symbol {0} can't be included in an expression because it refers to an unserializable object in the global scope".format(repr(node.id)))
-                    else:
-                        raise ExpressionError("symbol {0} is not a function parameter and not in the global scope".format(repr(node.id)))
                 else:
                     return Name(node.id)
 
@@ -202,7 +174,7 @@ class Expr(object):
                 elif isinstance(node.ops[0], ast.In):    cmp, swap = "in",     False
                 elif isinstance(node.ops[0], ast.NotIn): cmp, swap = "not in", False
                 else:
-                    raise ExpressionError("only comparision relations supported: '==', '!=', '<', '<=', '>', '>=', 'in', and 'not in': {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("only comparision relations supported: '==', '!=', '<', '<=', '>', '>=', 'in', and 'not in': {0}".format(histbook.util.astunparse.tostring(node).strip()))
                 
                 left = recurse(node.left)
                 right = recurse(node.comparators[0])
@@ -212,7 +184,7 @@ class Expr(object):
                     left, right = sorted([left, right])
 
                 if (cmp == "in" or cmp == "not in") and not (isinstance(right, Const) and isinstance(right.value, set)):
-                    raise ExpressionError("comparisons 'in' and 'not in' can only be used with a set: {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("comparisons 'in' and 'not in' can only be used with a set: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
                 return Relation(cmp, left, right)
 
@@ -220,7 +192,7 @@ class Expr(object):
                 return recurse(ast.BoolOp(ast.And(), [ast.Compare(node.left if i == 0 else node.comparators[i - 1], [node.ops[i]], [node.comparators[i]]) for i in range(len(node.ops))]), relations=True)
 
             elif isinstance(node, ast.Compare):
-                raise ExpressionError("comparison operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("comparison operators are only allowed at the top of an expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
             elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
                 content = recurse(node.operand, relations=True)
@@ -236,7 +208,7 @@ class Expr(object):
                 return functools.reduce(LogicalOr.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values]).simplify()
 
             elif isinstance(node, ast.BoolOp):
-                raise ExpressionError("logical operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("logical operators are only allowed at the top of an expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
                 
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
                 content = recurse(node.operand)
@@ -256,21 +228,21 @@ class Expr(object):
                     return BitAnd.negate(content).simplify()
 
             elif isinstance(node, ast.UnaryOp):
-                raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
             elif isinstance(node, ast.BinOp):
                 if   isinstance(node.op, ast.Add):      fcn = "+"
                 elif isinstance(node.op, ast.Sub):      fcn = "-"
                 elif isinstance(node.op, ast.Mult):     fcn = "*"
                 elif isinstance(node.op, ast.Div):      fcn = "/"
-                elif isinstance(node.op, ast.FloorDiv): op, fcn = "//", "floor_divide"
-                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "mod"
+                elif isinstance(node.op, ast.FloorDiv): op, fcn = "//", "numpy.floor_divide"
+                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "fmod"
                 elif isinstance(node.op, ast.Pow):      op, fcn = "**", "pow"
                 elif isinstance(node.op, ast.BitOr):    fcn = "|"
                 elif isinstance(node.op, ast.BitAnd):   fcn = "&"
                 elif isinstance(node.op, ast.BitXor):   op, fcn = "^",  "xor"
                 else:
-                    raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
                 left = recurse(node.left)
                 right = recurse(node.right)
@@ -346,18 +318,23 @@ class Expr(object):
                             break
                     
                 if fcn is None:
-                    raise ExpressionError("unhandled function in expression: {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("unhandled function in expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
                 return Call(fcn, *(recurse(x, relations=(i == 0 and fcn == "where")) for i, x in enumerate(node.args)))
 
             else:
-                ExpressionError("unhandled syntax in expression: {0}".format(meta.dump_python_source(node).strip()))
+                ExpressionError("unhandled syntax in expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
         if returnlabel:
             return recurse(pyast, relations=True), label
         else:
             return recurse(pyast, relations=True)
         
+    maybeconstants = {"pi": numpy.pi, "Pi": numpy.pi,
+                      "e": numpy.e, "E": numpy.e,
+                      "inf": numpy.inf, "Inf": numpy.inf, "infinity": numpy.inf, "Infinity": numpy.inf,
+                      "nan": numpy.nan, "NaN": numpy.nan, "Nan": numpy.nan}
+
     recognized = {abs: "abs", max: "max", min: "min"}
 
 class _Placeholder(object):
@@ -380,26 +357,31 @@ def _recognize(module, pyname, name):
     else:
         Expr.recognized[_Placeholder()] = name
 
-_recognize(math, "acos", "acos")
-_recognize(math, "acosh", "acosh")
-_recognize(math, "asin", "asin")
-_recognize(math, "asinh", "asinh")
-_recognize(math, "atan2", "atan2")
-_recognize(math, "atan", "atan")
-_recognize(math, "atanh", "atanh")
+Expr.recognized[_Placeholder()] = "fabs"
+Expr.recognized[_Placeholder()] = "fmin"
+Expr.recognized[_Placeholder()] = "fmax"
+Expr.recognized[_Placeholder()] = "fmod"
+
+_recognize(math, "acos", "arccos")
+_recognize(math, "acosh", "arccosh")
+_recognize(math, "asin", "arcsin")
+_recognize(math, "asinh", "arcsinh")
+_recognize(math, "atan2", "arctan2")
+_recognize(math, "atan", "arctan")
+_recognize(math, "atanh", "arctanh")
 _recognize(math, "ceil", "ceil")
 _recognize(math, "copysign", "copysign")
 _recognize(math, "cos", "cos")
 _recognize(math, "cosh", "cosh")
-_recognize(math, "degrees", "rad2deg")
+_recognize(math, "degrees", "rad2deg")    # not in numexpr
 _recognize(math, "erfc", "erfc")
 _recognize(math, "erf", "erf")
 _recognize(math, "exp", "exp")
 _recognize(math, "expm1", "expm1")
-_recognize(math, "factorial", "factorial")
+_recognize(math, "factorial", "factorial")    # not in numexpr
 _recognize(math, "floor", "floor")
-_recognize(math, "fmod", "fmod")
-_recognize(math, "gamma", "gamma")
+_recognize(math, "fmod", "mod")
+_recognize(math, "gamma", "gamma")    # not in numexpr (has lgamma and tgamma)
 _recognize(math, "hypot", "hypot")
 _recognize(math, "isinf", "isinf")
 _recognize(math, "isnan", "isnan")
@@ -407,8 +389,8 @@ _recognize(math, "lgamma", "lgamma")
 _recognize(math, "log10", "log10")
 _recognize(math, "log1p", "log1p")
 _recognize(math, "log", "log")
-_recognize(math, "pow", "pow")
-_recognize(math, "radians", "deg2rad")
+_recognize(math, "pow", "pow")    # not in numexpr (only as operator **)
+_recognize(math, "radians", "deg2rad")    # not in numexpr
 _recognize(math, "sinh", "sinh")
 _recognize(math, "sin", "sin")
 _recognize(math, "sqrt", "sqrt")
@@ -417,47 +399,45 @@ _recognize(math, "tan", "tan")
 _recognize(math, "trunc", "trunc")
 
 _recognize(numpy, "absolute", "abs")
-_recognize(numpy, "arccos", "acos")
-_recognize(numpy, "arccosh", "acosh")
-_recognize(numpy, "arcsin", "asin")
-_recognize(numpy, "arcsinh", "asinh")
-_recognize(numpy, "arctan2", "atan2")
-_recognize(numpy, "arctan", "atan")
-_recognize(numpy, "arctanh", "atanh")
-_recognize(numpy, "bitwise_xor", "xor")
+_recognize(numpy, "arccos", "arccos")
+_recognize(numpy, "arccosh", "arccosh")
+_recognize(numpy, "arcsin", "arcsin")
+_recognize(numpy, "arcsinh", "arcsinh")
+_recognize(numpy, "arctan2", "arctan2")
+_recognize(numpy, "arctan", "arctan")
+_recognize(numpy, "arctanh", "arctanh")
 _recognize(numpy, "ceil", "ceil")
-_recognize(numpy, "conjugate", "conjugate")
+_recognize(numpy, "conjugate", "conj")
 _recognize(numpy, "copysign", "copysign")
 _recognize(numpy, "cos", "cos")
 _recognize(numpy, "cosh", "cosh")
-_recognize(numpy, "deg2rad", "deg2rad")
-_recognize(numpy, "degrees", "rad2deg")
+_recognize(numpy, "deg2rad", "deg2rad")    # not in numexpr
+_recognize(numpy, "degrees", "rad2deg")    # not in numexpr
 _recognize(numpy, "exp2", "exp2")
 _recognize(numpy, "exp", "exp")
 _recognize(numpy, "expm1", "expm1")
 _recognize(numpy, "floor", "floor")
 _recognize(numpy, "fmod", "fmod")
-_recognize(numpy, "heaviside", "heaviside")
+_recognize(numpy, "heaviside", "heaviside")    # not in numexpr
 _recognize(numpy, "hypot", "hypot")
 _recognize(numpy, "isfinite", "isfinite")
 _recognize(numpy, "isinf", "isinf")
 _recognize(numpy, "isnan", "isnan")
-_recognize(numpy, "left_shift", "left_shift")
 _recognize(numpy, "log10", "log10")
 _recognize(numpy, "log1p", "log1p")
 _recognize(numpy, "log2", "log2")
-_recognize(numpy, "logaddexp2", "logaddexp2")
-_recognize(numpy, "logaddexp", "logaddexp")
+_recognize(numpy, "logaddexp2", "logaddexp2")    # not in numexpr
+_recognize(numpy, "logaddexp", "logaddexp")    # not in numexpr
 _recognize(numpy, "log", "log")
-_recognize(numpy, "maximum", "max")
-_recognize(numpy, "minimum", "min")
-_recognize(numpy, "power", "pow")
-_recognize(numpy, "rad2deg", "rad2deg")
-_recognize(numpy, "radians", "deg2rad")
+_recognize(numpy, "maximum", "fmax")
+_recognize(numpy, "minimum", "fmin")
+_recognize(numpy, "power", "pow")    # not in numexpr (only as operator **)
+_recognize(numpy, "rad2deg", "rad2deg")    # not in numexpr
+_recognize(numpy, "radians", "deg2rad")    # not in numexpr
 _recognize(numpy, "remainder", "mod")
-_recognize(numpy, "right_shift", "right_shift")
 _recognize(numpy, "rint", "rint")
-_recognize(numpy, "sign", "sign")
+_recognize(numpy, "round", "round")
+_recognize(numpy, "sign", "sign")    # not in numexpr
 _recognize(numpy, "sinh", "sinh")
 _recognize(numpy, "sin", "sin")
 _recognize(numpy, "sqrt", "sqrt")
@@ -465,6 +445,47 @@ _recognize(numpy, "tanh", "tanh")
 _recognize(numpy, "tan", "tan")
 _recognize(numpy, "trunc", "trunc")
 _recognize(numpy, "where", "where")
+
+### in numexpr, but not defined here (TODO)
+# "abs2"
+# "bool"
+# "cast"
+# "cbrt"
+# "complex"
+# "copy"
+# "crosspower"
+# "fdim"
+# "float32"
+# "float64"
+# "fma"
+# "fpclassify"
+# "ilogb"
+# "imag"
+# "int16"
+# "int32"
+# "int64"
+# "int8"
+# "isnormal"
+# "lgamma"
+# "logb"
+# "logical_and"
+# "logical_or"
+# "lrint"
+# "lround"
+# "nearbyint"
+# "neg"
+# "nextafter"
+# "nexttoward"
+# "ones_like"
+# "real"
+# "scalbln"
+# "signbit"
+# "tgamma"
+# "uint16"
+# "uint32"
+# "uint64"
+# "uint8"
+# "unsafe_cast"
 
 class Const(Expr):
     """Represents a literal constant in the expression tree, such as a number, boolean, or ``None``."""
@@ -527,6 +548,51 @@ class Name(Expr):
     def rename(self, names):
         assert self in names
         return Name(names[self])
+
+class BroadcastConst(Name):
+    """Represents a literal constant in the expression tree that should be broadcast to the length of field data."""
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def _reprargs(self):
+        return (repr(self.name), repr(self.value))
+
+    def __str__(self):
+        if self.name is None:
+            return str(self.value)
+        else:
+            return self.name
+
+    def __hash__(self):
+        if isinstance(self.value, set):
+            value = (set, tuple(sorted(self.value)))
+        else:
+            value = self.value
+        return hash((Const, self.name, value))
+
+    def __eq__(self, other):
+        return self.__class__.__name__ == other.__class__.__name__ and self.name == other.name and self.value == other.value
+
+    def __lt__(self, other):
+        if self.__class__.__name__ == other.__class__.__name__:
+            if type(self.name).__name__ == type(other.name).__name__:
+                if self.name == other.name:
+                    if type(self.value).__name__ == type(other.value).__name__:
+                        return self.value < other.value
+                    else:
+                        return type(self.value).__name__ < type(other.value).__name__
+                else:
+                    self.name < other.name
+            else:
+                return type(self.name).__name__ < type(other.name).__name__
+        else:
+            return self.__class__.__name__ < other.__class__.__name__
+
+    def rename(self, names):
+        assert self in names
+        return BroadcastConst(names[self], self.value)
 
 class Call(Expr):
     """Represents a function call in the expression tree."""

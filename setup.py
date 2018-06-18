@@ -40,7 +40,7 @@ def get_version():
     return g["__version__"]
 
 def get_description():
-    description = open("README.rst",'rb').read().decode('utf8', 'ignore')    
+    description = open("README.rst", "rb").read().decode("utf8", "ignore")
     start = description.index(".. inclusion-marker-1-5-do-not-remove")
     stop = description.index(".. inclusion-marker-3-do-not-remove")
 
@@ -89,7 +89,7 @@ setup(name = "histbook",
       download_url = "https://github.com/diana-hep/histbook/releases",
       license = "BSD 3-clause",
       test_suite = "tests",
-      install_requires = ["numpy>=1.8.0", "meta"],
+      install_requires = ["numpy>=1.8.0"],
       tests_require = [],
       classifiers = [
           "Development Status :: 5 - Production/Stable",
