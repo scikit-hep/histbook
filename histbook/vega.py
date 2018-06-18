@@ -1077,6 +1077,8 @@ class grid(Combination):
                 else:
                     tofill[-1]["hconcat"].append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
 
+                i += 1
+
         return i
 
     def vegalite(self):
