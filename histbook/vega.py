@@ -701,17 +701,18 @@ class Plotable1d(PlotableFrontends):
         marks, encodings, transforms = self._vegalite(axis, domains, "a")
 
         if len(marks) == 1:
-            out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                   "data": {"values": data},
-                   "mark": marks[0],
-                   "encoding": encodings[0],
-                   "transform": transforms[0]}
+            return self._options({"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                                  "data": {"values": data},
+                                  "mark": marks[0],
+                                  "encoding": encodings[0],
+                                  "transform": transforms[0]})
 
         else:
-            out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-                   "data": {"values": data},
-                   "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]}
+            return self._options({"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                                  "data": {"values": data},
+                                  "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
 
+    def _options(self, out):
         if self._last.width is not None:
             out["width"] = self._last.width
         if self._last.height is not None:
@@ -867,12 +868,13 @@ class Plotable2d(PlotableFrontends):
         axis, data, domains = self._data((), "a")
         marks, encodings, transforms = self._vegalite(axis, domains, "a")
 
-        out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
-               "data": {"values": data},
-               "mark": marks[0],
-               "encoding": encodings[0],
-               "transform": transforms[0]}
+        return self._options({"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
+                              "data": {"values": data},
+                              "mark": marks[0],
+                              "encoding": encodings[0],
+                              "transform": transforms[0]})
 
+    def _options(self, out):
         if self._last.width is not None:
             out["width"] = self._last.width
         if self._last.height is not None:
@@ -886,7 +888,7 @@ class Plotable2d(PlotableFrontends):
 class Combination(PlotableFrontends):
     """Abstract class for :py:class:`Plotable1ds <histbook.vega.Plotable1d>` that have been combined as an overlay or side-by-side plots."""
 
-    def __init__(self, plotables, types):
+    def __init__(self, plotables, types, opts):
         self._plotables = []
         for arg in plotables:           # first level: for varargs
             try:
@@ -897,6 +899,10 @@ class Combination(PlotableFrontends):
                 if not isinstance(plotable, types):
                     raise TypeError("only Plotable1ds can be combined with {0}".format(self.__class__.__name__))
                 self._plotables.append(plotable)
+
+        self.config = opts.pop("config", None)
+        if len(opts) > 0:
+            raise TypeError("unrecognized options for {0}: {1}".format(self.__class__.__name__, " ".join(opts)))
 
     def __repr__(self):
         return "{0}({1})".format(self.__class__.__name__, ", ".join(repr(x) for x in self._plotables))
@@ -933,11 +939,31 @@ class Combination(PlotableFrontends):
         recurse(0, self._plotables)
         return allaxis, alldata, alldomains
 
+    def _options(self, out):
+        if self.config is not None:
+            out["config"] = self.config
+
+        else:
+            config = {}
+
+            def recurse(node):
+                if isinstance(node, Combination):
+                    for x in node._plotables:
+                        recurse(x)
+                elif node._last.config is not None:
+                    config.update(node._last.config)
+
+            recurse(self)
+            if len(config) != 0:
+                out["config"] = config
+
+        return out
+
 class overlay(Combination):
     """:py:class:`Plotable1d <histbook.vega.Plotable1d>` overlaying two or more independently produced :py:class:`Plotable1ds <histbook.vega.Plotable1d>`."""
 
-    def __init__(self, *plotables):
-        super(overlay, self).__init__(plotables, (Plotable1d,))
+    def __init__(self, *plotables, **opts):
+        super(overlay, self).__init__(plotables, (Plotable1d,), opts)
 
     def _fill(self, i, allaxis, alldomains, tofill):
         for plotable in self._plotables:
@@ -946,12 +972,12 @@ class overlay(Combination):
             thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
             if len(marks) == 1:
-                tofill.append({"mark": marks[0],
-                               "encoding": encodings[0],
-                               "transform": transforms[0] + thislayer})
+                tofill.append(plotable._options({"mark": marks[0],
+                                                 "encoding": encodings[0],
+                                                 "transform": transforms[0] + thislayer}))
             else:
                 for m, e, t in zip(marks, encodings, transforms):
-                    tofill.append({"mark": m, "encoding": e, "transform": t + thislayer})
+                    tofill.append(plotable._options({"mark": m, "encoding": e, "transform": t + thislayer}))
             i += 1
 
         return i
@@ -964,13 +990,13 @@ class overlay(Combination):
                "layer": []}
 
         self._fill(0, allaxis, alldomains, out["layer"])
-        return out
+        return self._options(out)
 
 class beside(Combination):
     """:py:class:`Plotable1d <histbook.vega.Plotable1d>` displaying two or more independently produced :py:class:`Plotable1ds <histbook.vega.Plotable1d>` beside each other horizontally."""
 
-    def __init__(self, *plotables):
-        super(beside, self).__init__(plotables, (Plotable1d, Plotable2d, overlay, below))
+    def __init__(self, *plotables, **opts):
+        super(beside, self).__init__(plotables, (Plotable1d, Plotable2d, overlay, below), opts)
         if any(isinstance(x, BesideChannel) for x in self._plotables):
             raise TypeError("cannot place plots beside each other that are already split with beside (can do beside and below)")
 
@@ -990,9 +1016,9 @@ class beside(Combination):
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
-                    tofill.append({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer})
+                    tofill.append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}))
                 else:
-                    tofill.append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
+                    tofill.append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}) for m, e, t in zip(marks, encodings, transforms)]})
                 i += 1
 
         return i
@@ -1005,13 +1031,13 @@ class beside(Combination):
                "hconcat": []}
 
         self._fill(0, allaxis, alldomains, out["hconcat"])
-        return out
+        return self._options(out)
 
 class below(Combination):
     """:py:class:`Plotable1d <histbook.vega.Plotable1d>` displaying two or more independently produced :py:class:`Plotable1ds <histbook.vega.Plotable1d>` below each other vertically."""
 
-    def __init__(self, *plotables):
-        super(below, self).__init__(plotables, (Plotable1d, Plotable2d, overlay, beside))
+    def __init__(self, *plotables, **opts):
+        super(below, self).__init__(plotables, (Plotable1d, Plotable2d, overlay, beside), opts)
         if any(isinstance(x, BelowChannel) for x in self._plotables):
             raise TypeError("cannot place plots below each other that are already split with below (can do beside and below)")
 
@@ -1031,9 +1057,9 @@ class below(Combination):
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
-                    tofill.append({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer})
+                    tofill.append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}))
                 else:
-                    tofill.append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
+                    tofill.append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}) for m, e, t in zip(marks, encodings, transforms)]})
                 i += 1
 
         return i
@@ -1046,13 +1072,13 @@ class below(Combination):
                "vconcat": []}
 
         self._fill(0, allaxis, alldomains, out["vconcat"])
-        return out
+        return self._options(out)
 
 class grid(Combination):
     """:py:class:`Plotable1d <histbook.vega.Plotable1d>` displaying two or more independently produced :py:class:`Plotable1ds <histbook.vega.Plotable1d>` in a rectangular grid of `numcol` columns."""
 
-    def __init__(self, numcol, *plotables):
-        super(grid, self).__init__(plotables, (Plotable1d, Plotable2d, overlay))
+    def __init__(self, numcol, *plotables, **opts):
+        super(grid, self).__init__(plotables, (Plotable1d, Plotable2d, overlay), opts)
         if any(isinstance(x, BesideChannel) for x in self._plotables) or any(isinstance(x, BelowChannel) for x in self._plotables):
             raise TypeError("cannot place plots in a grid that are already split with beside or below")
         self.numcol = numcol
@@ -1072,10 +1098,10 @@ class grid(Combination):
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
-                    tofill[-1]["hconcat"].append({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer})
+                    tofill[-1]["hconcat"].append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}))
 
                 else:
-                    tofill[-1]["hconcat"].append({"layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
+                    tofill[-1]["hconcat"].append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}) for m, e, t in zip(marks, encodings, transforms)]})
 
                 i += 1
 
@@ -1089,4 +1115,4 @@ class grid(Combination):
                "vconcat": [{"hconcat": []}]}
 
         self._fill(0, allaxis, alldomains, out["vconcat"])
-        return out
+        return self._options(out)
