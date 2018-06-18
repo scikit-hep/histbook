@@ -112,7 +112,7 @@ Install histbook and pandas. If you'll be using a Jupyter Notebook, install ipyv
 
 .. code-block:: bash
 
-    pip install histbook pandas vega vegascope --user   # "vega" is ipyvega
+    pip install histbook pandas vega vegascope --user          # "vega" is ipyvega
 
 Then start your environment to get a Python prompt.
 
