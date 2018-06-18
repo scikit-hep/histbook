@@ -263,8 +263,8 @@ class Expr(object):
                 elif isinstance(node.op, ast.Sub):      fcn = "-"
                 elif isinstance(node.op, ast.Mult):     fcn = "*"
                 elif isinstance(node.op, ast.Div):      fcn = "/"
-                elif isinstance(node.op, ast.FloorDiv): op, fcn = "//", "floor_divide"
-                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "mod"
+                elif isinstance(node.op, ast.FloorDiv): op, fcn = "//", "numpy.floor_divide"
+                elif isinstance(node.op, ast.Mod):      op, fcn = "%",  "fmod"
                 elif isinstance(node.op, ast.Pow):      op, fcn = "**", "pow"
                 elif isinstance(node.op, ast.BitOr):    fcn = "|"
                 elif isinstance(node.op, ast.BitAnd):   fcn = "&"
@@ -358,7 +358,7 @@ class Expr(object):
         else:
             return recurse(pyast, relations=True)
         
-    recognized = {abs: "abs", max: "max", min: "min"}
+    recognized = {abs: "abs", max: "fmax", min: "fmin"}
 
 class _Placeholder(object):
     count = 0
@@ -380,26 +380,28 @@ def _recognize(module, pyname, name):
     else:
         Expr.recognized[_Placeholder()] = name
 
-_recognize(math, "acos", "acos")
-_recognize(math, "acosh", "acosh")
-_recognize(math, "asin", "asin")
-_recognize(math, "asinh", "asinh")
-_recognize(math, "atan2", "atan2")
-_recognize(math, "atan", "atan")
-_recognize(math, "atanh", "atanh")
+Expr.recognized[_Placeholder()] = "fabs"
+
+_recognize(math, "acos", "arccos")
+_recognize(math, "acosh", "arccosh")
+_recognize(math, "asin", "arcsin")
+_recognize(math, "asinh", "arcsinh")
+_recognize(math, "atan2", "arctan2")
+_recognize(math, "atan", "arctan")
+_recognize(math, "atanh", "arctanh")
 _recognize(math, "ceil", "ceil")
 _recognize(math, "copysign", "copysign")
 _recognize(math, "cos", "cos")
 _recognize(math, "cosh", "cosh")
-_recognize(math, "degrees", "rad2deg")
+_recognize(math, "degrees", "rad2deg")    # not in numexpr
 _recognize(math, "erfc", "erfc")
 _recognize(math, "erf", "erf")
 _recognize(math, "exp", "exp")
 _recognize(math, "expm1", "expm1")
-_recognize(math, "factorial", "factorial")
+_recognize(math, "factorial", "factorial")    # not in numexpr
 _recognize(math, "floor", "floor")
 _recognize(math, "fmod", "fmod")
-_recognize(math, "gamma", "gamma")
+_recognize(math, "gamma", "gamma")    # not in numexpr (has lgamma and tgamma)
 _recognize(math, "hypot", "hypot")
 _recognize(math, "isinf", "isinf")
 _recognize(math, "isnan", "isnan")
@@ -407,8 +409,8 @@ _recognize(math, "lgamma", "lgamma")
 _recognize(math, "log10", "log10")
 _recognize(math, "log1p", "log1p")
 _recognize(math, "log", "log")
-_recognize(math, "pow", "pow")
-_recognize(math, "radians", "deg2rad")
+_recognize(math, "pow", "pow")    # not in numexpr (only as operator **)
+_recognize(math, "radians", "deg2rad")    # not in numexpr
 _recognize(math, "sinh", "sinh")
 _recognize(math, "sin", "sin")
 _recognize(math, "sqrt", "sqrt")
@@ -417,47 +419,45 @@ _recognize(math, "tan", "tan")
 _recognize(math, "trunc", "trunc")
 
 _recognize(numpy, "absolute", "abs")
-_recognize(numpy, "arccos", "acos")
-_recognize(numpy, "arccosh", "acosh")
-_recognize(numpy, "arcsin", "asin")
-_recognize(numpy, "arcsinh", "asinh")
-_recognize(numpy, "arctan2", "atan2")
-_recognize(numpy, "arctan", "atan")
-_recognize(numpy, "arctanh", "atanh")
-_recognize(numpy, "bitwise_xor", "xor")
+_recognize(numpy, "arccos", "arccos")
+_recognize(numpy, "arccosh", "arccosh")
+_recognize(numpy, "arcsin", "arcsin")
+_recognize(numpy, "arcsinh", "arcsinh")
+_recognize(numpy, "arctan2", "arctan2")
+_recognize(numpy, "arctan", "arctan")
+_recognize(numpy, "arctanh", "arctanh")
 _recognize(numpy, "ceil", "ceil")
-_recognize(numpy, "conjugate", "conjugate")
+_recognize(numpy, "conjugate", "conj")
 _recognize(numpy, "copysign", "copysign")
 _recognize(numpy, "cos", "cos")
 _recognize(numpy, "cosh", "cosh")
-_recognize(numpy, "deg2rad", "deg2rad")
-_recognize(numpy, "degrees", "rad2deg")
+_recognize(numpy, "deg2rad", "deg2rad")    # not in numexpr
+_recognize(numpy, "degrees", "rad2deg")    # not in numexpr
 _recognize(numpy, "exp2", "exp2")
 _recognize(numpy, "exp", "exp")
 _recognize(numpy, "expm1", "expm1")
 _recognize(numpy, "floor", "floor")
 _recognize(numpy, "fmod", "fmod")
-_recognize(numpy, "heaviside", "heaviside")
+_recognize(numpy, "heaviside", "heaviside")    # not in numexpr
 _recognize(numpy, "hypot", "hypot")
 _recognize(numpy, "isfinite", "isfinite")
 _recognize(numpy, "isinf", "isinf")
 _recognize(numpy, "isnan", "isnan")
-_recognize(numpy, "left_shift", "left_shift")
 _recognize(numpy, "log10", "log10")
 _recognize(numpy, "log1p", "log1p")
 _recognize(numpy, "log2", "log2")
-_recognize(numpy, "logaddexp2", "logaddexp2")
-_recognize(numpy, "logaddexp", "logaddexp")
+_recognize(numpy, "logaddexp2", "logaddexp2")    # not in numexpr
+_recognize(numpy, "logaddexp", "logaddexp")    # not in numexpr
 _recognize(numpy, "log", "log")
-_recognize(numpy, "maximum", "max")
-_recognize(numpy, "minimum", "min")
-_recognize(numpy, "power", "pow")
-_recognize(numpy, "rad2deg", "rad2deg")
-_recognize(numpy, "radians", "deg2rad")
-_recognize(numpy, "remainder", "mod")
-_recognize(numpy, "right_shift", "right_shift")
+_recognize(numpy, "maximum", "fmax")
+_recognize(numpy, "minimum", "fmin")
+_recognize(numpy, "power", "pow")    # not in numexpr (only as operator **)
+_recognize(numpy, "rad2deg", "rad2deg")    # not in numexpr
+_recognize(numpy, "radians", "deg2rad")    # not in numexpr
+_recognize(numpy, "remainder", "fmod")
 _recognize(numpy, "rint", "rint")
-_recognize(numpy, "sign", "sign")
+_recognize(numpy, "round", "round")
+_recognize(numpy, "sign", "sign")    # not in numexpr
 _recognize(numpy, "sinh", "sinh")
 _recognize(numpy, "sin", "sin")
 _recognize(numpy, "sqrt", "sqrt")
@@ -465,6 +465,47 @@ _recognize(numpy, "tanh", "tanh")
 _recognize(numpy, "tan", "tan")
 _recognize(numpy, "trunc", "trunc")
 _recognize(numpy, "where", "where")
+
+### in numexpr, but not defined here (TODO)
+# "abs2"
+# "bool"
+# "cast"
+# "cbrt"
+# "complex"
+# "copy"
+# "crosspower"
+# "fdim"
+# "float32"
+# "float64"
+# "fma"
+# "fpclassify"
+# "ilogb"
+# "imag"
+# "int16"
+# "int32"
+# "int64"
+# "int8"
+# "isnormal"
+# "lgamma"
+# "logb"
+# "logical_and"
+# "logical_or"
+# "lrint"
+# "lround"
+# "nearbyint"
+# "neg"
+# "nextafter"
+# "nexttoward"
+# "ones_like"
+# "real"
+# "scalbln"
+# "signbit"
+# "tgamma"
+# "uint16"
+# "uint32"
+# "uint64"
+# "uint8"
+# "unsafe_cast"
 
 class Const(Expr):
     """Represents a literal constant in the expression tree, such as a number, boolean, or ``None``."""
