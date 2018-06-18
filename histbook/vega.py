@@ -940,22 +940,22 @@ class Combination(PlotableFrontends):
         return allaxis, alldata, alldomains
 
     def _options(self, out):
+        config = {}
+
+        def recurse(node):
+            if isinstance(node, Combination):
+                for x in node._plotables:
+                    recurse(x)
+            elif node._last.config is not None:
+                config.update(node._last.config)
+
+        recurse(self)
+
         if self.config is not None:
-            out["config"] = self.config
-
-        else:
-            config = {}
-
-            def recurse(node):
-                if isinstance(node, Combination):
-                    for x in node._plotables:
-                        recurse(x)
-                elif node._last.config is not None:
-                    config.update(node._last.config)
-
-            recurse(self)
-            if len(config) != 0:
-                out["config"] = config
+            config.update(self.config)
+        
+        if len(config) != 0:
+            out["config"] = config
 
         return out
 
