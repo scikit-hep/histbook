@@ -186,13 +186,7 @@ This example was deliberately simple. We can extend the binning to two dimension
 
 .. image:: docs/source/intro-2.png
 
-Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically. They could even be entered as Python functions because the language is a declarative subset of Python (functions that return one output for each input in an array).
-
-.. code-block:: python
-
-    >>> r = lambda x, y: math.sqrt(x**2 + y**2)
-    >>> phi = lambda y, x: math.atan2(y, x)
-    >>> beside(hist.step(r), hist.step(phi)).to(canvas)
+Note that I defined the first axis as ``sqrt(x**2 + y**2)`` and then accessed it as ``sqrt(y**2 + x**2)`` (x and y are reversed). The text between quotation marks is not a label that must be matched exactly, it's a symbolic expression that is matched algebraically.
 
 The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histograms.html#histbook.hist.Hist>`__ is two-dimensional, which you can see by printing it as a Pandas table. (Pandas pretty-prints the nested indexes.)
 
@@ -265,6 +259,8 @@ The `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega
 
 .. code-block:: python
 
+    >>> r = "sqrt(x**2 + y**2)"
+    >>> phi = "arctan2(y, x)"
     >>> hist.stack("arctan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
 
 .. image:: docs/source/intro-4.png
