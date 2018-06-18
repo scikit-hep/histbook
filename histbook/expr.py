@@ -39,7 +39,6 @@ try:
 except ImportError:
     import pickle
 
-import meta
 import numpy
 
 class ExpressionError(Exception): pass
@@ -103,27 +102,8 @@ class Expr(object):
                     except:
                         raise ExpressionError("object can't be included in an expression as symbol {0} because it refers to an unserializable object".format(repr(n)))
 
-        pyast = None
-        label = None
-        params = None
-        if isinstance(expression, types.FunctionType):   # more specific than callable(...)
-            fcn = meta.decompiler.decompile_func(expression)
-            if isinstance(fcn, ast.FunctionDef) and len(fcn.body) == 1 and isinstance(fcn.body[0], ast.Return):
-                pyast = fcn.body[0].value
-                label = expression.__name__
-            elif isinstance(fcn, ast.Lambda):
-                pyast = fcn.body.value
-                label = meta.dump_python_source(pyast).strip()
-            params = expression.__code__.co_varnames[:expression.__code__.co_argcount]
-
-        elif (sys.version_info[0] < 3 and isinstance(expression, basestring)) or (sys.version_info[0] >= 3 and isinstance(expression, str)):
-            mod = ast.parse(expression)
-            if len(mod.body) == 1 and isinstance(mod.body[0], ast.Expr):
-                pyast = mod.body[0].value
-                label = expression
-                
-        if pyast is None:
-            raise TypeError("expression must be a one-line string, one-line function, or lambda expression, not {0}".format(repr(expression)))
+        pyast = ast.parse(expression, mode="eval").body
+        label = expression
 
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
@@ -143,7 +123,7 @@ class Expr(object):
             elif isinstance(node, ast.Name):
                 return env.get(node.id, None)
             else:
-                raise ExpressionError("functions must be named, not constructed: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("functions must be named, not constructed: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
         def recurse(node, relations=False):
             if isinstance(node, ast.Num):
@@ -160,7 +140,7 @@ class Expr(object):
                 if all(isinstance(x, Const) for x in content):
                     return Const(set(x.value for x in content))
                 else:
-                    raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("sets in expressions may not contain variable contents: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
             elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
                 if node.id == "None":
@@ -171,14 +151,6 @@ class Expr(object):
                     return Const(False)
                 elif node.id in _defs:
                     return _defs[node.id]
-                elif params is not None and node.id not in params:
-                    if node.id in env:
-                        try:
-                            return Const(pickle.loads(pickle.dumps(env[node.id])))
-                        except:
-                            raise ExpressionError("symbol {0} can't be included in an expression because it refers to an unserializable object in the global scope".format(repr(node.id)))
-                    else:
-                        raise ExpressionError("symbol {0} is not a function parameter and not in the global scope".format(repr(node.id)))
                 else:
                     return Name(node.id)
 
@@ -202,7 +174,7 @@ class Expr(object):
                 elif isinstance(node.ops[0], ast.In):    cmp, swap = "in",     False
                 elif isinstance(node.ops[0], ast.NotIn): cmp, swap = "not in", False
                 else:
-                    raise ExpressionError("only comparision relations supported: '==', '!=', '<', '<=', '>', '>=', 'in', and 'not in': {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("only comparision relations supported: '==', '!=', '<', '<=', '>', '>=', 'in', and 'not in': {0}".format(histbook.util.astunparse.tostring(node).strip()))
                 
                 left = recurse(node.left)
                 right = recurse(node.comparators[0])
@@ -212,7 +184,7 @@ class Expr(object):
                     left, right = sorted([left, right])
 
                 if (cmp == "in" or cmp == "not in") and not (isinstance(right, Const) and isinstance(right.value, set)):
-                    raise ExpressionError("comparisons 'in' and 'not in' can only be used with a set: {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("comparisons 'in' and 'not in' can only be used with a set: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
                 return Relation(cmp, left, right)
 
@@ -220,7 +192,7 @@ class Expr(object):
                 return recurse(ast.BoolOp(ast.And(), [ast.Compare(node.left if i == 0 else node.comparators[i - 1], [node.ops[i]], [node.comparators[i]]) for i in range(len(node.ops))]), relations=True)
 
             elif isinstance(node, ast.Compare):
-                raise ExpressionError("comparison operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("comparison operators are only allowed at the top of an expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
             elif relations and isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
                 content = recurse(node.operand, relations=True)
@@ -236,7 +208,7 @@ class Expr(object):
                 return functools.reduce(LogicalOr.combine, [Logical.normalform(recurse(x, relations=True)) for x in node.values]).simplify()
 
             elif isinstance(node, ast.BoolOp):
-                raise ExpressionError("logical operators are only allowed at the top of an expression: {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("logical operators are only allowed at the top of an expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
                 
             elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
                 content = recurse(node.operand)
@@ -256,7 +228,7 @@ class Expr(object):
                     return BitAnd.negate(content).simplify()
 
             elif isinstance(node, ast.UnaryOp):
-                raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(meta.dump_python_source(node).strip()))
+                raise ExpressionError("only unary operators supported: 'not', '-', '+', and '~': {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
             elif isinstance(node, ast.BinOp):
                 if   isinstance(node.op, ast.Add):      fcn = "+"
@@ -270,7 +242,7 @@ class Expr(object):
                 elif isinstance(node.op, ast.BitAnd):   fcn = "&"
                 elif isinstance(node.op, ast.BitXor):   op, fcn = "^",  "xor"
                 else:
-                    raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("only binary operators supported: '+', '-', '*', '/', '//', '%', '**', '|', '&', and '^': {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
                 left = recurse(node.left)
                 right = recurse(node.right)
@@ -346,12 +318,12 @@ class Expr(object):
                             break
                     
                 if fcn is None:
-                    raise ExpressionError("unhandled function in expression: {0}".format(meta.dump_python_source(node).strip()))
+                    raise ExpressionError("unhandled function in expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
                 return Call(fcn, *(recurse(x, relations=(i == 0 and fcn == "where")) for i, x in enumerate(node.args)))
 
             else:
-                ExpressionError("unhandled syntax in expression: {0}".format(meta.dump_python_source(node).strip()))
+                ExpressionError("unhandled syntax in expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
         if returnlabel:
             return recurse(pyast, relations=True), label

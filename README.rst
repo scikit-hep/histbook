@@ -121,7 +121,7 @@ Then start your environment to get a Python prompt.
     >>> from histbook import *
     >>> import numpy
 
-and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ graphics.
+and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ graphics, if necessary.
 
 .. code-block:: python
 

@@ -89,7 +89,7 @@ setup(name = "histbook",
       download_url = "https://github.com/diana-hep/histbook/releases",
       license = "BSD 3-clause",
       test_suite = "tests",
-      install_requires = ["numpy>=1.8.0", "meta"],
+      install_requires = ["numpy>=1.8.0"],
       tests_require = [],
       classifiers = [
           "Development Status :: 5 - Production/Stable",
