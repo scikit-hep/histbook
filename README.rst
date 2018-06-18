@@ -49,17 +49,20 @@ Strict dependencies:
 
 - `Python <http://docs.python-guide.org/en/latest/starting/installation/>`__ (2.7+, 3.4+)
 - `Numpy <https://scipy.org/install.html>`__ (1.8.0+)
-- `meta <https://pypi.org/project/meta/>`__
 
 Recommended dependencies:
 =========================
 
 - `Pandas <https://pandas.pydata.org/>`__ for more convenient programmatic access to bin contents
-- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook
-- `Altair <https://altair-viz.github.io/>`__ to view plots in Jupyter Notebook or JupyterLab, and to mix histograms with Altair graphics
+- `Jupyter Notebook <http://jupyter.org/install>`__ for interlaced histogramming and plotting
+- `JupyterLab <http://jupyterlab.readthedocs.io/en/stable/>`__ for a complete IDE-like environment
+- `ipyvega <https://pypi.org/project/vega/>`__ to view plots in a Jupyter Notebook (not needed for JupyterLab)
+- `Altair <https://altair-viz.github.io/>`__ to mix histograms with Altair graphics (usable in both Jupyter Notebook and JupyterLab)
 - `VegaScope <https://pypi.org/project/vegascope/>`__ to view plots in a web browser *without* Jupyter
 - `ROOT <https://root.cern/>`__ to analyze histograms in a complete statistical toolkit
 - `uproot <https://pypi.org/project/uproot/>`__ to access ROOT files without the full ROOT framework
+
+.. TODO NumExpr http://numexpr.readthedocs.io/en/latest/user_guide.html to accelerate the calculation of complex expressions
 
 .. inclusion-marker-3-do-not-remove
 
@@ -105,13 +108,13 @@ Reference documentation
 Getting started
 ---------------
 
-Install histbook, pandas, and your choice of ipyvega/Altair/VegaScope (above).
+Install histbook and pandas. If you'll be using a Jupyter Notebook, install ipyvega. If you'll be using a bare Python terminal, install VegaScope. If you'll be using JupyterLab, no visualization library is necessary.
 
 .. code-block:: bash
 
-    pip install histbook pandas vega altair vegascope --user
+    pip install histbook pandas vega vegascope --user   # "vega" is ipyvega
 
-Then start a Jupyter Notebook (ipyvega or Altair), JupyterLab (Altair), or Python prompt (VegaScope),
+Then start your environment to get a Python prompt.
 
 .. code-block:: python
 
@@ -123,11 +126,8 @@ and create a canvas to draw `Vega-Lite <https://vega.github.io/vega-lite/>`__ gr
 .. code-block:: python
 
     >>> from vega import VegaLite as canvas                    # for ipyvega in Jupyter Notebook
-
-    >>> import altair; canvas = altair.Chart.from_dict         # for Altair in Jupyter Notebook or Lab
-    >>> altair.renderers.enable("notebook")
-
     >>> import vegascope; canvas = vegascope.LocalCanvas()     # for VegaScope in bare Python
+                                                               # JupyterLab doesn't need anything
 
 Let's start by histogramming a simple array of data.
 
@@ -136,7 +136,7 @@ Let's start by histogramming a simple array of data.
     >>> array = numpy.random.normal(0, 1, 1000000)
     >>> histogram = Hist(bin("data", 10, -5, 5))
     >>> histogram.fill(data=array)
-    >>> histogram.step("data").to(canvas)
+    >>> histogram.step("data").to(canvas)                      # for JupyterLab, drop ".to(canvas)"
 
 .. image:: docs/source/intro-1.png
 
