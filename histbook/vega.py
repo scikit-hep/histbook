@@ -712,14 +712,14 @@ class Plotable1d(PlotableFrontends):
                                   "data": {"values": data},
                                   "layer": [{"mark": m, "encoding": e, "transform": t} for m, e, t in zip(marks, encodings, transforms)]})
 
-    def _options(self, out):
+    def _options(self, out, config=True):
         if self._last.width is not None:
             out["width"] = self._last.width
         if self._last.height is not None:
             out["height"] = self._last.height
         if self._last.title is not None:
             out["title"] = self._last.title
-        if self._last.config is not None:
+        if config and self._last.config is not None:
             out["config"] = self._last.config
         return out
 
@@ -874,14 +874,14 @@ class Plotable2d(PlotableFrontends):
                               "encoding": encodings[0],
                               "transform": transforms[0]})
 
-    def _options(self, out):
+    def _options(self, out, config=True):
         if self._last.width is not None:
             out["width"] = self._last.width
         if self._last.height is not None:
             out["height"] = self._last.height
         if self._last.title is not None:
             out["title"] = self._last.title
-        if self._last.config is not None:
+        if config and self._last.config is not None:
             out["config"] = self._last.config
         return out
 
@@ -974,10 +974,10 @@ class overlay(Combination):
             if len(marks) == 1:
                 tofill.append(plotable._options({"mark": marks[0],
                                                  "encoding": encodings[0],
-                                                 "transform": transforms[0] + thislayer}))
+                                                 "transform": transforms[0] + thislayer}, config=False))
             else:
                 for m, e, t in zip(marks, encodings, transforms):
-                    tofill.append(plotable._options({"mark": m, "encoding": e, "transform": t + thislayer}))
+                    tofill.append(plotable._options({"mark": m, "encoding": e, "transform": t + thislayer}, config=False))
             i += 1
 
         return i
@@ -1016,9 +1016,9 @@ class beside(Combination):
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
-                    tofill.append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}))
+                    tofill.append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}, config=False))
                 else:
-                    tofill.append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}) for m, e, t in zip(marks, encodings, transforms)]})
+                    tofill.append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}, config=False) for m, e, t in zip(marks, encodings, transforms)]})
                 i += 1
 
         return i
@@ -1057,9 +1057,9 @@ class below(Combination):
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
-                    tofill.append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}))
+                    tofill.append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}, config=False))
                 else:
-                    tofill.append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}) for m, e, t in zip(marks, encodings, transforms)]})
+                    tofill.append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}, config=False) for m, e, t in zip(marks, encodings, transforms)]})
                 i += 1
 
         return i
@@ -1098,10 +1098,10 @@ class grid(Combination):
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
-                    tofill[-1]["hconcat"].append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}))
+                    tofill[-1]["hconcat"].append(plotable._options({"mark": marks[0], "encoding": encodings[0], "transform": transforms[0] + thislayer}, config=False))
 
                 else:
-                    tofill[-1]["hconcat"].append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}) for m, e, t in zip(marks, encodings, transforms)]})
+                    tofill[-1]["hconcat"].append({"layer": [plotable._options({"mark": m, "encoding": e, "transform": t}, config=False) for m, e, t in zip(marks, encodings, transforms)]})
 
                 i += 1
 
