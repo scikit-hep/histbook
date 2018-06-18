@@ -41,6 +41,8 @@ except ImportError:
 
 import numpy
 
+import histbook.util.astunparse
+
 class ExpressionError(Exception): pass
 
 class Expr(object):
