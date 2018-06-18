@@ -29,6 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import collections
+import fnmatch
 import functools
 import sys
 
@@ -39,9 +40,11 @@ import histbook.fill
 import histbook.hist
 import histbook.util
 
-class Book(collections.MutableMapping, histbook.fill.Fillable):
+class GenericBook(collections.MutableMapping):
     """
-    A collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) that can be filled with a single ``fill`` call.
+    A generic collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) or other ``Books``.
+
+    This generic superclass can't be filled; for a fillable book, use :py:class:`Book <histbook.hist.Book>`.
 
     Behaves like a dict (item assignment, ``keys``, ``values``).
     """
@@ -56,147 +59,278 @@ class Book(collections.MutableMapping, histbook.fill.Fillable):
         **more : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
             more initial histograms
         """
-        self._fields = None
-        self._hists = collections.OrderedDict()
+        self._content = collections.OrderedDict()
         for n, x in hists.items():
-            self._hists[n] = x
+            self[n] = x
         for n, x in more.items():
-            self._hists[n] = x
+            self[n] = x
 
     def __repr__(self):
-        return "Book({0} histogram{1})".format(len(self), "" if len(self) == 1 else "s")
+        "<{0} of {1} hist{2}/book{2}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s")
 
-    def __str__(self):
-        return "Book({" + ",\n      ".join("{0}: {1}".format(repr(n), repr(x)) for n, x in self.items()) + "})"
+    def __str__(self, indent=",\n     "):
+        return "{0}({" + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "     " if isinstance(x, GenericBook) else ", ")) for n, x in self.iteritems()) + "})"
 
     def __len__(self):
-        return len(self._hists)
+        return len(self._content)
 
     def __contains__(self, name):
-        return name in self._hists
+        try:
+            self[name]
+        except KeyError:
+            return False
+        else:
+            return True
+
+    def _get(self, name):
+        attempt = self._content.get(name, None)
+        if attempt is not None:
+            return attempt
+        else:
+            try:
+                slash = name.index("/")
+            except ValueError:
+                pass
+            else:
+                attempt = self._content.get(name[:slash], None)
+                if isinstance(attempt, GenericBook):
+                    return attempt._get(name[slash + 1:])
+        return None
+
+    def _set(self, name, value, path):
+        try:
+            slash = name.index("/")
+        except ValueError:
+            self._content[name] = value
+        else:
+            attempt = self._content.get(name[:slash], None)
+            if isinstance(attempt, GenericBook):
+                attempt._set(name[slash + 1:], value, path + "/" + name[:slash])
+            else:
+                raise KeyError("there is no book at {0}".format(repr(path)))
+            
+    def _del(self, name, path):
+        if name in self._content:
+            del self._content[name]
+        else:
+            try:
+                slash = name.index("/")
+            except ValueError:
+                raise KeyError("could not find {0}".format(name if path == "" else path + "/" + name))
+            else:
+                attempt = self._content.get(name[:slash], None)
+                if isinstance(attempt, GenericBook):
+                    attempt._del(name[slash + 1:], path + "/" + name[:slash])
+                else:
+                    raise KeyError("could not find {0}".format(name if path == "" else path + "/" + name))
 
     def __getitem__(self, name):
-        return self._hists[name]
+        if (sys.version_info[0] <= 2 and not isinstance(name, basestring)) or (sys.version_info[0] >= 3 and not isinstance(name, str)):
+            raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
+
+        if "*" in name or "?" in name or "[" in name:
+            return [x for n, x in self.iteritems() if fnmatch.fnmatchcase(n, name)]
+        else:
+            out = self._get(name)
+            if out is not None:
+                return out
+            else:
+                raise KeyError("could not find {0} and could not interpret it as a wildcard (glob) pattern".format(repr(name)))
 
     def __setitem__(self, name, value):
-        if isinstance(value, Book):
-            for n, x in value.items():
-                self._hists[name + "/" + n] = x.copyonfill()
-                self._fields = None
-        elif isinstance(value, histbook.hist.Hist):
-            self._hists[name] = value.copyonfill()
-            self._fields = None
-        else:
-            raise TypeError("histogram books can only be filled with histograms or other histogram books, not {0}".format(type(value)))
+        if (sys.version_info[0] <= 2 and not isinstance(name, basestring)) or (sys.version_info[0] >= 3 and not isinstance(name, str)):
+            raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
+
+        self._set(name, value, "")
 
     def __delitem__(self, name):
-        del self._hists[name]
+        if (sys.version_info[0] <= 2 and not isinstance(name, basestring)) or (sys.version_info[0] >= 3 and not isinstance(name, str)):
+            raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
 
-    def __iter__(self):
-        if sys.version_info[0] < 3:
-            return self._hists.iterkeys()
+        if "*" in name or "?" in name or "[" in name:
+            for n in self.allkeys():
+                self._del(n, "")
         else:
-            return self._hists.keys()
+            self._del(name, "")
 
-    def keys(self):
-        return self._hists.keys()
+    def _iteritems(self, path, recursive, onlyhist):
+        for n, x in self._content.items():
+            if not onlyhist or isinstance(x, histbook.hist.Hist):
+                yield (n if path is None else path + "/" + n), x
 
-    def values(self):
-        return self._hists.values()
+            if recursive and isinstance(x, GenericBook):
+                for y in x._iteritems((n if path is None else path + "/" + n), recursive):
+                    yield y
 
-    @property
-    def _goals(self):
-        return functools.reduce(set.union, (x._goals for x in self.values()))
-
-    def _streamline(self, i, instructions):
-        self._destination = []
-        for i, x in enumerate(self._hists.values()):
-            self._destination.append(x._destination[0])
-            x._streamline(i, instructions)
-        return instructions
-
-    def fill(self, arrays=None, **more):
-        u"""
-        Fill the histogram: identify bins for independent variables, increase their counts by ``1`` or ``weight``, and increment any profile (dependent variable) means and errors in the means.
-
-        All arrays must have the same length (one-dimensional shape). Numbers are treated as one-element arrays.
-
-        All histograms in the book are filled with the same inputs.
+    def iteritems(self, recursive=False, onlyhist=False):
+        """
+        Iterate through path, book-or-histogram pairs.
 
         Parameters
         ----------
-        arrays : dict \u2192 Numpy array or number
-            field values to use in the calculation of independent and dependent variables (axes)
+        recursive : bool
+            if ``True`` *(default)*, descend into books of books
 
-        **more : dict \u2192 Numpy array or number
-            more field values
+        onlyhist : bool
+            if ``True`` *(not default)*, only return histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
         """
+        for n, x in self._iteritems(None, recursive, onlyhist):
+            yield n, x
 
-        if histbook.calc.spark.isspark(arrays, more):
-            # special SparkSQL
-            threads = [threading.Thread(target=histbook.calc.spark.fillspark(x, arrays)) for x in self._hists.values()]
-            for x in self._hists.values():
-                x._prefill()
-            for x in threads:
-                x.start()
-            for x in threads:
-                x.join()
+    def iterkeys(self, recursive=False, onlyhist=False):
+        """
+        Iterate through paths.
 
-        else:
-            # standard Numpy
-            if arrays is None:
-                arrays = more
-            elif len(more) == 0:
-                pass
-            else:
-                arrays = histbook.util.ChainedDict(arrays, more)
+        Parameters
+        ----------
+        recursive : bool
+            if ``True`` *(default)*, descend into books of books
 
-            for x in self._hists.values():
-                x._prefill()
-            length = self._fill(arrays)
-            for x in self._hists.values():
-                x._postfill(arrays, length)
+        onlyhist : bool
+            if ``True`` *(not default)*, only return names of histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        for n, x in self.iteritems(recursive=recursive, onlyhist=onlyhist):
+            yield n
 
-    def cleared(self):
-        """Return a copy with all bins in all histograms set to zero."""
-        out = Book()
-        for n, x in other.items():
-            out[n] = x.cleared()
-        return out
+    def itervalues(self, recursive=False, onlyhist=False):
+        """
+        Iterate through books and histograms.
+
+        Parameters
+        ----------
+        recursive : bool
+            if ``True`` *(default)*, descend into books of books
+
+        onlyhist : bool
+            if ``True`` *(not default)*, only return histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        for n, x in self.iteritems(recursive=recursive, onlyhist=onlyhist):
+            yield x
+
+    def items(self, recursive=False, onlyhist=False):
+        """
+        Return a list of path, book-or-histogram pairs.
+
+        Parameters
+        ----------
+        recursive : bool
+            if ``True`` *(default)*, descend into books of books
+
+        onlyhist : bool
+            if ``True`` *(not default)*, only return histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        return list(self.iteritems(recursive=recursive, onlyhist=onlyhist))
+
+    def keys(self, recursive=False, onlyhist=False):
+        """
+        Return a list of paths.
+
+        Parameters
+        ----------
+        recursive : bool
+            if ``True`` *(default)*, descend into books of books
+
+        onlyhist : bool
+            if ``True`` *(not default)*, only return names of histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        return list(self.iterkeys(recursive=recursive, onlyhist=onlyhist))
+
+    def values(self, recursive=False, onlyhist=False):
+        """
+        Return a list of books and histograms.
+
+        Parameters
+        ----------
+        recursive : bool
+            if ``True`` *(default)*, descend into books of books
+
+        onlyhist : bool
+            if ``True`` *(not default)*, only return histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        return list(self.itervalues(recursive=recursive, onlyhist=onlyhist))
+
+    def allitems(self, onlyhist=False):
+        """
+        Return a recursive list of path, book-or-histogram pairs.
+
+        Parameters
+        ----------
+        onlyhist : bool
+            if ``True`` *(not default)*, only return histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        return self.items(recursive=True, onlyhist=onlyhist)
+
+    def allkeys(self, onlyhist=False):
+        """
+        Return a recursive list of paths.
+
+        Parameters
+        ----------
+        onlyhist : bool
+            if ``True`` *(not default)*, only return names of histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        return self.keys(recursive=True, onlyhist=onlyhist)
+
+    def allvalues(self, onlyhist=False):
+        """
+        Return a recursive list of books and histograms.
+
+        Parameters
+        ----------
+        onlyhist : bool
+            if ``True`` *(not default)*, only return histograms (type :py:class:`Hist <histbook.hist.Hist>`), not books
+        """
+        return self.values(recursive=True, onlyhist=onlyhist)
+
+    def __iter__(self):
+        """Same as ``iteritems(recursive=True, onlyhist=True)``."""
+        return self.iteritems(recursive=True, onlyhist=True)
+
+    def copy(self):
+        """Return an immediate copy of the book of histograms."""
+        return self.__class__(dict((n, x.copy()) for n, x in self.items()))
+
+    def copyonfill(self):
+        """Return a copy of the book of histograms whose content is copied if filled."""
+        return self.__class__(dict((n, x.copyonfill()) for n, x in self.items()))
 
     def clear(self):
-        """Effectively reset all bins in all histograms to zero."""
-        for x in self._hists.values():
+        """Effectively reset all bins of all histograms to zero."""
+        for x in self.itervalues(recursive=True, onlyhist=True):
             x.clear()
 
+    def cleared(self):
+        """Return a copy with all bins of all histograms set to zero."""
+        return self.__class__(dict((n, x.cleared()) for n, x in self.items()))
+
     def __add__(self, other):
-        if not isinstance(other, Book):
-            raise TypeError("histogram Books can only be added to other histogram Books")
+        if not isinstance(other, GenericBook):
+            raise TypeError("histogram books can only be added to other histogram books")
 
-        out = Book(self._hists)
-        for n, x in other.items():
-            if n in out:
-                out[n] += x
-            else:
+        out = self.__class__()
+        for n, x in self.iteritems():
+            if n not in other:
                 out[n] = x
-
+        for n, x in other.iteritems():
+            if n not in self:
+                out[n] = x
+            else:
+                out[n] = x + self[n]
         return out
 
     def __iadd__(self, other):
-        if not isinstance(other, Book):
-            raise TypeError("histogram Books can only be added to other histogram Books")
+        if not isinstance(other, GenericBook):
+            raise TypeError("histogram books can only be added to other histogram books")
 
-        for n, x in other.items():
-            if n in self:
-                self[n] += x
+        for n, x in other.iteritems():
+            if n not in self:
+                out[n] = x
             else:
-                self[n] = x
-
-        return self
+                out[n] += x
 
     def __mul__(self, value):
-        out = Book()
-        for n, x in self._hists.items():
+        out = self.__class__()
+        for n, x in self.iteritems():
             out[n] = x.__mul__(value)
         return out
 
@@ -204,7 +338,7 @@ class Book(collections.MutableMapping, histbook.fill.Fillable):
         return self.__mul__(value)
 
     def __imul__(self, value):
-        for x in self._hists.values():
+        for x in self.itervalues():
             x.__imul__(value)
         return self
 
@@ -223,9 +357,84 @@ class Book(collections.MutableMapping, histbook.fill.Fillable):
         **books : :py:class:`Book <histbook.hist.Book>`
             books to combine (histograms with the same names must have the same axes)
         """
-        if any(not isinstance(x, Book) for x in books.values()):
-            raise TypeError("only histogram Books can be grouped")
-        out = Book()
-        for n in functools.reduce(set.union, (set(x.keys()) for x in books.values())):
-            out._hists[n] = histbook.hist.Hist.group(by=by, **dict((name, book[n]) for name, book in books.items() if n in book.keys()))
+        if any(not isinstance(x, GenericBook) for x in books.values()):
+            raise TypeError("only histogram books can be grouped with other books")
+        out = self.__class__()
+        for name in functools.reduce(set.union, (set(book.iterkeys()) for book in books.values())):
+            cls = tuple(set(book[name].__class__ for book in books.values()))
+            if len(cls) != 1:
+                raise TypeError("books at {0} have different types: {1}".format(repr(name), ", ".join(repr(x) for x in cls)))
+            out[name] = cls[0].group(by=by, **dict((n, x[name]) for n, x in books.items() if name in x))
         return out
+
+class Book(GenericBook, histbook.fill.Fillable):
+    """
+    A collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) or other ``Books`` that can be filled with a single ``fill`` call.
+
+    Behaves like a dict (item assignment, ``keys``, ``values``).
+    """
+
+    def __init__(self, hists={}, **more):
+        self._fields = None
+        super(Book, self).__init__(hists, **more)
+
+    def __setitem__(self, name, value):
+        self._fields = None
+        super(Book, self).__setitem__(name, value)
+
+    def __delitem__(self, name):
+        self._fields = None
+        super(Book, self).__delitem__(name)
+
+    @property
+    def _goals(self):
+        return functools.reduce(set.union, (x._goals for x in self.itervalues(recursive=True, onlyhist=True)))
+
+    def _streamline(self, i, instructions):
+        self._destination = []
+        for i, x in enumerate(self.itervalues(recursive=True, onlyhist=True)):
+            self._destination.append(x._destination[0])
+            x._streamline(i, instructions)
+        return instructions
+
+    def fill(self, arrays=None, **more):
+        u"""
+        Fill the histograms: identify bins for independent variables, increase their counts by ``1`` or ``weight``, and increment any profile (dependent variable) means and errors in the means.
+
+        All arrays must have the same length (one-dimensional shape). Numbers are treated as one-element arrays.
+
+        All histograms in the book are filled with the same inputs.
+
+        Parameters
+        ----------
+        arrays : dict \u2192 Numpy array or number
+            field values to use in the calculation of independent and dependent variables (axes)
+
+        **more : dict \u2192 Numpy array or number
+            more field values
+        """
+
+        if histbook.calc.spark.isspark(arrays, more):
+            # special SparkSQL
+            threads = [threading.Thread(target=histbook.calc.spark.fillspark(x, arrays)) for x in self.itervalues(recursive=True, onlyhist=True)]
+            for x in self.itervalues(recursive=True, onlyhist=True):
+                x._prefill()
+            for x in threads:
+                x.start()
+            for x in threads:
+                x.join()
+
+        else:
+            # standard Numpy
+            if arrays is None:
+                arrays = more
+            elif len(more) == 0:
+                pass
+            else:
+                arrays = histbook.util.ChainedDict(arrays, more)
+
+            for x in self.itervalues(recursive=True, onlyhist=True):
+                x._prefill()
+            length = self._fill(arrays)
+            for x in self.itervalues(recursive=True, onlyhist=True):
+                x._postfill(arrays, length)

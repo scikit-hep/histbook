@@ -82,6 +82,17 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         out._copyonfill = True
         return out
 
+    def clear(self):
+        """Effectively reset all bins to zero."""
+        self._content = None
+
+    def cleared(self):
+        """Return a copy with all bins set to zero."""
+        out = self.copyonfill()
+        out._content = None
+        out._copyonfill = False
+        return out
+
     def __init__(self, *axis, **opts):
         u"""
         Parameters
@@ -202,8 +213,8 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             out.append("defs={" + ", ".join("{0}: {1}".format(repr(n), repr(str(x)) if isinstance(x, histbook.expr.Expr) else repr(x)) for n, x in self._defs.items()) + "}")
         return "Hist(" + indent.join(out) + ")"
 
-    def __str__(self):
-        return self.__repr__(",\n     ")
+    def __str__(self, indent=",\n     "):
+        return self.__repr__(indent)
 
     @property
     def shape(self):
@@ -375,17 +386,6 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None
 
-    def cleared(self):
-        """Return a copy with all bins set to zero."""
-        out = self.__class__.__new__(self.__class__)
-        out.__dict__.update(self.__dict__)
-        out._content = None
-        return out
-
-    def clear(self):
-        """Effectively reset all bins to zero."""
-        self._content = None
-
     def __add__(self, other):
         if not isinstance(other, Hist):
             raise TypeError("histograms can only be added to other histograms")
@@ -504,7 +504,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             histograms to combine (must have the same axes)
         """
         if any(not isinstance(x, Hist) for x in hists.values()):
-            raise TypeError("only histograms can be grouped")
+            raise TypeError("only histograms can be grouped with other histograms")
 
         axis = None
         hist = None
