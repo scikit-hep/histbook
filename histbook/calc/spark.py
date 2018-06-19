@@ -241,18 +241,18 @@ def fillspark(hist, df):
     index = alias(fcns.struct(*indexes))
 
     selectcols = [index]
-    if hist._weight is not None:
+    if hist._weightoriginal is not None:
         weightcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
     for axis in hist._profile:
         exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
-        if hist._weight is None:
+        if hist._weightoriginal is None:
             selectcols.append(alias(exprcol))
             selectcols.append(alias(exprcol*exprcol))
         else:
             selectcols.append(alias(exprcol*weightcol))
             selectcols.append(alias(exprcol*exprcol*weightcol))
 
-    if hist._weight is None:
+    if hist._weightoriginal is None:
         df2 = df.select(*selectcols)
     else:
         selectcols.append(alias(weightcol))
@@ -260,7 +260,7 @@ def fillspark(hist, df):
         df2 = df.select(*selectcols)
 
     aggs = [fcns.sum(df2[n]) for n in df2.columns[1:]]
-    if hist._weight is None:
+    if hist._weightoriginal is None:
         aggs.append(fcns.count(df2[df2.columns[0]]))
 
     def getornew(content, key, nextaxis):

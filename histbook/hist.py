@@ -57,7 +57,11 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def weight(self, expr):
         """Returns a copy of this histogram with ``expr`` as weights (for fluent construction)."""
-        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
+        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, filter=self._filteroriginal, defs=self._defs)
+
+    def filter(self, expr):
+        """Returns a copy of this histogram with ``expr`` as filter (for fluent construction)."""
+        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=self._weightoriginal, filter=expr, defs=self._defs)
 
     @classmethod
     def _copycontent(cls, content):
@@ -102,16 +106,20 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
         Keyword Arguments
         -----------------
-        weight : ``None``, algebraic expression (lambda or string), or number
+        weight : ``None``, algebraic expression (string) or number
             if ``None`` *(default)*, data will be filled with weight ``1``; if an expression, weights are computed from the expression; if a number, weights are constant
 
-        defs : ``None`` or dict of str \u2192 algebraic expression (lambda or string) or :py:class:`Expr <histbook.expr.Expr>`
+        filter : ``None``, algebraic expression (string)
+            if not ``None``, data will be filtered through this logical expression (equivalent to multiplying ``weight`` by ``where(filter, 1, 0)``)
+
+        defs : ``None`` or dict of str \u2192 algebraic expression (string) or :py:class:`Expr <histbook.expr.Expr>`
             if not ``None``, definitions to use when computing expressions
 
         fill : ``None``, single Numpy array or dict of str \u2192 Numpy arrays
             if not ``None``, data to immediately fill after constructing the histogram; single Numpy array is only permitted if there's only one field
         """
         weight = opts.pop("weight", None)
+        filter = opts.pop("filter", None)
         defs = opts.pop("defs", {})
         fill = opts.pop("fill", None)
         if len(opts) > 0:
@@ -170,28 +178,57 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                 self._shape[-1] += 2
                 dest(new._goals(new._parsed))
 
-        if weight is None:
-            self._weightoriginal, self._weightparsed, self._weightlabel = None, None, None
+        if filter is None:
+            self._filteroriginal, self._filterparsed = None, None
+
+        else:
+            self._filteroriginal = filter
+            self._filterparsed = histbook.expr.Expr.parse(filter, defs=self._defs)
+
+            if not isinstance(self._filterparsed, (histbook.expr.LogicalOr, histbook.expr.LogicalAnd, histbook.expr.Relation, histbook.expr.Predicate)) and not (isinstance(self._filterparsed, histbook.expr.Const) and self._filterparsed.value in (False, True)):
+                raise TypeError("filter must be a logical (boolean) expression") 
+
+        if weight is None and self._filteroriginal is None:
+            self._weightoriginal, self._weightparsed = None, None
             self._sumwindex = self._shape[-1]
             self._shape[-1] += 1
-        
-        else:
-            self._weightoriginal = weight
-            if isinstance(weight, (numbers.Real, numpy.integer, numpy.floating)):
-                self._weightparsed, self._weightlabel = histbook.expr.Const(weight), str(weight)
-            else:
-                self._weightparsed, self._weightlabel = histbook.expr.Expr.parse(weight, defs=self._defs, returnlabel=True)
+
+        elif weight is None:
+            self._weightoriginal = None
+            self._weightparsed = histbook.expr.Call("where", self._filterparsed, histbook.expr.Const(1), histbook.expr.Const(0))
             self._sumwindex = self._shape[-1]
             self._sumw2index = self._shape[-1] + 1
             self._shape[-1] += 2
             dest([histbook.instr.CallGraphGoal(self._weightparsed),
                   histbook.instr.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
-            
+
+        elif self._filteroriginal is None:
+            self._weightoriginal = weight
+            if isinstance(weight, (numbers.Real, numpy.integer, numpy.floating)):
+                self._weightparsed = histbook.expr.Const(weight)
+            else:
+                self._weightparsed = histbook.expr.Expr.parse(weight, defs=self._defs)
+            self._sumwindex = self._shape[-1]
+            self._sumw2index = self._shape[-1] + 1
+            self._shape[-1] += 2
+            dest([histbook.instr.CallGraphGoal(self._weightparsed),
+                  histbook.instr.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
+
+        else:
+            self._weightoriginal = weight
+            if isinstance(weight, (numbers.Real, numpy.integer, numpy.floating)):
+                weight = repr(weight)
+            self._weightparsed = histbook.expr.Expr.parse("where(({0}), 1, 0) * ({1})".format(self._filteroriginal, weight), defs=self._defs)
+            self._sumwindex = self._shape[-1]
+            self._sumw2index = self._shape[-1] + 1
+            self._shape[-1] += 2
+            dest([histbook.instr.CallGraphGoal(self._weightparsed),
+                  histbook.instr.CallGraphGoal(histbook.expr.Call("numpy.multiply", self._weightparsed, self._weightparsed))])
+
         self._group = tuple(self._group)
         self._fixed = tuple(self._fixed)
         self._profile = tuple(self._profile)
 
-        self._weight = weight
         self._shape = tuple(self._shape)
         self._content = None
         self._fields = None
@@ -207,8 +244,10 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def __repr__(self, indent=", "):
         out = [repr(x) for x in self._group + self._fixed + self._profile]
-        if self._weightlabel is not None:
-            out.append("weight={0}".format(repr(self._weightlabel)))
+        if self._weightoriginal is not None:
+            out.append("weight={0}".format(repr(self._weightoriginal)))
+        if self._filteroriginal is not None:
+            out.append("filter={0}".format(repr(self._filteroriginal)))
         if len(self._defs) > 0:
             out.append("defs={" + ", ".join("{0}: {1}".format(repr(n), repr(str(x)) if isinstance(x, histbook.expr.Expr) else repr(x)) for n, x in self._defs.items()) + "}")
         return "Hist(" + indent.join(out) + ")"
@@ -531,17 +570,17 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         weight = None
         for x in hists.values():
             if weight is None:
-                weight = x._weight
-            elif x._weight is None:
+                weight = x._weightoriginal
+            elif x._weightoriginal is None:
                 raise TypeError("histograms can only be grouped with the same weight specifications")
-            elif weight != x._weight:
+            elif weight != x._weightoriginal:
                 weight = 1.0
-
+                
         defs = {}
         for x in hists.values():
             defs.update(x._defs)
 
-        out = cls(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, defs=defs)
+        out = cls(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, filter=None, defs=defs)
         out._content = {}
         for n, x in hists.items():
             out._content[n] = cls._copycontent(x._content)
@@ -588,12 +627,28 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def __getstate__(self):
         packed = tuple(x._pack() for x in self._group + self._fixed + self._profile)
-        return (packed, self._weight, None if len(self._defs) == 0 else self._defs, self._content)
+        return (packed, self._weightoriginal, self._filteroriginal, None if len(self._defs) == 0 else self._defs, self._content)
 
     def __setstate__(self, state):
-        packed, weight, defs, content = state
-        self.__init__(*[histbook.axis.Axis._unpack(x) for x in packed], weight=weight, defs=({} if defs is None else defs))
+        packed, weight, filter, defs, content = state
+        self.__init__(*[histbook.axis.Axis._unpack(x) for x in packed], weight=weight, filter=filter, defs=({} if defs is None else defs))
         self._content = content
+
+    def __eq__(self, other):
+        def recurse(one, two):
+            if one is None and two is None:
+                return True
+            elif isinstance(one, dict) and isinstance(two, dict):
+                return set(one.keys()) == set(two.keys()) and all(recurse(one[n], two[n]) for n in one)
+            elif isinstance(one, numpy.ndarray) and isinstance(two, numpy.ndarray):
+                return numpy.array_equal(one, two)
+            else:
+                return False
+
+        return self.__class__ == other.__class__ and self._group == other._group and self._fixed == other._fixed and self._profile == other._profile and self._weightparsed == other._weightparsed and self._filterparsed == other._filterparsed and self._defs == other._defs and recurse(self._content, other._content)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __getitem__(self, where):
         if not isinstance(where, tuple):

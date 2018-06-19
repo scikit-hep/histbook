@@ -130,7 +130,7 @@ class Projectable(object):
             newaxis, newcontent = axis._rebinsplit(edges, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
-        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, defs=self._defs)
         out._content = newcontent
         return out
 
@@ -174,7 +174,7 @@ class Projectable(object):
             newaxis, newcontent = axis._rebinsplit(factor, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
-        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, defs=self._defs)
         out._content = newcontent
         return out
 
@@ -207,7 +207,7 @@ class Projectable(object):
                 index.append(i)
 
         index.append(self._sumwindex)
-        if self._weight is not None:
+        if self._weightoriginal is not None:
             index.append(self._sumw2index)
 
         slc = (slice(None),) * (len(self._shape) - 1) + (index,)
@@ -218,7 +218,7 @@ class Projectable(object):
             else:
                 return content[slc]
 
-        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weight, defs=self._defs)
+        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weightoriginal, defs=self._defs)
         if self._content is not None:
             out._content = dropcontent(self._content)
         return out
@@ -280,7 +280,7 @@ class Projectable(object):
                 return projarray(content)
 
         outaxis = [x.relabel(x._original) for x in allaxis if x in axis] + [x.relabel(x._original) for x in self._profile]
-        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, defs=self._defs)
         if self._content is not None:
             out._content = projcontent(0, self._content)
         return out
@@ -480,7 +480,7 @@ class Projectable(object):
         axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
         if dropnull:
             axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
-        out = self.__class__(*axis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*axis, weight=self._weightoriginal, defs=self._defs)
         if self._content is not None:
             out._content = cutcontent(0, self._content)
         return out
@@ -730,7 +730,7 @@ class Projectable(object):
 
             good = sumw > 0
             denom = sumw[good]
-            # if denomhist._weight is not None:
+            # if denomhist._weightoriginal is not None:
             #     denomw2 = denomcontent[good, denomhist._sumw2index]
 
             for i in range(len(cut)):
