@@ -60,7 +60,7 @@ class GenericBook(collections.MutableMapping):
             more initial histograms
         """
         self._content = collections.OrderedDict()
-        self._attachment = None
+        self._attachment = {}
         if hasattr(hists, "items"):
             for n, x in hists.items():
                 self[n] = x
@@ -77,33 +77,22 @@ class GenericBook(collections.MutableMapping):
         out._content = collections.OrderedDict()
         for n, x in content.items():
             out[n] = x
-        if len(attachment) == 0:
-            out._attachment = None
-        else:
-            out._attachment = dict(attachment.items())
+        out._attachment = attachment
         return out
 
     def attach(self, key, value):
         """Add an attachment to the book (changing it in-place and returning it)."""
-        if self._attachment is None:
-            self._attachment = {}
         self._attachment[key] = value
         return self
 
     def detach(self, key):
         """Remove an attachment from the book (changing it in-place and returning it)."""
-        if self._attachment is None:
-            self._attachment = {}
         del self._attachment[key]
-        if len(self._attachment) == 0:
-            self._attachment = None
         return self
 
     @property
     def attachment(self):
         """Python dict of attachment metadata."""
-        if self._attachment is None:
-            self._attachment = {}
         return self._attachment
 
     def __repr__(self):
@@ -113,7 +102,7 @@ class GenericBook(collections.MutableMapping):
         return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + "})"
 
     def __eq__(self, other):
-        return self.__class__ == other.__class__ and self._content == other._content
+        return self.__class__ == other.__class__ and self._content == other._content and self._attachment == other._attachment
 
     def __ne__(self, other):
         return not self.__eq__(other)
