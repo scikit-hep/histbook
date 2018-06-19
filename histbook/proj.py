@@ -657,6 +657,8 @@ class Projectable(object):
         """
         return self._fraction(cut, opts, False)
 
+    ### FIXME: express levels in sigmas, rather than confidence levels
+
     def _fraction(self, cut, opts, return_denomhist):
         count = opts.pop("count", True)
         error = opts.pop("error", "normal")
