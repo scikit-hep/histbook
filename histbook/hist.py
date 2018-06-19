@@ -57,11 +57,11 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def weight(self, expr):
         """Returns a copy of this histogram with ``expr`` as weights (for fluent construction)."""
-        return Hist(*(self._group + self._fixed + self._profile), weight=expr, filter=self._filteroriginal, defs=self._defs)
+        return Hist(*(self._group + self._fixed + self._profile), weight=expr, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
 
     def filter(self, expr):
         """Returns a copy of this histogram with ``expr`` as filter (for fluent construction)."""
-        return Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=expr, defs=self._defs)
+        return Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=expr, defs=dict(self._defs), attachment=dict(self._attachment))
 
     @classmethod
     def _copycontent(cls, content):
@@ -117,15 +117,26 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
         fill : ``None``, single Numpy array or dict of str \u2192 Numpy arrays
             if not ``None``, data to immediately fill after constructing the histogram; single Numpy array is only permitted if there's only one field
+
+        attachment : ``None`` or dict of str \u2192 any JSON
+            histogram metadata, such as fit results or other context
         """
         weight = opts.pop("weight", None)
         filter = opts.pop("filter", None)
-        defs = opts.pop("defs", {})
+        defs = opts.pop("defs", None)
         fill = opts.pop("fill", None)
+        attachment = opts.pop("attachment", None)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
 
-        self._defs = defs
+        if defs is None:
+            self._defs = {}
+        else:
+            self._defs = defs
+        if attachment is None:
+            self._attachment = {}
+        else:
+            self._attachment = attachment
         self._group = []
         self._fixed = []
         self._profile = []
@@ -240,6 +251,26 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                 else:
                     raise TypeError("fill must be a dict for histograms of more than one axis")
             self.fill(fill)
+
+    @property
+    def defs(self):
+        """Definitions used by axis expressions."""
+        return self._defs
+
+    def attach(self, key, value):
+        """Add an attachment to the histogram (changing it in-place and returning it)."""
+        self._attachment[key] = value
+        return self
+
+    def detach(self, key):
+        """Remove an attachment from the histogram (changing it in-place and returning it)."""
+        del self._attachment[key]
+        return self
+
+    @property
+    def attachment(self):
+        """Python dict of attachment metadata."""
+        return self._attachment
 
     def __repr__(self, indent=", "):
         out = [repr(x) for x in self._group + self._fixed + self._profile]
@@ -579,7 +610,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         for x in hists.values():
             defs.update(x._defs)
 
-        out = cls(*((histbook.axis.groupby(by),) + hist._group + hist._fixed + hist._profile), weight=weight, filter=None, defs=defs)
+        out = cls(*((histbook.axis.groupby(by),) + hist._group + hist._fixed + hist._profile), weight=weight, filter=None, defs=dict(defs), attachment=None)
         out._content = {}
         for n, x in hists.items():
             out._content[n] = cls._copycontent(x._content)
@@ -639,6 +670,8 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                 else:
                     return node.tolist()
             out["content"] = recurse(self._content)
+        if len(self._attachment) != 0:
+            out["attachment"] = self._attachment
         return out
 
     @staticmethod
@@ -652,17 +685,17 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             else:
                 return numpy.array(node, dtype=Hist.COUNTTYPE)
 
-        out = Hist(*[histbook.axis.Axis.fromjson(x) for x in obj["axis"]], weight=obj.get("weight", None), filter=obj.get("filter", None), defs=obj.get("defs", None))
+        out = Hist(*[histbook.axis.Axis.fromjson(x) for x in obj["axis"]], weight=obj.get("weight", None), filter=obj.get("filter", None), defs=obj.get("defs", None), attachment=obj.get("attachment", None))
         out._content = recurse(obj.get("content", None))
         return out
 
     def __getstate__(self):
         packed = tuple(x._pack() for x in self._group + self._fixed + self._profile)
-        return (packed, self._weightoriginal, self._filteroriginal, None if len(self._defs) == 0 else self._defs, self._content)
+        return (packed, self._weightoriginal, self._filteroriginal, None if len(self._defs) == 0 else self._defs, self._content, None if len(self._attachment) == 0 else self._attachment)
 
     def __setstate__(self, state):
-        packed, weight, filter, defs, content = state
-        self.__init__(*[histbook.axis.Axis._unpack(x) for x in packed], weight=weight, filter=filter, defs=({} if defs is None else defs))
+        packed, weight, filter, defs, content, attachment = state
+        self.__init__(*[histbook.axis.Axis._unpack(x) for x in packed], weight=weight, filter=filter, defs=defs, attachment=attachment)
         self._content = content
 
     def __eq__(self, other):
@@ -676,7 +709,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             else:
                 return False
 
-        return self.__class__ == other.__class__ and self._group == other._group and self._fixed == other._fixed and self._profile == other._profile and self._weightparsed == other._weightparsed and self._filterparsed == other._filterparsed and self._defs == other._defs and recurse(self._content, other._content)
+        return self.__class__ == other.__class__ and self._group == other._group and self._fixed == other._fixed and self._profile == other._profile and self._weightparsed == other._weightparsed and self._filterparsed == other._filterparsed and self._defs == other._defs and recurse(self._content, other._content) and self._attachment == other._attachment
 
     def __ne__(self, other):
         return not self.__eq__(other)

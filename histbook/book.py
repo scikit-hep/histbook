@@ -44,7 +44,7 @@ class GenericBook(collections.MutableMapping):
     """
     A generic collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) or other ``Books``.
 
-    This generic superclass can't be filled; for a fillable book, use :py:class:`Book <histbook.hist.Book>`.
+    This generic superclass can't be filled; for a fillable book, use :py:class:`Book <histbook.book.Book>`.
 
     Behaves like a dict (item assignment, ``keys``, ``values``).
     """
@@ -53,20 +53,61 @@ class GenericBook(collections.MutableMapping):
         u"""
         Parameters
         ----------
-        hists : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
-            initial histograms
+        hists : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>` or :py:class:`Book <histbook.book.Book>`; or list of :py:class:`Hists <histbook.hist.Hist>` and :py:class:`Books <histbook.book.Book>`
+            initial histograms; if list is provided, names will be numbers increasing from zero
 
-        **more : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>`
+        **more : :py:class:`Hists <histbook.hist.Hist>` or :py:class:`Books <histbook.book.Book>`
             more initial histograms
         """
         self._content = collections.OrderedDict()
-        for n, x in hists.items():
-            self[n] = x
+        self._attachment = None
+        if hasattr(hists, "items"):
+            for n, x in hists.items():
+                self[n] = x
+        else:
+            for i, x in enumerate(hists):
+                self[str(i)] = x
         for n, x in more.items():
             self[n] = x
 
+    @classmethod
+    def fromdicts(cls, content, attachment):
+        """Construct a book from its ``content`` and ``attachment`` dicts."""
+        out = cls.__new__(cls)
+        out._content = collections.OrderedDict()
+        for n, x in content.items():
+            out[n] = x
+        if len(attachment) == 0:
+            out._attachment = None
+        else:
+            out._attachment = dict(attachment.items())
+        return out
+
+    def attach(self, key, value):
+        """Add an attachment to the book (changing it in-place and returning it)."""
+        if self._attachment is None:
+            self._attachment = {}
+        self._attachment[key] = value
+        return self
+
+    def detach(self, key):
+        """Remove an attachment from the book (changing it in-place and returning it)."""
+        if self._attachment is None:
+            self._attachment = {}
+        del self._attachment[key]
+        if len(self._attachment) == 0:
+            self._attachment = None
+        return self
+
+    @property
+    def attachment(self):
+        """Python dict of attachment metadata."""
+        if self._attachment is None:
+            self._attachment = {}
+        return self._attachment
+
     def __repr__(self):
-        return "<{0} ({1} content{2}) at {3:012x}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s", id(self))
+        return "<{0} ({1} content{2}{3}) at {4:012x}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s", "" if len(self._attachment) == 0 else " {0} attachment{1}".format(len(self._attachment), "" if len(self._attachment) == 1 else "s"), id(self))
 
     def __str__(self, indent=",\n      ", first=False):
         return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + "})"
@@ -78,12 +119,15 @@ class GenericBook(collections.MutableMapping):
         return not self.__eq__(other)
 
     def tojson(self):
-        return {"type": self.__class__.__name__, "content": dict((n, x.tojson()) for n, x in self._content.items())}
+        out = {"type": self.__class__.__name__, "content": dict((n, x.tojson()) for n, x in self._content.items())}
+        if len(self._attachment) != 0:
+            out["attachment"] = self._attachment
+        return out
 
     @staticmethod
     def fromjson(obj):
         cls = getattr(sys.modules[GenericBook.__module__], obj["type"])
-        return cls(dict((n, histbook.hist.Hist.fromjson(x) if x["type"] == "Hist" else GenericBook.fromjson(x)) for n, x in obj["content"]))
+        return cls.fromdicts(dict((n, histbook.hist.Hist.fromjson(x) if x["type"] == "Hist" else GenericBook.fromjson(x)) for n, x in obj["content"]), obj.get("attachment", {}))
 
     def __len__(self):
         return len(self._content)
@@ -371,7 +415,7 @@ class GenericBook(collections.MutableMapping):
         by : string
             name of the new axis (must not already exist)
 
-        **books : :py:class:`Book <histbook.hist.Book>`
+        **books : :py:class:`Book <histbook.book.Book>`
             books to combine (histograms with the same names must have the same axes)
         """
         if any(not isinstance(x, GenericBook) for x in books.values()):

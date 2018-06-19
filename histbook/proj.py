@@ -130,7 +130,7 @@ class Projectable(object):
             newaxis, newcontent = axis._rebinsplit(edges, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
-        out = self.__class__(*outaxis, weight=self._weightoriginal, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         out._content = newcontent
         return out
 
@@ -174,7 +174,7 @@ class Projectable(object):
             newaxis, newcontent = axis._rebinsplit(factor, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
-        out = self.__class__(*outaxis, weight=self._weightoriginal, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         out._content = newcontent
         return out
 
@@ -218,7 +218,7 @@ class Projectable(object):
             else:
                 return content[slc]
 
-        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weightoriginal, defs=self._defs)
+        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         if self._content is not None:
             out._content = dropcontent(self._content)
         return out
@@ -280,7 +280,7 @@ class Projectable(object):
                 return projarray(content)
 
         outaxis = [x for x in allaxis if x in axis] + [x for x in self._profile]
-        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         if self._content is not None:
             out._content = projcontent(0, self._content)
         return out
@@ -480,7 +480,7 @@ class Projectable(object):
         axis = [newaxis if x is cutaxis else x for x in self._group + self._fixed + self._profile]
         if dropnull:
             axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
-        out = self.__class__(*axis, weight=self._weightoriginal, defs=self._defs)
+        out = self.__class__(*axis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         if self._content is not None:
             out._content = cutcontent(0, self._content)
         return out

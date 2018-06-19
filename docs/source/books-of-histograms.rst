@@ -5,6 +5,6 @@ Histograms can be collected into "books," both as a user convenience (fill all h
 
 Books of histograms behave like dicts, with access to individual histograms through square brackets (``__getitem__`` and ``__setitem__``).
 
-.. autoclass:: histbook.hist.Book
+.. autoclass:: histbook.book.Book
    :members: 
    :inherited-members: 
