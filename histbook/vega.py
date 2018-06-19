@@ -633,7 +633,10 @@ class Plotable1d(PlotableFrontends):
         # FIXME: let the user override this with explicit xtitle, ytitle parameters
         xtitle = self._last.axis.expr
         if self._last.profile is None:
-            ytitle = "entries per bin"
+            if self._last.normalized:
+                ytitle = "probability per bin"
+            else:
+                ytitle = "entries per bin"
         else:
             ytitle = self._last.profile.expr
 
