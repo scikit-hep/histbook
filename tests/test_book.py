@@ -167,5 +167,7 @@ class TestBook(unittest.TestCase):
                                 Book(par1=Hist(bin("par1", 5, 0, 5)),
                                      par2=Hist(bin("par2", 5, 0, 5)))))
 
-        # print
-        # print(everything)
+        everything.view("*/data/*").fill(x=numpy.random.uniform(0, 5, 100000), epsilon=numpy.random.normal(0, 0.01, 100000))
+
+        self.assertNotEqual(everything["mass/data/0/0"].table(recarray=False).sum(), 0)
+        self.assertEqual(everything["mass/signal/0/0"].table(recarray=False).sum(), 0)
