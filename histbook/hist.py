@@ -63,6 +63,10 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         """Returns a copy of this histogram with ``expr`` as filter (for fluent construction)."""
         return Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=expr, defs=dict(self._defs), attachment=dict(self._attachment))
 
+    def systematic(self, vector):
+        """Returns a copy of this histogram with ``vector`` as systematic (for fluent construction)."""
+        return Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment), systematic=vector)
+
     @classmethod
     def _copycontent(cls, content):
         if content is None:
@@ -117,17 +121,29 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
         fill : ``None``, single Numpy array or dict of str \u2192 Numpy arrays
             if not ``None``, data to immediately fill after constructing the histogram; single Numpy array is only permitted if there's only one field
-
+            
         attachment : ``None`` or dict of str \u2192 any JSON
             histogram metadata, such as fit results or other context
+
+        systematic : ``None``, tuple of numbers
+            the systematic error vector this histogram represents; a special case of attachment (and stored in attachment)
         """
         weight = opts.pop("weight", None)
         filter = opts.pop("filter", None)
         defs = opts.pop("defs", None)
         fill = opts.pop("fill", None)
         attachment = opts.pop("attachment", None)
+        systematic = opts.pop("systematic", None)
         if len(opts) > 0:
             raise TypeError("unrecognized options for Hist: {0}".format(" ".join(opts)))
+
+        if systematic is not None:
+            if attachment is None:
+                attachment = {"systematic": systematic}
+            elif "systematic" in attachment:
+                raise ValueError("systematic provided as a keyword option and also found in attachment")
+            else:
+                attachment["systematic"] = systematic
 
         if defs is None:
             self._defs = {}
@@ -267,9 +283,29 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         del self._attachment[key]
         return self
 
+    def has(self, key):
+        """Returns ``True`` if ``key`` exists in the attachment metadata."""
+        return key in self._attachment
+
+    def get(self, key, *default):
+        """
+        Get an item of attachment metadata.
+
+        If ``key`` isn't found and no ``default`` is specified, raise a ``KeyError``.
+        If ``key`` isn't found and a ``default`` is provided, return the ``default`` instead.
+
+        Only one ``default`` is allowed.
+        """
+        if len(default) == 0:
+            return self._attachment[key]
+        elif len(default) == 1:
+            return self._attachment.get(key, default[0])
+        else:
+            raise TypeError("get takes 1 or 2 arguments; {0} provided".format(len(default) + 1))
+
     @property
     def attachment(self):
-        """Python dict of attachment metadata."""
+        """Python dict of attachment metadata (linked, not a copy)."""
         return self._attachment
 
     def __repr__(self, indent=", "):
@@ -709,10 +745,14 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             else:
                 return False
 
-        return self.__class__ == other.__class__ and self._group == other._group and self._fixed == other._fixed and self._profile == other._profile and self._weightparsed == other._weightparsed and self._filterparsed == other._filterparsed and self._defs == other._defs and recurse(self._content, other._content) and self._attachment == other._attachment
+        return self.__class__ is other.__class__ and self._group == other._group and self._fixed == other._fixed and self._profile == other._profile and self._weightparsed == other._weightparsed and self._filterparsed == other._filterparsed and self._defs == other._defs and recurse(self._content, other._content) and self._attachment == other._attachment
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def compatible(self, other):
+        """Returns True if the histograms have the same non-profile axis types and binning, regardless of the expressions used to compute them."""
+        return len(self._group) == len(other._group) and len(self._fixed) == len(other._fixed) and all(y.compatible(z) for y, z in zip(self._group + self._fixed, other._group + other._fixed))
 
     def __getitem__(self, where):
         if not isinstance(where, tuple):

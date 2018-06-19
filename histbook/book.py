@@ -40,6 +40,11 @@ import histbook.fill
 import histbook.hist
 import histbook.util
 
+if sys.version_info[0] <= 2:
+    string = basestring
+else:
+    string = str
+
 ################################################################ superclass of all books (glorified dict)
 
 class GenericBook(collections.MutableMapping):
@@ -51,26 +56,38 @@ class GenericBook(collections.MutableMapping):
     Behaves like a dict (item assignment, ``keys``, ``values``).
     """
 
-    def __init__(self, hists={}, **more):
+    def __init__(self, hists1={}, *hists2, **hists3):
         u"""
-        Parameters
-        ----------
-        hists : dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>` or :py:class:`Book <histbook.book.Book>`; or list of :py:class:`Hists <histbook.hist.Hist>` and :py:class:`Books <histbook.book.Book>`
-            initial histograms; if list is provided, names will be numbers increasing from zero
+        Positional arguments may be a dict of str \u2192 :py:class:`Hist <histbook.hist.Hist>` or :py:class:`GenericBook <histbook.book.GenericBook>`.
 
-        **more : :py:class:`Hists <histbook.hist.Hist>` or :py:class:`Books <histbook.book.Book>`
-            more initial histograms
+        Or they may be :py:class:`Hist <histbook.hist.Hist>` or :py:class:`GenericBook <histbook.book.GenericBook>` as unnamed varargs.
+
+        In either case, keyword name \u2192 :py:class:`Hist <histbook.hist.Hist>` or :py:class:`Book <histbook.book.Book>` are also accepted.
         """
         self._content = collections.OrderedDict()
         self._attachment = {}
-        if hasattr(hists, "items"):
-            for n, x in hists.items():
+
+        if hasattr(hists1, "items"):
+            for n, x in hists1.items():
                 self[n] = x
+            if len(hists2) != 0:
+                raise TypeError("only one positional argument when the first argument is a dict")
+
+        elif isinstance(hists1, (histbook.hist.Hist, GenericBook)):
+            self["0"] = hists1
+            for i, x in enumerate(hists2):
+                self[str(i + 1)] = x
+
         else:
-            for i, x in enumerate(hists):
-                self[str(i)] = x
-        for n, x in more.items():
+            raise TypeError("positional arguments may be a single dict or varargs of unnamed histograms/books")
+
+        for n, x in hists3.items():
             self[n] = x
+
+        self._changed()
+
+    def _changed(self):
+        pass
 
     @classmethod
     def fromdicts(cls, content, attachment):
@@ -80,6 +97,7 @@ class GenericBook(collections.MutableMapping):
         for n, x in content.items():
             out[n] = x
         out._attachment = attachment
+        out._init()
         return out
 
     def attach(self, key, value):
@@ -92,22 +110,69 @@ class GenericBook(collections.MutableMapping):
         del self._attachment[key]
         return self
 
+    def has(self, key):
+        """Returns ``True`` if ``key`` exists in the attachment metadata."""
+        return key in self._attachment
+
+    def get(self, key, *default):
+        """
+        Get an item of attachment metadata.
+
+        If ``key`` isn't found and no ``default`` is specified, raise a ``KeyError``.
+        If ``key`` isn't found and a ``default`` is provided, return the ``default`` instead.
+
+        Only one ``default`` is allowed.
+        """
+        if len(default) == 0:
+            return self._attachment[key]
+        elif len(default) == 1:
+            return self._attachment.get(key, default[0])
+        else:
+            raise TypeError("get takes 1 or 2 arguments; {0} provided".format(len(default) + 1))
+
     @property
     def attachment(self):
-        """Python dict of attachment metadata."""
+        """Python dict of attachment metadata (linked, not a copy)."""
         return self._attachment
 
     def __repr__(self):
         return "<{0} ({1} content{2}{3}) at {4:012x}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s", "" if len(self._attachment) == 0 else " {0} attachment{1}".format(len(self._attachment), "" if len(self._attachment) == 1 else "s"), id(self))
 
-    def __str__(self, indent=",\n      ", first=False):
+    def __str__(self, indent=",\n      ", first=True):
         return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + "})"
 
     def __eq__(self, other):
-        return self.__class__ == other.__class__ and self._content == other._content and self._attachment == other._attachment
+        return self.__class__ is other.__class__ and self._content == other._content and self._attachment == other._attachment
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def compatible(self, other):
+        """Returns True if the books have the same set of histogram names and those histograms with matching names are compatible."""
+        return set(self.iterkeys()) == set(other.iterkeys()) and all(self[n].compatible(other[n]) for n in self.iterkeys())
+
+    def assertcompatible(self):
+        """Raises ``ValueError`` if not all books have the same set of histogram names and those histograms with matching names are compatible."""
+        def recurse(path, one, two):
+            if isinstance(one, GenericBook) and one.__class__ is two.__class__:
+                if set(one.iterkeys()) != set(two.iterkeys()):
+                    raise ValueError("key names at {0} are not compatible (same book types, names, and non-profile axis binning):\n\n    {1}\n\nversus\n\n    {2}\n".format(repr(path), sorted(one.iterkeys()), sorted(two.iterkeys())))
+                else:
+                    for n in one.iterkeys():
+                        recurse(path + "/" + n, one[n], two[n])
+
+            elif isinstance(one, histbook.hist.Hist) and isinstance(two, histbook.hist.Hist):
+                if not one.compatible(two):
+                    raise ValueError("histograms at {0} are not compatible (same book types, names, and non-profile axis binning):\n\n    {1}\n\nversus\n\n    {2}\n".format(repr(path), repr(one), repr(two)))
+
+            else:
+                raise ValueError("histograms at {0} are not compatible (same book types, names, and non-profile axis binning):\n\n    {1}\n\nversus\n\n    {2}\n".format(repr(path), repr(type(one)), repr(type(two))))
+
+
+        if len(self._content) >= 2:
+            items = self._content.items()
+            for (n1, x1), (n2, x2) in zip(items[:-1], items[1:]):
+                recurse("{" + n1 + "," + n2 + "}", x1, x2)
 
     def tojson(self):
         def merge(name, node):
@@ -160,18 +225,21 @@ class GenericBook(collections.MutableMapping):
             slash = name.index("/")
         except ValueError:
             self._content[name] = value
+            self._changed()
         else:
             attempt = self._content.get(name[:slash], None)
             if attempt is None:
                 attempt = self._content[name[:slash]] = Book()
             if isinstance(attempt, GenericBook):
                 attempt._set(name[slash + 1:], value, path + "/" + name[:slash])
+                self._changed()
             else:
-                raise KeyError("there is no book at {0}".format(repr(path)))
+                raise KeyError("value at {0} is a Hist, not a book".format(repr(path)))
             
     def _del(self, name, path):
         if name in self._content:
             del self._content[name]
+            self._changed()
         else:
             try:
                 slash = name.index("/")
@@ -181,11 +249,12 @@ class GenericBook(collections.MutableMapping):
                 attempt = self._content.get(name[:slash], None)
                 if isinstance(attempt, GenericBook):
                     attempt._del(name[slash + 1:], path + "/" + name[:slash])
+                    self._changed()
                 else:
                     raise KeyError("could not find {0}".format(name if path == "" else path + "/" + name))
 
     def __getitem__(self, name):
-        if (sys.version_info[0] <= 2 and not isinstance(name, basestring)) or (sys.version_info[0] >= 3 and not isinstance(name, str)):
+        if not isinstance(name, string):
             raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
 
         if "*" in name or "?" in name or "[" in name:
@@ -198,13 +267,15 @@ class GenericBook(collections.MutableMapping):
                 raise KeyError("could not find {0} and could not interpret it as a wildcard (glob) pattern".format(repr(name)))
 
     def __setitem__(self, name, value):
-        if (sys.version_info[0] <= 2 and not isinstance(name, basestring)) or (sys.version_info[0] >= 3 and not isinstance(name, str)):
+        if not isinstance(name, string):
             raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
+        if not isinstance(value, (histbook.hist.Hist, GenericBook)):
+            raise TypeError("values of a {0} must be Hists or books".format(self.__class__.__name__))
 
         self._set(name, value, "")
 
     def __delitem__(self, name):
-        if (sys.version_info[0] <= 2 and not isinstance(name, basestring)) or (sys.version_info[0] >= 3 and not isinstance(name, str)):
+        if not isinstance(name, string):
             raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
 
         if "*" in name or "?" in name or "[" in name:
@@ -348,11 +419,11 @@ class GenericBook(collections.MutableMapping):
 
     def copy(self):
         """Return an immediate copy of the book of histograms."""
-        return self.__class__(dict((n, x.copy()) for n, x in self.items()))
+        return self.__class__.fromdicts(collections.OrderedDict((n, x.copy()) for n, x in self.items()), dict(self._attachments))
 
     def copyonfill(self):
         """Return a copy of the book of histograms whose content is copied if filled."""
-        return self.__class__(dict((n, x.copyonfill()) for n, x in self.items()))
+        return self.__class__.fromdicts(collections.OrderedDict((n, x.copyonfill()) for n, x in self.items()), dict(self._attachments))
 
     def clear(self):
         """Effectively reset all bins of all histograms to zero."""
@@ -361,27 +432,30 @@ class GenericBook(collections.MutableMapping):
 
     def cleared(self):
         """Return a copy with all bins of all histograms set to zero."""
-        return self.__class__(dict((n, x.cleared()) for n, x in self.items()))
+        return self.__class__.fromdicts(collections.OrderedDict((n, x.cleared()) for n, x in self.items()), dict(self._attachments))
 
     def __add__(self, other):
         if not isinstance(other, GenericBook):
             raise TypeError("histogram books can only be added to other histogram books")
 
-        out = self.__class__()
+        content = collections.OrderedDict()
         for n, x in self.iteritems():
-            if n not in other:
-                out[n] = x
+            if n in other:
+                content[n] = x + other[n]
+            else:
+                content[n] = x
         for n, x in other.iteritems():
             if n not in self:
-                out[n] = x
-            else:
-                out[n] = x + self[n]
-        return out
+                content[n] = x
+
+        attachment = dict(self._attachment)
+        attachment.update(other._attachment)
+        return self.__class__.fromdicts(content, attachment)
 
     def __iadd__(self, other):
         if not isinstance(other, GenericBook):
             raise TypeError("histogram books can only be added to other histogram books")
-
+        
         for n, x in other.iteritems():
             if n not in self:
                 self[n] = x
@@ -390,10 +464,10 @@ class GenericBook(collections.MutableMapping):
         return self
 
     def __mul__(self, value):
-        out = self.__class__()
+        content = collections.OrderedDict()
         for n, x in self.iteritems():
-            out[n] = x.__mul__(value)
-        return out
+            content[n] = x.__mul__(value)
+        return self.__class__.fromdicts(content, dict(self._attachment))
 
     def __rmul__(self, value):
         return self.__mul__(value)
@@ -420,13 +494,19 @@ class GenericBook(collections.MutableMapping):
         """
         if any(not isinstance(x, GenericBook) for x in books.values()):
             raise TypeError("only histogram books can be grouped with other books")
-        out = cls()
+
+        content = collections.OrderedDict()
         for name in functools.reduce(set.union, (set(book.iterkeys()) for book in books.values())):
             nestcls = tuple(set(book[name].__class__ for book in books.values() if name in book))
             if len(nestcls) != 1:
                 raise TypeError("books at {0} have different types: {1}".format(repr(name), ", ".join(repr(x) for x in nestcls)))
-            out[name] = nestcls[0].group(by=by, **dict((n, book[name]) for n, book in books.items() if name in book))
-        return out
+            content[name] = nestcls[0].group(by=by, **dict((n, book[name]) for n, book in books.items() if name in book))
+
+        attachment = {}
+        for book in books.values():
+            attachment.update(book._attachment)
+
+        return cls.fromdicts(content, attachment)
 
 ################################################################ user-level Book (in the histbook.* namespace)
 
@@ -437,17 +517,11 @@ class Book(GenericBook, histbook.fill.Fillable):
     Behaves like a dict (item assignment, ``keys``, ``values``).
     """
 
-    def __init__(self, hists={}, **more):
-        self._fields = None
-        super(Book, self).__init__(hists, **more)
+    def __str__(self, indent=",\n      ", first=False):
+        return super(Book, self).__str__(indent=indent, first=first)
 
-    def __setitem__(self, name, value):
+    def _changed(self):
         self._fields = None
-        super(Book, self).__setitem__(name, value)
-
-    def __delitem__(self, name):
-        self._fields = None
-        super(Book, self).__delitem__(name)
 
     @property
     def _goals(self):
@@ -508,6 +582,27 @@ class Book(GenericBook, histbook.fill.Fillable):
             for x in self.itervalues(recursive=True, onlyhist=True):
                 x._postfill(arrays, length)
 
+################################################################ for constructing fillable views
+
+class ViewableBook(GenericBook):
+    pass
+
 ################################################################ statistically relevant books
 
+class ChannelsBook(ViewableBook):
+    pass
 
+class SamplesBook(ViewableBook):
+    def __init__(self, samples, hists1={}, *hists2, **hists3):
+        for sample in samples:
+            self[sample] = Book(hists1, *hists2, **hists3).copyonfill()
+        self._changed()
+
+class SystematicsBook(Book):
+    def __str__(self, indent=",\n      ", first=True):
+        return super(SystematicsBook, self).__str__(indent=indent, first=first)
+
+    def _changed(self):
+        self.assertcompatible()
+        if not all(x.has("systematic") for x in self.itervalues(recursive=True, onlyhist=True)):
+            raise ValueError("all histograms in a SystematicsBook must have a 'systematic' attachment")
