@@ -505,6 +505,9 @@ class Projectable(object):
         error : bool
             if ``True`` *(default)*, include "errors" on all parameters (uncertainty in the mean of the distribution the count or profile average represents)
 
+        normalized : bool
+            if ``True`` *(not default)*, scale each ``count`` and ``err(count)`` such that the sum over counts times bin widths is 1; does not affect profiles
+
         recarray : bool
             if ``True`` *(default)*, return results as a Numpy record array, which is rank-2 with named columns; if ``False``, return a plain Numpy array, which is rank-N for N axes and has no column labels.
 
@@ -514,6 +517,7 @@ class Projectable(object):
         count = opts.pop("count", True)
         effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
+        normalized = opts.pop("normalized", False)
         recarray = opts.pop("recarray", True)
         showcolumns = opts.pop("columns", False)
         if len(opts) > 0:
@@ -543,22 +547,50 @@ class Projectable(object):
             if error:
                 columns.append("err({0})".format(str(prof.expr)))
 
+        if normalized:
+            binwidths = numpy.full(self._shape[:-1], numpy.inf)
+
+            groupbins = 1.0
+            for axis in self._group:
+                if isinstance(axis, histbook.axis.groupbin):
+                    groupbins *= axis.binwidth
+            binwidths[tuple(axis.finiteslice for axis in self._group + self._fixed)] = groupbins
+
+            for i, axis in enumerate(self._fixed):
+                if callable(axis.binwidth):
+                    binwidth = numpy.array([axis.binwidth(k) for k in range(axis.numbins)])
+                else:
+                    binwidth = axis.binwidth
+
+                binwidths[tuple(axis.finiteslice if i == j else slice(None) for j, axis in enumerate(self._fixed))] *= binwidth
+
         def handlearray(content):
             content = content.reshape((-1, self._shape[-1]))
 
             out = numpy.zeros((content.shape[0], len(columns)), dtype=content.dtype)
             outindex = 0
-
+            
             sumw = content[:, self._sumwindex]
             if count:
                 out[:, outindex] = sumw
+                countindex = outindex
                 outindex += 1
+
                 if error:
                     if self._weightparsed is None:
                         out[:, outindex] = numpy.sqrt(sumw)
                     else:
                         out[:, outindex] = numpy.sqrt(content[:, self._sumw2index])
+                    errorindex = outindex
                     outindex += 1
+
+                if normalized:
+                    shaped = binwidths.reshape(content.shape[:-1])
+                    total = (out[:, countindex] / shaped).sum()
+                    correction = total * shaped
+                    out[:, countindex] /= correction
+                    if error:
+                        out[:, errorindex] /= correction
 
             if len(profile) > 0 or effcount:
                 good = sumw > 0

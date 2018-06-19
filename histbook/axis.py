@@ -231,6 +231,10 @@ class groupby(GroupAxis):
     def __init__(self, expr):
         self._expr = expr
 
+    @property
+    def binwidth(self):
+        return 1
+        
     def _pack(self):
         return (self.__class__, getattr(self, "_original", self._expr))
 
@@ -575,13 +579,20 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
             approx -= delta
         return approx
 
-    def relabel(self, label):
-        """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
-        return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+    @property
+    def finiteslice(self):
+        if self._underflow:
+            return slice(1, 1 + self.numbins)
+        else:
+            return slice(0, self.numbins)
 
     @property
     def totbins(self):
         return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def relabel(self, label):
+        """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
+        return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def split(self):
         splitaxis = split(self._expr, [(float(i) / float(self._numbins)) * (self._high - self._low) + self._low for i in range(self._numbins)] + [self._high], underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
@@ -768,9 +779,12 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     def binwidth(self):
         return 1
 
-    def relabel(self, label):
-        """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
-        return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
+    @property
+    def finiteslice(self):
+        if self._underflow:
+            return slice(1, 1 + self.numbins)
+        else:
+            return slice(0, self.numbins)
 
     @property
     def numbins(self):
@@ -779,6 +793,10 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)
+
+    def relabel(self, label):
+        """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
+        return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
 
     def bin(self):
         binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
@@ -983,9 +1001,23 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
     def high(self):
         return self._edges[-1]
 
-    def relabel(self, label):
-        """Returns a :py:class:`split <histbook.axis.split>` with a new ``expr``."""
-        return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+    def binwidth(self, index):
+        if index < 0:
+            normindex = index + self.numbins
+        else:
+            normindex = index
+
+        if normindex >= self.numbins:
+            raise IndexError("index {0} out of bounds for split with {1} finite bins".format(index, self.numbins))
+
+        return self._edges[normindex + 1] - self._edges[normindex]
+
+    @property
+    def finiteslice(self):
+        if self._underflow:
+            return slice(1, 1 + self.numbins)
+        else:
+            return slice(0, self.numbins)
 
     @property
     def numbins(self):
@@ -994,6 +1026,10 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def relabel(self, label):
+        """Returns a :py:class:`split <histbook.axis.split>` with a new ``expr``."""
+        return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def _goals(self, parsed=None):
         if parsed is None:
@@ -1183,6 +1219,14 @@ class cut(FixedAxis):
     def relabel(self, label):
         """Returns a :py:class:`cut <histbook.axis.cut>` with a new ``expr``."""
         return cut(label)
+
+    @property
+    def binwidth(self):
+        return 1
+
+    @property
+    def finiteslice(self):
+        return slice(0, 2)
 
     @property
     def numbins(self):

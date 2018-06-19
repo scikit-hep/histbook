@@ -76,10 +76,11 @@ class BelowChannel(Channel):
 class Terminal1dChannel(Channel):
     """Abstract class for the last graphical channel in a 1d Vega-Lite plot."""
 
-    def __init__(self, axis, profile, error, width, height, title, config, xscale, yscale, colorscale, shapescale):
+    def __init__(self, axis, profile, error, normalized, width, height, title, config, xscale, yscale, colorscale, shapescale):
         self.axis = axis
         self.profile = profile
         self.error = error
+        self.normalized = normalized
         self.width = width
         self.height = height
         self.title = title
@@ -93,8 +94,10 @@ class Terminal1dChannel(Channel):
         args = [repr(self.axis)]
         if self.profile is not None:
             args.append("profile={0}".format(self.profile))
-        if self.error is not False:
+        if (not isinstance(self, MarkerChannel) and self.error is not False) or (isinstance(self, MarkerChannel) and self.error is not True):
             args.append("error={0}".format(self.error))
+        if self.normalized is not False:
+            args.append("normalized={0}".format(self.normalized))
         if self.width is not None:
             args.append("width={0}".format(repr(self.width)))
         if self.height is not None:
@@ -276,7 +279,7 @@ class PlottingChain(object):
             raise TypeError("cannot split plots below each other that are already split with below (can do beside and below)")
         return PlottingChain(self, BelowChannel(self._asaxis(axis)))
 
-    def bar(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+    def bar(self, axis=None, profile=None, error=False, normalized=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         """
         Display bins in ``axis`` (if not the only axis) as bars on the horizontal axis.
 
@@ -291,6 +294,9 @@ class PlottingChain(object):
         error : bool
             if ``True``, overlay error bars
 
+        normalized : bool
+            if ``True``, normalize the histogram
+
         width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
             graphical directives to pass to Vega-Lite
 
@@ -300,9 +306,9 @@ class PlottingChain(object):
         """
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable1d(self, BarChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
+        return Plotable1d(self, BarChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, normalized, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def step(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+    def step(self, axis=None, profile=None, error=False, normalized=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         """
         Display bins in ``axis`` (if not the only axis) as steps on the horizontal axis.
 
@@ -317,6 +323,9 @@ class PlottingChain(object):
         error : bool
             if ``True``, overlay error bars
 
+        normalized : bool
+            if ``True``, normalize the histogram
+
         width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
             graphical directives to pass to Vega-Lite
 
@@ -328,9 +337,9 @@ class PlottingChain(object):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable1d(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
+        return Plotable1d(self, StepChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, normalized, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def area(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+    def area(self, axis=None, profile=None, error=False, normalized=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         """
         Display bins in ``axis`` (if not the only axis) as areas on the horizontal axis.
 
@@ -345,6 +354,9 @@ class PlottingChain(object):
         error : bool
             if ``True``, overlay error bars
 
+        normalized : bool
+            if ``True``, normalize the histogram
+
         width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
             graphical directives to pass to Vega-Lite
 
@@ -354,9 +366,9 @@ class PlottingChain(object):
         """
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable1d(self, AreaChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
+        return Plotable1d(self, AreaChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, normalized, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def line(self, axis=None, profile=None, error=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+    def line(self, axis=None, profile=None, error=False, normalized=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         """
         Display bins in ``axis`` (if not the only axis) as lines on the horizontal axis.
 
@@ -371,6 +383,9 @@ class PlottingChain(object):
         error : bool
             if ``True``, overlay error bars
 
+        normalized : bool
+            if ``True``, normalize the histogram
+
         width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
             graphical directives to pass to Vega-Lite
 
@@ -382,9 +397,9 @@ class PlottingChain(object):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable1d(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
+        return Plotable1d(self, LineChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, normalized, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
-    def marker(self, axis=None, profile=None, error=True, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
+    def marker(self, axis=None, profile=None, error=True, normalized=False, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None, shapescale=None):
         """
         Display bins in ``axis`` (if not the only axis) as markers on the horizontal axis.
 
@@ -399,6 +414,9 @@ class PlottingChain(object):
         error : bool
             if ``True``, overlay error bars
 
+        normalized : bool
+            if ``True``, normalize the histogram
+
         width, height, title, config, xscale, yscale, colorscale, shapescale : ``None`` or JSON
             graphical directives to pass to Vega-Lite
 
@@ -410,7 +428,7 @@ class PlottingChain(object):
             raise TypeError("only area and bar can be stacked")
         if error and any(isinstance(x, (BesideChannel, BelowChannel)) for x in self._chain):
             raise NotImplementedError("error bars are currently incompatible with splitting beside or below")
-        return Plotable1d(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, width, height, title, config, xscale, yscale, colorscale, shapescale))
+        return Plotable1d(self, MarkerChannel(self._asaxis(self._singleaxis(axis)), self._asaxis(profile), error, normalized, width, height, title, config, xscale, yscale, colorscale, shapescale))
 
     def heatmap(self, xaxis=None, yaxis=None, profile=None, width=None, height=None, title=None, config=None, xscale=None, yscale=None, colorscale=None):
         """
@@ -516,7 +534,8 @@ class Plotable1d(PlotableFrontends):
             profiles = (profile,)
 
         projected = self._source.project(*(x.axis for x in self._chain))
-        table = projected.table(*profiles, count=(profile is None), error=error, recarray=False)
+
+        table = projected.table(*profiles, count=(profile is None), error=error, normalized=self._last.normalized, recarray=False)
 
         projectedorder = [x for x in projected.axis if not isinstance(x, histbook.axis.ProfileAxis)]
         lastj = projectedorder.index(self._last.axis)
