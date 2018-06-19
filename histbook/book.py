@@ -67,7 +67,7 @@ class GenericBook(collections.MutableMapping):
         self._content = collections.OrderedDict()
         self._attachment = {}
 
-        if hasattr(hists1, "items"):
+        if isinstance(hists1, dict):
             for n, x in hists1.items():
                 self[n] = x
             if len(hists2) != 0:
@@ -94,10 +94,12 @@ class GenericBook(collections.MutableMapping):
         """Construct a book from its ``content`` and ``attachment`` dicts."""
         out = cls.__new__(cls)
         out._content = collections.OrderedDict()
+        out._attachment = attachment
+
         for n, x in content.items():
             out[n] = x
-        out._attachment = attachment
-        out._init()
+
+        out._changed()
         return out
 
     def attach(self, key, value):
@@ -139,7 +141,7 @@ class GenericBook(collections.MutableMapping):
         return "<{0} ({1} content{2}{3}) at {4:012x}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s", "" if len(self._attachment) == 0 else " {0} attachment{1}".format(len(self._attachment), "" if len(self._attachment) == 1 else "s"), id(self))
 
     def __str__(self, indent=",\n      ", first=True):
-        return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + "})"
+        return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + (indent.replace(",", "") if first else "") + "})"
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._content == other._content and self._attachment == other._attachment
@@ -419,11 +421,11 @@ class GenericBook(collections.MutableMapping):
 
     def copy(self):
         """Return an immediate copy of the book of histograms."""
-        return self.__class__.fromdicts(collections.OrderedDict((n, x.copy()) for n, x in self.items()), dict(self._attachments))
+        return self.__class__.fromdicts(collections.OrderedDict((n, x.copy()) for n, x in self.items()), dict(self._attachment))
 
     def copyonfill(self):
         """Return a copy of the book of histograms whose content is copied if filled."""
-        return self.__class__.fromdicts(collections.OrderedDict((n, x.copyonfill()) for n, x in self.items()), dict(self._attachments))
+        return self.__class__.fromdicts(collections.OrderedDict((n, x.copyonfill()) for n, x in self.items()), dict(self._attachment))
 
     def clear(self):
         """Effectively reset all bins of all histograms to zero."""
@@ -432,7 +434,7 @@ class GenericBook(collections.MutableMapping):
 
     def cleared(self):
         """Return a copy with all bins of all histograms set to zero."""
-        return self.__class__.fromdicts(collections.OrderedDict((n, x.cleared()) for n, x in self.items()), dict(self._attachments))
+        return self.__class__.fromdicts(collections.OrderedDict((n, x.cleared()) for n, x in self.items()), dict(self._attachment))
 
     def __add__(self, other):
         if not isinstance(other, GenericBook):
@@ -585,7 +587,37 @@ class Book(GenericBook, histbook.fill.Fillable):
 ################################################################ for constructing fillable views
 
 class ViewableBook(GenericBook):
-    pass
+    def view(self, name):
+        if not isinstance(name, string):
+            raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
+
+        def recurse(node, path):
+            if isinstance(node, histbook.hist.Hist):
+                if fnmatch.fnmatchcase(path, name):
+                    return node
+                else:
+                    return None
+
+            else:
+                content = collections.OrderedDict()
+                for n, x in node.iteritems():
+                    deep = recurse(x, (n if path is None else path + "/" + n))
+                    if deep is not None:
+                        content[n] = deep
+
+                if len(content) != 0:
+                    return ViewBook.fromdicts(content, node._attachment)
+                else:
+                    return None
+
+        out = recurse(self, None)
+        if out is None:
+            raise ValueError("nothing matched path wildcard pattern {0}".format(repr(name)))
+        return out
+
+class ViewBook(Book):
+    def __str__(self, indent=",\n      ", first=True):
+        return super(ViewBook, self).__str__(indent=indent, first=first)
 
 ################################################################ statistically relevant books
 
@@ -594,6 +626,8 @@ class ChannelsBook(ViewableBook):
 
 class SamplesBook(ViewableBook):
     def __init__(self, samples, hists1={}, *hists2, **hists3):
+        self._content = collections.OrderedDict()
+        self._attachment = {}
         for sample in samples:
             self[sample] = Book(hists1, *hists2, **hists3).copyonfill()
         self._changed()

@@ -78,16 +78,15 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def copy(self):
         """Return an immediate copy of the histogram."""
-        out = self.__class__.__new__(self.__class__)
-        out.__dict__.update(self.__dict__)
-        out._content = Hist._copycontent(self._content)
+        out = Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
+        out._content = self.__class__._copycontent(self._content)
         return out
 
     def copyonfill(self):
         """Return a copy of the histogram whose content is copied if filled."""
-        out = self.__class__.__new__(self.__class__)
-        out.__dict__.update(self.__dict__)
+        out = Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         out._copyonfill = True
+        out._content = self._content
         return out
 
     def clear(self):
@@ -96,10 +95,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def cleared(self):
         """Return a copy with all bins set to zero."""
-        out = self.copyonfill()
-        out._content = None
-        out._copyonfill = False
-        return out
+        return Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))        
 
     def __init__(self, *axis, **opts):
         u"""
