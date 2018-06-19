@@ -66,10 +66,10 @@ class GenericBook(collections.MutableMapping):
             self[n] = x
 
     def __repr__(self):
-        "<{0} of {1} hist{2}/book{2}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s")
+        return "<{0} ({1} content{2}) at {3:012x}>".format(self.__class__.__name__, len(self), "" if len(self) == 1 else "s", id(self))
 
-    def __str__(self, indent=",\n     "):
-        return "{0}({" + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "     " if isinstance(x, GenericBook) else ", ")) for n, x in self.iteritems()) + "})"
+    def __str__(self, indent=",\n      ", first=False):
+        return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + "})"
 
     def __len__(self):
         return len(self._content)
@@ -104,6 +104,8 @@ class GenericBook(collections.MutableMapping):
             self._content[name] = value
         else:
             attempt = self._content.get(name[:slash], None)
+            if attempt is None:
+                attempt = self._content[name[:slash]] = Book()
             if isinstance(attempt, GenericBook):
                 attempt._set(name[slash + 1:], value, path + "/" + name[:slash])
             else:
@@ -129,7 +131,7 @@ class GenericBook(collections.MutableMapping):
             raise TypeError("keys of a {0} must be strings".format(self.__class__.__name__))
 
         if "*" in name or "?" in name or "[" in name:
-            return [x for n, x in self.iteritems() if fnmatch.fnmatchcase(n, name)]
+            return [x for n, x in self.iteritems(recursive=True) if fnmatch.fnmatchcase(n, name)]
         else:
             out = self._get(name)
             if out is not None:
@@ -159,7 +161,7 @@ class GenericBook(collections.MutableMapping):
                 yield (n if path is None else path + "/" + n), x
 
             if recursive and isinstance(x, GenericBook):
-                for y in x._iteritems((n if path is None else path + "/" + n), recursive):
+                for y in x._iteritems((n if path is None else path + "/" + n), recursive, onlyhist):
                     yield y
 
     def iteritems(self, recursive=False, onlyhist=False):
@@ -324,9 +326,10 @@ class GenericBook(collections.MutableMapping):
 
         for n, x in other.iteritems():
             if n not in self:
-                out[n] = x
+                self[n] = x
             else:
-                out[n] += x
+                self[n] += x
+        return self
 
     def __mul__(self, value):
         out = self.__class__()
@@ -342,8 +345,8 @@ class GenericBook(collections.MutableMapping):
             x.__imul__(value)
         return self
 
-    @staticmethod
-    def group(by="source", **books):
+    @classmethod
+    def group(cls, by="source", **books):
         """
         Combine histograms, maintaining their distinctiveness by adding a new categorical axis to each.
 
@@ -359,12 +362,12 @@ class GenericBook(collections.MutableMapping):
         """
         if any(not isinstance(x, GenericBook) for x in books.values()):
             raise TypeError("only histogram books can be grouped with other books")
-        out = self.__class__()
+        out = cls()
         for name in functools.reduce(set.union, (set(book.iterkeys()) for book in books.values())):
-            cls = tuple(set(book[name].__class__ for book in books.values()))
-            if len(cls) != 1:
-                raise TypeError("books at {0} have different types: {1}".format(repr(name), ", ".join(repr(x) for x in cls)))
-            out[name] = cls[0].group(by=by, **dict((n, x[name]) for n, x in books.items() if name in x))
+            nestcls = tuple(set(book[name].__class__ for book in books.values() if name in book))
+            if len(nestcls) != 1:
+                raise TypeError("books at {0} have different types: {1}".format(repr(name), ", ".join(repr(x) for x in nestcls)))
+            out[name] = nestcls[0].group(by=by, **dict((n, book[name]) for n, book in books.items() if name in book))
         return out
 
 class Book(GenericBook, histbook.fill.Fillable):

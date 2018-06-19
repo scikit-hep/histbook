@@ -40,7 +40,7 @@ class TestBook(unittest.TestCase):
     def runTest(self):
         pass
 
-    def test_book(self):
+    def test_fill(self):
         b = Book()
         b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
         b["two"] = Hist(split("x", 1.5, nanflow=False))
@@ -54,3 +54,105 @@ class TestBook(unittest.TestCase):
         b.fill(x=[1, 1, 1, 2, 2], y=[1, 1, 1, 2, 2])
         self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
         self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
+
+    def test_hierarchy(self):
+        h = Hist(bin("x", 100, -5, 5))
+        outer = Book()
+        outer["one"] = h
+        outer["two/three"] = h
+        self.assertEqual(outer["one"], h)
+        self.assertEqual(outer["two/three"], h)
+        self.assertEqual(outer["two"]["three"], h)
+        self.assertEqual(len(outer["two"]), 1)
+        del outer["two/three"]
+        self.assertEqual(len(outer["two"]), 0)
+
+    def test_match(self):
+        h = Hist(bin("x", 100, -5, 5))
+        outer = Book()
+        outer["one-a"] = h
+        outer["one-b"] = h
+        outer["one-c"] = h
+        outer["two/three-a"] = h
+        outer["two/three-b"] = h
+        self.assertEqual(len(outer["one*"]), 3)
+        self.assertEqual(len(outer["tw*/*"]), 2)
+
+    def test_add(self):
+        book1, book2 = Book(), Book()
+        book1["a"] = Hist(bin("x", 4, 0, 4), fill=[0, 0, 0])
+        book1["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 1])
+        book1["d"] = Hist(bin("x", 4, 0, 4), fill=[])
+        book2["a"] = Hist(bin("x", 4, 0, 4), fill=[2, 2])
+        book2["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 3, 3, 3, 3])
+        book2["c"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 2, 3])
+
+        book = book1 + book2
+        self.assertEqual(book["a"][:].tolist(), [[0], [3], [0], [2], [0], [0], [0]])
+        self.assertEqual(book["b"][:].tolist(), [[0], [2], [2], [0], [4], [0], [0]])
+        self.assertEqual(book["d"][:].tolist(), [[0], [0], [0], [0], [0], [0], [0]])
+        self.assertEqual(book["c"][:].tolist(), [[0], [1], [1], [1], [1], [0], [0]])
+
+    def test_iadd(self):
+        book1, book2 = Book(), Book()
+        book1["a"] = Hist(bin("x", 4, 0, 4), fill=[0, 0, 0])
+        book1["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 1])
+        book1["d"] = Hist(bin("x", 4, 0, 4), fill=[])
+        book2["a"] = Hist(bin("x", 4, 0, 4), fill=[2, 2])
+        book2["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 3, 3, 3, 3])
+        book2["c"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 2, 3])
+
+        book1 += book2
+        self.assertEqual(book1["a"][:].tolist(), [[0], [3], [0], [2], [0], [0], [0]])
+        self.assertEqual(book1["b"][:].tolist(), [[0], [2], [2], [0], [4], [0], [0]])
+        self.assertEqual(book1["d"][:].tolist(), [[0], [0], [0], [0], [0], [0], [0]])
+        self.assertEqual(book1["c"][:].tolist(), [[0], [1], [1], [1], [1], [0], [0]])
+
+    def test_mul(self):
+        book1 = Book()
+        book1["a"] = Hist(bin("x", 4, 0, 4), fill=[0, 0, 0])
+        book1["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 1])
+        book1["d"] = Hist(bin("x", 4, 0, 4), fill=[])
+
+        book = book1 * 1.5
+        self.assertEqual(book["a"][:].tolist(), [[0], [4.5], [0], [0], [0], [0], [0]])
+        self.assertEqual(book["b"][:].tolist(), [[0], [1.5], [3], [0], [0], [0], [0]])
+        self.assertEqual(book["d"][:].tolist(), [[0], [0], [0], [0], [0], [0], [0]])
+
+    def test_rmul(self):
+        book1 = Book()
+        book1["a"] = Hist(bin("x", 4, 0, 4), fill=[0, 0, 0])
+        book1["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 1])
+        book1["d"] = Hist(bin("x", 4, 0, 4), fill=[])
+
+        book = 1.5 * book1
+        self.assertEqual(book["a"][:].tolist(), [[0], [4.5], [0], [0], [0], [0], [0]])
+        self.assertEqual(book["b"][:].tolist(), [[0], [1.5], [3], [0], [0], [0], [0]])
+        self.assertEqual(book["d"][:].tolist(), [[0], [0], [0], [0], [0], [0], [0]])
+
+    def test_imul(self):
+        book1 = Book()
+        book1["a"] = Hist(bin("x", 4, 0, 4), fill=[0, 0, 0])
+        book1["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 1])
+        book1["d"] = Hist(bin("x", 4, 0, 4), fill=[])
+
+        book1 *= 1.5
+        self.assertEqual(book1["a"][:].tolist(), [[0], [4.5], [0], [0], [0], [0], [0]])
+        self.assertEqual(book1["b"][:].tolist(), [[0], [1.5], [3], [0], [0], [0], [0]])
+        self.assertEqual(book1["d"][:].tolist(), [[0], [0], [0], [0], [0], [0], [0]])
+
+    def test_group(self):
+        book1, book2 = Book(), Book()
+        book1["a"] = Hist(bin("x", 4, 0, 4), fill=[0, 0, 0])
+        book1["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 1])
+        book1["d"] = Hist(bin("x", 4, 0, 4), fill=[])
+        book2["a"] = Hist(bin("x", 4, 0, 4), fill=[2, 2])
+        book2["b"] = Hist(bin("x", 4, 0, 4), fill=[0, 3, 3, 3, 3])
+        book2["c"] = Hist(bin("x", 4, 0, 4), fill=[0, 1, 2, 3])
+
+        book = Book.group(x=book1, y=book2)
+
+        self.assertEqual(book["a"].groupkeys("source"), set(["x", "y"]))
+        self.assertEqual(book["b"].groupkeys("source"), set(["x", "y"]))
+        self.assertEqual(book["c"].groupkeys("source"), set(["y"]))
+        self.assertEqual(book["d"].groupkeys("source"), set(["x"]))

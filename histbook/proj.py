@@ -39,7 +39,7 @@ import histbook.expr
 class AxisTuple(tuple):
     """An ordered sequence of :py:class:`Axis <histbook.axis.Axis>` returned by :py:meth:`Hist.axis <histbook.hist.Hist.axis>`."""
     def __getitem__(self, item):
-        """Get an axis by algebraic expression (lambda or string) or index position (integer)."""
+        """Get an axis by algebraic expression (string) or index position (integer)."""
         if isinstance(item, (numbers.Integral, numpy.integer)):
             return super(AxisTuple, self).__getitem__(item)
         else:
@@ -57,31 +57,31 @@ class AxisTuple(tuple):
         raise IndexError("no such axis: {0}({1}{2})".format(cls.__name__, repr(str(expr)), "".join(", {0}={1}".format(n, kwargs[n]) for n in sorted(kwargs))))
 
     def groupby(self, expr, **kwargs):
-        """Get a :py:class:`groupby <histbook.axis.groupby>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`groupby <histbook.axis.groupby>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.groupby, kwargs)
 
     def groupbin(self, expr, **kwargs):
-        """Get a :py:class:`groupbin <histbook.axis.groupbin>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`groupbin <histbook.axis.groupbin>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.groupbin, kwargs)
 
     def bin(self, expr, **kwargs):
-        """Get a :py:class:`bin <histbook.axis.bin>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`bin <histbook.axis.bin>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.bin, kwargs)
 
     def intbin(self, expr, **kwargs):
-        """Get a :py:class:`intbin <histbook.axis.intbin>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`intbin <histbook.axis.intbin>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.intbin, kwargs)
 
     def split(self, expr, **kwargs):
-        """Get a :py:class:`split <histbook.axis.split>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`split <histbook.axis.split>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.split, kwargs)
 
     def cut(self, expr, **kwargs):
-        """Get a :py:class:`cut <histbook.axis.cut>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`cut <histbook.axis.cut>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.cut, kwargs)
 
     def profile(self, expr, **kwargs):
-        """Get a :py:class:`profile <histbook.axis.profile>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`profile <histbook.axis.profile>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.profile, kwargs)
 
 class Projectable(object):
@@ -99,7 +99,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (string), or index position (integer)
             the axis to rebin
 
         edges : iterable of numbers
@@ -140,7 +140,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (string), or index position (integer)
             the axis to rebin
 
         factor : positive integer
@@ -184,7 +184,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        *profile : :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string), or index position (integer)
+        *profile : :py:class:`profile <histbook.axis.profile>`, algebraic expression (string), or index position (integer)
             the axis or axes to drop
 
         Returns
@@ -229,7 +229,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        *axis : :py:class:`Axis <histbook.axis.axis>`, algebraic expression (lambda or string), or index position (integer)
+        *axis : :py:class:`Axis <histbook.axis.axis>`, algebraic expression (string), or index position (integer)
             the axis or axes to keep (all :py:class:`profile <histbook.axis.profile>` axes are kept)
 
         Returns
@@ -291,7 +291,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        expr : algebraic expression (lambda or string)
+        expr : algebraic expression (string)
             boolean expression of data to keep; selection thresholds must align with bin edges with the right inequality (e.g. ``<`` vs ``<=``)
 
         tolerance : small positive number

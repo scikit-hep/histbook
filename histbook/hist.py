@@ -59,14 +59,14 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         """Returns a copy of this histogram with ``expr`` as weights (for fluent construction)."""
         return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, defs=self._defs)
 
-    @staticmethod
-    def _copycontent(content):
+    @classmethod
+    def _copycontent(cls, content):
         if content is None:
             return None
         elif isinstance(content, numpy.ndarray):
             return content.copy()
         else:
-            return dict((n, Hist._copycontent(x)) for n, x in content.items())
+            return dict((n, cls._copycontent(x)) for n, x in content.items())
 
     def copy(self):
         """Return an immediate copy of the histogram."""
@@ -213,7 +213,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             out.append("defs={" + ", ".join("{0}: {1}".format(repr(n), repr(str(x)) if isinstance(x, histbook.expr.Expr) else repr(x)) for n, x in self._defs.items()) + "}")
         return "Hist(" + indent.join(out) + ")"
 
-    def __str__(self, indent=",\n     "):
+    def __str__(self, indent=",\n     ", first=""):
         return self.__repr__(indent)
 
     @property
@@ -484,12 +484,13 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                 for x in content.values():
                     recurse(x)
             else:
-                content *= 0
+                content *= value
 
+        recurse(self._content)
         return self
 
-    @staticmethod
-    def group(by="source", **hists):
+    @classmethod
+    def group(cls, by="source", **hists):
         """
         Combine histograms, maintaining their distinctiveness by adding a new categorical axis to each.
 
@@ -534,15 +535,15 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         for x in hists.values():
             defs.update(x._defs)
 
-        out = Hist(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, defs=defs)
+        out = cls(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, defs=defs)
         out._content = {}
         for n, x in hists.items():
-            out._content[n] = Hist._copycontent(x._content)
+            out._content[n] = cls._copycontent(x._content)
         return out
 
     def togroup(**hists):
         u"""
-        Adds histograms to the :py:class:`groupby <histbook.axis.groupby>` that is the first axis.
+        Add histograms to the :py:class:`groupby <histbook.axis.groupby>` that is the first axis.
 
         Histograms created with :py:meth:`Hist.group <histbook.hist.Hist.group>` have a first axis that is a :py:class:`groupby <histbook.axis.groupby>`.
 
@@ -587,3 +588,47 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         packed, weight, defs, content = state
         self.__init__(*[histbook.axis.Axis._unpack(x) for x in packed], weight=weight, defs=({} if defs is None else defs))
         self._content = content
+
+    def __getitem__(self, where):
+        if not isinstance(where, tuple):
+            where = (where,)
+        self._prefill()
+        out = self._content
+        for i in where:
+            out = out[i]
+        return out
+
+    # a similar __setitem__ method would require checks to ensure the user doesn't mess up the structure
+
+    def groupkeys(self, axis):
+        """
+        Return all categorical keys associated with a groupby axis or non-zero bins associated with a groupbin axis.
+
+        Parameters
+        ----------
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (string), or index position (integer)
+            the groupby or groupbin axis
+
+        Returns
+        -------
+        set
+            all keys for this axis, even if that is a union over other group axes        
+        """
+        if not isinstance(axis, histbook.axis.Axis):
+            axis = self.axis[axis]
+        for i, x in enumerate(self._group):
+            if x == axis:
+                break
+        else:
+            raise IndexError("no such groupby/groupbin axis: {0}".format(x))
+
+        out = set()
+        def recurse(j, content):
+            if i == j:
+                out.update(content.keys())
+            else:
+                for x in content.values():
+                    recurse(j + 1, x)
+        
+        recurse(0, self._content)
+        return out
