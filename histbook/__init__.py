@@ -29,5 +29,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from histbook.axis import groupby, groupbin, bin, intbin, split, cut, profile
-from histbook.hist import Hist, Book
+from histbook.book import Book, ChannelsBook, SamplesBook, SystematicsBook
+from histbook.hist import Hist
 from histbook.vega import overlay, beside, below, grid
+
+# convenient access to the version number
+from histbook.version import __version__

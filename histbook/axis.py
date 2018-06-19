@@ -198,6 +198,25 @@ class Axis(object):
     def _unpack(args):
         return args[0](*args[1:])
 
+    @staticmethod
+    def fromjson(obj):
+        if obj["axis"] == "groupby":
+            return groupby.fromjson(obj)
+        elif obj["axis"] == "groupbin":
+            return groupbin.fromjson(obj)
+        elif obj["axis"] == "bin":
+            return bin.fromjson(obj)
+        elif obj["axis"] == "intbin":
+            return intbin.fromjson(obj)
+        elif obj["axis"] == "split":
+            return split.fromjson(obj)
+        elif obj["axis"] == "cut":
+            return cut.fromjson(obj)
+        elif obj["axis"] == "profile":
+            return profile.fromjson(obj)
+        else:
+            raise ValueError("unrecognized axis: {0}".format(repr(obj["axis"])))
+
 class GroupAxis(Axis):
     """Abstract class for histogram axes that fill bin contents as a dict (dynamic memory allocation)."""
 
@@ -231,16 +250,32 @@ class groupby(GroupAxis):
     def __init__(self, expr):
         self._expr = expr
 
+    @property
+    def binwidth(self):
+        return 1
+        
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
+        return (self.__class__, self._expr)
 
     def __repr__(self):
         return "groupby({0})".format(repr(self._expr))
+
+    def tojson(self):
+        return {"axis": "groupby", "expr": self._expr}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "groupby"
+        return groupby(obj["expr"])
 
     @property
     def expr(self):
         """`Algebraic expression <histbook.expr.Expr>`"""
         return self._expr
+
+    def copy(self):
+        """Returns a copy of the :py:class:`groupby <histbook.axis.groupby>`."""
+        return groupby(self._expr)
 
     def relabel(self, label):
         """Returns a :py:class:`groupby <histbook.axis.groupby>` with a new ``expr``."""
@@ -252,6 +287,10 @@ class groupby(GroupAxis):
         if isinstance(parsed, histbook.expr.Const):
             parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.groupby", parsed))]
+
+    def compatible(self, other):
+        """Returns True if the two axes have the same types and binning, regardless of the expression used to compute them."""
+        return self.__class__ is other.__class__
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr
@@ -323,7 +362,15 @@ class groupbin(GroupAxis, _RebinFactor):
         self._closedlow = self._bool(closedlow, "closedlow")
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
+        return (self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow)
+
+    def tojson(self):
+        return {"axis": "groupbin", "expr": self._expr, "binwidth": float(self._binwidth), "origin": float(self._origin), "nanflow": self._nanflow, "closedlow": self._closedlow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "groupbin"
+        return groupbin(obj["expr"], obj["binwidth"], obj["origin"], obj["nanflow"], obj["closedlow"])
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._binwidth)]
@@ -355,6 +402,10 @@ class groupbin(GroupAxis, _RebinFactor):
     def closedlow(self):
         return self._closedlow
 
+    def copy(self):
+        """Returns a copy of the :py:class:`groupbin <histbook.axis.groupbin>`."""
+        return groupbin(self._expr, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
+
     def relabel(self, label):
         """Returns a :py:class:`groupbin <histbook.axis.groupbin>` with a new ``expr``."""
         return groupbin(label, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
@@ -365,6 +416,10 @@ class groupbin(GroupAxis, _RebinFactor):
         if isinstance(parsed, histbook.expr.Const):
             parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.groupbin{0}{1}".format("N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._binwidth), histbook.expr.Const(self._origin)))]
+
+    def compatible(self, other):
+        """Returns True if the two axes have the same types and binning, regardless of the expression used to compute them."""
+        return self.__class__ is other.__class__ and self._binwidth == other._binwidth and self._origin == other._origin and self._nanflow == other._nanflow and self._closedlow == other._closedlow
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr and self._binwidth == other._binwidth and self._origin == other._origin and self._nanflow == other._nanflow and self._closedlow == other._closedlow
@@ -514,13 +569,21 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
     def _checktot(self):
         if self.totbins == 0:
             raise ValueError("at least one bin is required (may be over/under/nanflow)")
-        
+
+    def _pack(self):
+        return (self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
+    def tojson(self):
+        return {"axis": "bin", "expr": self._expr, "numbins": int(self._numbins), "low": float(self._low), "high": float(self._high), "underflow": self._underflow, "overflow": self._overflow, "nanflow": self._nanflow, "closedlow": self._closedlow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "bin"
+        return bin(obj["expr"], obj["numbins"], obj["low"], obj["high"], obj["underflow"], obj["overflow"], obj["nanflow"], obj["closedlow"])
+
     def __repr__(self):
         args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
         if self._underflow is not True:
@@ -575,13 +638,24 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
             approx -= delta
         return approx
 
-    def relabel(self, label):
-        """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
-        return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+    @property
+    def finiteslice(self):
+        if self._underflow:
+            return slice(1, 1 + self.numbins)
+        else:
+            return slice(0, self.numbins)
 
     @property
     def totbins(self):
         return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def copy(self):
+        """Returns a copy of the :py:class:`bin <histbook.axis.bin>`."""
+        return bin(self._expr, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
+    def relabel(self, label):
+        """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
+        return bin(label, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def split(self):
         splitaxis = split(self._expr, [(float(i) / float(self._numbins)) * (self._high - self._low) + self._low for i in range(self._numbins)] + [self._high], underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
@@ -597,6 +671,10 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
         if isinstance(parsed, histbook.expr.Const):
             parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.bin{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._numbins), histbook.expr.Const(self._low), histbook.expr.Const(self._high)))]
+
+    def compatible(self, other):
+        """Returns True if the two axes have the same types and binning, regardless of the expression used to compute them."""
+        return self.__class__ is other.__class__ and self._numbins == other._numbins and self._low == other._low and self._high == other._high and self._underflow == other._underflow and self._overflow == other._overflow and self._nanflow == other._nanflow and self._closedlow == other._closedlow
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr and self._numbins == other._numbins and self._low == other._low and self._high == other._high and self._underflow == other._underflow and self._overflow == other._overflow and self._nanflow == other._nanflow and self._closedlow == other._closedlow
@@ -729,12 +807,20 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         self._overflow = self._bool(overflow, "overflow")
         self._checktot()
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
-
     def _checktot(self):
         if self._min > self._max:
             raise ValueError("min must not be greater than max")
+
+    def _pack(self):
+        return (self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow)
+
+    def tojson(self):
+        return {"axis": "intbin", "expr": self._expr, "min": int(self._min), "max": int(self._max), "underflow": self._underflow, "overflow": self._overflow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "intbin"
+        return intbin(obj["expr"], obj["min"], obj["max"], obj["underflow"], obj["overflow"])
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._min), repr(self._max)]
@@ -768,9 +854,12 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     def binwidth(self):
         return 1
 
-    def relabel(self, label):
-        """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
-        return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
+    @property
+    def finiteslice(self):
+        if self._underflow:
+            return slice(1, 1 + self.numbins)
+        else:
+            return slice(0, self.numbins)
 
     @property
     def numbins(self):
@@ -779,6 +868,14 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)
+
+    def copy(self):
+        """Returns a copy of the :py:class:`intbin <histbook.axis.intbin>`."""
+        return intbin(self._expr, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
+
+    def relabel(self, label):
+        """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
+        return intbin(label, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
 
     def bin(self):
         binaxis = bin(self._expr, self._max - self._min + 1, self._min - 0.5, self._max + 0.5, underflow=self._underflow, overflow=self._overflow, nanflow=False)
@@ -797,6 +894,10 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         if isinstance(parsed, histbook.expr.Const):
             parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.intbin{0}{1}".format("U" if self._underflow else "_", "O" if self._overflow else "_"), parsed, histbook.expr.Const(self._min), histbook.expr.Const(self._max)))]
+
+    def compatible(self, other):
+        """Returns True if the two axes have the same types and binning, regardless of the expression used to compute them."""
+        return self.__class__ is other.__class__ and self._min == other._min and self._max == other._max and self._underflow == other._underflow and self._overflow == other._overflow
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr and self._min == other._min and self._max == other._max and self._underflow == other._underflow and self._overflow == other._overflow
@@ -932,12 +1033,20 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
 
-    def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
     def _checktot(self):
         if self.totbins == 0:
             raise ValueError("at least one bin is required (may be over/under/nanflow)")
+
+    def _pack(self):
+        return (self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
+    def tojson(self):
+        return {"axis": "split", "expr": self._expr, "edges": self._edges, "underflow": self._underflow, "overflow": self._overflow, "nanflow": self._nanflow, "closedlow": self._closedlow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "split"
+        return split(obj["expr"], obj["edges"], obj["underflow"], obj["overflow"], obj["nanflow"], obj["closedlow"])
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._edges)]
@@ -983,9 +1092,23 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
     def high(self):
         return self._edges[-1]
 
-    def relabel(self, label):
-        """Returns a :py:class:`split <histbook.axis.split>` with a new ``expr``."""
-        return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+    def binwidth(self, index):
+        if index < 0:
+            normindex = index + self.numbins
+        else:
+            normindex = index
+
+        if normindex >= self.numbins:
+            raise IndexError("index {0} out of bounds for split with {1} finite bins".format(index, self.numbins))
+
+        return self._edges[normindex + 1] - self._edges[normindex]
+
+    @property
+    def finiteslice(self):
+        if self._underflow:
+            return slice(1, 1 + self.numbins)
+        else:
+            return slice(0, self.numbins)
 
     @property
     def numbins(self):
@@ -995,12 +1118,24 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
 
+    def copy(self):
+        """Returns a copy of the :py:class:`split <histbook.axis.split>`."""
+        return split(self._expr, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
+    def relabel(self, label):
+        """Returns a :py:class:`split <histbook.axis.split>` with a new ``expr``."""
+        return split(label, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
+
     def _goals(self, parsed=None):
         if parsed is None:
             parsed = histbook.expr.Expr.parse(self._expr)
         if isinstance(parsed, histbook.expr.Const):
             parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.split{0}{1}{2}{3}".format("U" if self._underflow else "_", "O" if self._overflow else "_", "N" if self._nanflow else "_", "L" if self._closedlow else "H"), parsed, histbook.expr.Const(self._edges)))]
+
+    def compatible(self, other):
+        """Returns True if the two axes have the same types and binning, regardless of the expression used to compute them."""
+        return self.__class__ is other.__class__ and self._edges == other._edges and self._underflow == other._underflow and self._overflow == other._overflow and self._nanflow == other._nanflow and self._closedlow == other._closedlow
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr and self._edges == other._edges and self._underflow == other._underflow and self._overflow == other._overflow and self._nanflow == other._nanflow and self._closedlow == other._closedlow
@@ -1171,7 +1306,15 @@ class cut(FixedAxis):
         self._expr = expr
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
+        return (self.__class__, self._expr)
+
+    def tojson(self):
+        return {"axis": "cut", "expr": self._expr}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "cut"
+        return cut(obj["expr"])
 
     def __repr__(self):
         return "cut({0})".format(repr(self._expr))
@@ -1180,9 +1323,21 @@ class cut(FixedAxis):
     def expr(self):
         return self._expr
 
+    def copy(self):
+        """Returns a copy of the :py:class:`cut <histbook.axis.cut>`."""
+        return cut(self._expr)
+
     def relabel(self, label):
         """Returns a :py:class:`cut <histbook.axis.cut>` with a new ``expr``."""
         return cut(label)
+
+    @property
+    def binwidth(self):
+        return 1
+
+    @property
+    def finiteslice(self):
+        return slice(0, 2)
 
     @property
     def numbins(self):
@@ -1198,6 +1353,10 @@ class cut(FixedAxis):
         if isinstance(parsed, histbook.expr.Const):
             parsed = histbook.expr.BroadcastConst(None, parsed.value)
         return [histbook.instr.CallGraphGoal(histbook.expr.Call("histbook.cut", parsed))]
+
+    def compatible(self, other):
+        """Returns True if the two axes have the same types and binning, regardless of the expression used to compute them."""
+        return self.__class__ is other.__class__
 
     def __eq__(self, other):
         return self.__class__ is other.__class__ and self._expr == other._expr
@@ -1229,6 +1388,9 @@ class _nullaxis(FixedAxis):
     @property
     def expr(self):
         return histbook.expr.Name("???")
+
+    def copy(self):
+        return self
 
     def relabel(self, label):
         return self
@@ -1271,7 +1433,15 @@ class profile(ProfileAxis):
         self._expr = expr
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
+        return (self.__class__, self._expr)
+
+    def tojson(self):
+        return {"axis": "profile", "expr": self._expr}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "profile"
+        return profile(obj["expr"])
 
     def __repr__(self):
         return "profile({0})".format(repr(self._expr))
@@ -1279,6 +1449,10 @@ class profile(ProfileAxis):
     @property
     def expr(self):
         return self._expr
+
+    def copy(self):
+        """Returns a copy of the :py:class:`profile <histbook.axis.profile>`."""
+        return profile(self._expr)
 
     def relabel(self, label):
         """Returns a :py:class:`profile <histbook.axis.profile>` with a new ``expr``."""

@@ -39,7 +39,7 @@ import histbook.expr
 class AxisTuple(tuple):
     """An ordered sequence of :py:class:`Axis <histbook.axis.Axis>` returned by :py:meth:`Hist.axis <histbook.hist.Hist.axis>`."""
     def __getitem__(self, item):
-        """Get an axis by algebraic expression (lambda or string) or index position (integer)."""
+        """Get an axis by algebraic expression (string) or index position (integer)."""
         if isinstance(item, (numbers.Integral, numpy.integer)):
             return super(AxisTuple, self).__getitem__(item)
         else:
@@ -57,31 +57,31 @@ class AxisTuple(tuple):
         raise IndexError("no such axis: {0}({1}{2})".format(cls.__name__, repr(str(expr)), "".join(", {0}={1}".format(n, kwargs[n]) for n in sorted(kwargs))))
 
     def groupby(self, expr, **kwargs):
-        """Get a :py:class:`groupby <histbook.axis.groupby>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`groupby <histbook.axis.groupby>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.groupby, kwargs)
 
     def groupbin(self, expr, **kwargs):
-        """Get a :py:class:`groupbin <histbook.axis.groupbin>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`groupbin <histbook.axis.groupbin>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.groupbin, kwargs)
 
     def bin(self, expr, **kwargs):
-        """Get a :py:class:`bin <histbook.axis.bin>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`bin <histbook.axis.bin>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.bin, kwargs)
 
     def intbin(self, expr, **kwargs):
-        """Get a :py:class:`intbin <histbook.axis.intbin>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`intbin <histbook.axis.intbin>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.intbin, kwargs)
 
     def split(self, expr, **kwargs):
-        """Get a :py:class:`split <histbook.axis.split>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`split <histbook.axis.split>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.split, kwargs)
 
     def cut(self, expr, **kwargs):
-        """Get a :py:class:`cut <histbook.axis.cut>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`cut <histbook.axis.cut>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.cut, kwargs)
 
     def profile(self, expr, **kwargs):
-        """Get a :py:class:`profile <histbook.axis.profile>` axis by algebraic expression (lambda or string) and any provided arguments."""
+        """Get a :py:class:`profile <histbook.axis.profile>` axis by algebraic expression (string) and any provided arguments."""
         return self._findbyclass(expr, histbook.axis.profile, kwargs)
 
 class Projectable(object):
@@ -99,7 +99,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (string), or index position (integer)
             the axis to rebin
 
         edges : iterable of numbers
@@ -130,7 +130,7 @@ class Projectable(object):
             newaxis, newcontent = axis._rebinsplit(edges, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
-        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         out._content = newcontent
         return out
 
@@ -140,7 +140,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (lambda or string), or index position (integer)
+        axis : :py:class:`Axis <histbook.axis.Axis>`, algebraic expression (string), or index position (integer)
             the axis to rebin
 
         factor : positive integer
@@ -174,7 +174,7 @@ class Projectable(object):
             newaxis, newcontent = axis._rebinsplit(factor, self._content, index - len(self._group))
 
         outaxis = [newaxis if i == index else x for i, x in enumerate(self._group + self._fixed + self._profile)]
-        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         out._content = newcontent
         return out
 
@@ -184,7 +184,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        *profile : :py:class:`profile <histbook.axis.profile>`, algebraic expression (lambda or string), or index position (integer)
+        *profile : :py:class:`profile <histbook.axis.profile>`, algebraic expression (string), or index position (integer)
             the axis or axes to drop
 
         Returns
@@ -207,7 +207,7 @@ class Projectable(object):
                 index.append(i)
 
         index.append(self._sumwindex)
-        if self._weight is not None:
+        if self._weightoriginal is not None:
             index.append(self._sumw2index)
 
         slc = (slice(None),) * (len(self._shape) - 1) + (index,)
@@ -218,7 +218,7 @@ class Projectable(object):
             else:
                 return content[slc]
 
-        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weight, defs=self._defs)
+        out = self.__class__(*(self._group + self._fixed + tuple(axis)), weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         if self._content is not None:
             out._content = dropcontent(self._content)
         return out
@@ -229,7 +229,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        *axis : :py:class:`Axis <histbook.axis.axis>`, algebraic expression (lambda or string), or index position (integer)
+        *axis : :py:class:`Axis <histbook.axis.axis>`, algebraic expression (string), or index position (integer)
             the axis or axes to keep (all :py:class:`profile <histbook.axis.profile>` axes are kept)
 
         Returns
@@ -279,8 +279,8 @@ class Projectable(object):
             else:
                 return projarray(content)
 
-        outaxis = [x.relabel(x._original) for x in allaxis if x in axis] + [x.relabel(x._original) for x in self._profile]
-        out = self.__class__(*outaxis, weight=self._weight, defs=self._defs)
+        outaxis = [x for x in allaxis if x in axis] + [x for x in self._profile]
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         if self._content is not None:
             out._content = projcontent(0, self._content)
         return out
@@ -291,7 +291,7 @@ class Projectable(object):
 
         Parameters
         ----------
-        expr : algebraic expression (lambda or string)
+        expr : algebraic expression (string)
             boolean expression of data to keep; selection thresholds must align with bin edges with the right inequality (e.g. ``<`` vs ``<=``)
 
         tolerance : small positive number
@@ -477,10 +477,10 @@ class Projectable(object):
                     out.shape = tuple(sh for sh, sl in zip(out.shape, slc) if sl is not cutslice)
                 return out
 
-        axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
+        axis = [newaxis if x is cutaxis else x for x in self._group + self._fixed + self._profile]
         if dropnull:
             axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
-        out = self.__class__(*axis, weight=self._weight, defs=self._defs)
+        out = self.__class__(*axis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
         if self._content is not None:
             out._content = cutcontent(0, self._content)
         return out
@@ -505,6 +505,9 @@ class Projectable(object):
         error : bool
             if ``True`` *(default)*, include "errors" on all parameters (uncertainty in the mean of the distribution the count or profile average represents)
 
+        normalized : bool
+            if ``True`` *(not default)*, scale each ``count`` and ``err(count)`` such that the sum over counts times bin widths is 1; does not affect profiles
+
         recarray : bool
             if ``True`` *(default)*, return results as a Numpy record array, which is rank-2 with named columns; if ``False``, return a plain Numpy array, which is rank-N for N axes and has no column labels.
 
@@ -514,6 +517,7 @@ class Projectable(object):
         count = opts.pop("count", True)
         effcount = opts.pop("effcount", False)
         error = opts.pop("error", True)
+        normalized = opts.pop("normalized", False)
         recarray = opts.pop("recarray", True)
         showcolumns = opts.pop("columns", False)
         if len(opts) > 0:
@@ -543,22 +547,50 @@ class Projectable(object):
             if error:
                 columns.append("err({0})".format(str(prof.expr)))
 
+        if normalized:
+            binwidths = numpy.full(self._shape[:-1], numpy.inf)
+
+            groupbins = 1.0
+            for axis in self._group:
+                if isinstance(axis, histbook.axis.groupbin):
+                    groupbins *= axis.binwidth
+            binwidths[tuple(axis.finiteslice for axis in self._group + self._fixed)] = groupbins
+
+            for i, axis in enumerate(self._fixed):
+                if callable(axis.binwidth):
+                    binwidth = numpy.array([axis.binwidth(k) for k in range(axis.numbins)])
+                else:
+                    binwidth = axis.binwidth
+
+                binwidths[tuple(axis.finiteslice if i == j else slice(None) for j, axis in enumerate(self._fixed))] *= binwidth
+
         def handlearray(content):
             content = content.reshape((-1, self._shape[-1]))
 
             out = numpy.zeros((content.shape[0], len(columns)), dtype=content.dtype)
             outindex = 0
-
+            
             sumw = content[:, self._sumwindex]
             if count:
                 out[:, outindex] = sumw
+                countindex = outindex
                 outindex += 1
+
                 if error:
                     if self._weightparsed is None:
                         out[:, outindex] = numpy.sqrt(sumw)
                     else:
                         out[:, outindex] = numpy.sqrt(content[:, self._sumw2index])
+                    errorindex = outindex
                     outindex += 1
+
+                if normalized:
+                    shaped = binwidths.reshape(content.shape[:-1])
+                    total = (out[:, countindex] / shaped).sum()
+                    correction = total * shaped
+                    out[:, countindex] /= correction
+                    if error:
+                        out[:, errorindex] /= correction
 
             if len(profile) > 0 or effcount:
                 good = sumw > 0
@@ -624,6 +656,8 @@ class Projectable(object):
             if ``True`` *(not default)*, return a 2-tuple in which the second argument is a list of column labels.
         """
         return self._fraction(cut, opts, False)
+
+    ### FIXME: express levels in sigmas, rather than confidence levels
 
     def _fraction(self, cut, opts, return_denomhist):
         count = opts.pop("count", True)
@@ -698,7 +732,7 @@ class Projectable(object):
 
             good = sumw > 0
             denom = sumw[good]
-            # if denomhist._weight is not None:
+            # if denomhist._weightoriginal is not None:
             #     denomw2 = denomcontent[good, denomhist._sumw2index]
 
             for i in range(len(cut)):

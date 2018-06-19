@@ -53,25 +53,25 @@ def tocolumns(df, expr):
         return df[expr.value]
 
     elif isinstance(expr, histbook.expr.Call):
-        if expr.fcn == "abs":
+        if expr.fcn == "abs" or expr.fcn == "fabs":
             return fcns.abs(tocolumns(df, expr.args[0]))
-        elif expr.fcn == "max":
+        elif expr.fcn == "max" or expr.fcn == "fmax":
             return fcns.greatest(*[tocolumns(df, x) for x in expr.args])
-        elif expr.fcn == "min":
+        elif expr.fcn == "min" or expr.fcn == "fmin":
             return fcns.least(*[tocolumns(df, x) for x in expr.args])
-        elif expr.fcn == "acos":
+        elif expr.fcn == "arccos":
             return fcns.acos(tocolumns(df, expr.args[0]))
-        elif expr.fcn == "acosh":
+        elif expr.fcn == "arccosh":
             raise NotImplementedError(expr.fcn)  # FIXME
-        elif expr.fcn == "asin":
+        elif expr.fcn == "arcsin":
             return fcns.asin(tocolumns(df, expr.args[0]))
-        elif expr.fcn == "asinh":
+        elif expr.fcn == "arcsinh":
             raise NotImplementedError(expr.fcn)  # FIXME
-        elif expr.fcn == "atan2":
+        elif expr.fcn == "arctan2":
             return fcns.atan2(tocolumns(df, expr.args[0]), tocolumns(df, expr.args[1]))
-        elif expr.fcn == "atan":
+        elif expr.fcn == "arctan":
             return fcns.atan(tocolumns(df, expr.args[0]))
-        elif expr.fcn == "atanh":
+        elif expr.fcn == "arctanh":
             raise NotImplementedError(expr.fcn)  # FIXME
         elif expr.fcn == "ceil":
             return fcns.ceil(tocolumns(df, expr.args[0]))
@@ -147,7 +147,7 @@ def tocolumns(df, expr):
             raise NotImplementedError(expr.fcn)  # FIXME
         elif expr.fcn == "logaddexp":
             raise NotImplementedError(expr.fcn)  # FIXME
-        elif expr.fcn == "mod":
+        elif expr.fcn == "mod" or expr.fcn == "fmod":
             return tocolumns(df, expr.args[0]) % tocolumns(df, expr.args[1])
         elif expr.fcn == "right_shift" and isinstance(expr.args[1], histbook.expr.Const):
             return fcns.shiftRight(tocolumns(df, expr.args[0]), expr.args[1].value)
@@ -241,18 +241,18 @@ def fillspark(hist, df):
     index = alias(fcns.struct(*indexes))
 
     selectcols = [index]
-    if hist._weight is not None:
+    if hist._weightoriginal is not None:
         weightcol = tocolumns(df, histbook.instr.totree(hist._weightparsed))
     for axis in hist._profile:
         exprcol = tocolumns(df, histbook.instr.totree(axis._parsed))
-        if hist._weight is None:
+        if hist._weightoriginal is None:
             selectcols.append(alias(exprcol))
             selectcols.append(alias(exprcol*exprcol))
         else:
             selectcols.append(alias(exprcol*weightcol))
             selectcols.append(alias(exprcol*exprcol*weightcol))
 
-    if hist._weight is None:
+    if hist._weightoriginal is None:
         df2 = df.select(*selectcols)
     else:
         selectcols.append(alias(weightcol))
@@ -260,7 +260,7 @@ def fillspark(hist, df):
         df2 = df.select(*selectcols)
 
     aggs = [fcns.sum(df2[n]) for n in df2.columns[1:]]
-    if hist._weight is None:
+    if hist._weightoriginal is None:
         aggs.append(fcns.count(df2[df2.columns[0]]))
 
     def getornew(content, key, nextaxis):

@@ -27,3 +27,14 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+class ChainedDict(object):
+    def __init__(self, one, two):
+        self._one = one
+        self._two = two
+
+    def __getitem__(self, n):
+        if n in self._two:         # self._two is a real dict
+            return self._two[n]    # and it has precedence
+        else:
+            return self._one[n]    # self._one might only have __getitem__

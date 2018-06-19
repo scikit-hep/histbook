@@ -623,3 +623,10 @@ class TestProj(unittest.TestCase):
 
         h7 = h.rebin("x", (3,))
         self.assertEqual(tolist(h7._content), {"one": [[7], [8], [16]], "two": [[7], [8], [16]]})
+
+    def test_normalized(self):
+        h = Hist(split("x", (0, 4, 6, 7)), fill=[0, 4, 6])
+        table = h.table(normalized=True)
+        self.assertEqual(table["count()"][1], 1.0/7.0)
+        self.assertEqual(table["count()"][2], 2.0/7.0)
+        self.assertEqual(table["count()"][3], 4.0/7.0)

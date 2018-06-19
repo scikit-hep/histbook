@@ -28,6 +28,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import pickle
 import unittest
 
 import numpy
@@ -122,6 +123,33 @@ class TestHist(unittest.TestCase):
         h = Hist(bin("x", 10, 10, 11)).weight("y")
         h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[0.1, 0.1, 0.1, 0.1, 0.1, 1.0])
         self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.2, 0.020000000000000004], [0.2, 0.020000000000000004], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+
+    def test_bin_filter(self):
+        h = Hist(bin("x", 10, 10, 11), filter="y > 0")
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[-1, -1, -1, 1, 1, 1])
+        self.assertEqual(h._content.tolist(), [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [1, 1], [1, 1], [0, 0], [0, 0], [1, 1], [0, 0], [0, 0], [0, 0]])
+
+        h = Hist(bin("x", 10, 10, 11)).filter("y > 0")
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[-1, -1, -1, 1, 1, 1])
+        self.assertEqual(h._content.tolist(), [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [1, 1], [1, 1], [0, 0], [0, 0], [1, 1], [0, 0], [0, 0], [0, 0]])
+
+    def test_bin_weight_filter1(self):
+        h = Hist(bin("x", 10, 10, 11), weight=2, filter="y > 0")
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[-1, -1, -1, 1, 1, 1])
+        self.assertEqual(h._content.tolist(), [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [2, 4], [2, 4], [0, 0], [0, 0], [2, 4], [0, 0], [0, 0], [0, 0]])
+
+        h = Hist(bin("x", 10, 10, 11)).weight(2).filter("y > 0")
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[-1, -1, -1, 1, 1, 1])
+        self.assertEqual(h._content.tolist(), [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [2, 4], [2, 4], [0, 0], [0, 0], [2, 4], [0, 0], [0, 0], [0, 0]])
+
+    def test_bin_weight_filter2(self):
+        h = Hist(bin("x", 10, 10, 11), weight="y", filter="y > 0")
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[-0.1, -0.1, -0.1, 0.1, 0.1, 1.0])
+        self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.1, 0.010000000000000002], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+
+        h = Hist(bin("x", 10, 10, 11)).weight("y").filter("y > 0")
+        h.fill(x=[10.4, 10.3, 10.3, 10.5, 10.4, 10.8], y=[-0.1, -0.1, -0.1, 0.1, 0.1, 1.0])
+        self.assertEqual(h._content.tolist(), [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.1, 0.010000000000000002], [0.1, 0.010000000000000002], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
 
     def test_bin_big(self):
         numpy.random.seed(12345)
@@ -406,17 +434,17 @@ class TestHist(unittest.TestCase):
         self.assertEqual(h._content[10.0]["two"].tolist(), [[0], [0], [1], [0]])
         self.assertEqual(h._content[20.0]["two"].tolist(), [[0], [0], [0], [1]])
 
-    def test_book(self):
-        b = Book()
-        b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
-        b["two"] = Hist(split("x", 1.5, nanflow=False))
-        b.fill(x=[1, 1, 1, 2, 2])
-        self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
-        self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
+    def test_pickle(self):
+        h = Hist(split("x", (1, 2, 3)), bin("y", 10, 0, 1), defs={"y": "x + 0.1"}, weight="sqrt(x)", filter="x > 2")
+        self.assertEqual(h, pickle.loads(pickle.dumps(h)))
 
-        b = Book()
-        b["one"] = Hist(bin("x", 2, 0, 3, underflow=False, overflow=False, nanflow=False))
-        b["two"] = Hist(split("y", 1.5, nanflow=False))
-        b.fill(x=[1, 1, 1, 2, 2], y=[1, 1, 1, 2, 2])
-        self.assertEqual(b["one"]._content.tolist(), [[3], [2]])
-        self.assertEqual(b["two"]._content.tolist(), [[3], [2]])
+        h.fill(x=[1, 2, 3])
+        self.assertEqual(h, pickle.loads(pickle.dumps(h)))
+
+    def test_json(self):
+        h = Hist(split("x", (1, 2, 3)), bin("y", 10, 0, 1), defs={"y": "x + 0.1"}, weight="sqrt(x)", filter="x > 2")
+        self.assertEqual(h, Hist.fromjson(h.tojson()))
+
+        h.fill(x=[1, 2, 3])
+        self.assertEqual(h, Hist.fromjson(h.tojson()))
+

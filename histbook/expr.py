@@ -74,7 +74,7 @@ class Expr(object):
             return 1
 
     @staticmethod
-    def parse(expression, defs=None, returnlabel=False):
+    def parse(expression, defs=None):
         """
         Convert a lambda or string ``expression`` into a :py:class:`Expr <histbook.expr.Expr>`.
 
@@ -85,9 +85,6 @@ class Expr(object):
 
         defs : ``None`` or dict
             if not ``None``, provides names to recognize in ``expression`` (to avoid repetitive code)
-
-        returnlabel : bool
-            if ``True``, return value is a 2-tuple: :py:class:`Expr <histbook.expr.Expr>` and string representing the expression; otherwise *(default)*, just the :py:class:`Expr <histbook.expr.Expr>`
         """
         _defs = {}
         if defs is not None:
@@ -105,7 +102,6 @@ class Expr(object):
                         raise ExpressionError("object can't be included in an expression as symbol {0} because it refers to an unserializable object".format(repr(n)))
 
         pyast = ast.parse(expression, mode="eval").body
-        label = expression
 
         calculate = {"+": lambda x, y: x + y,
                      "-": lambda x, y: x - y,
@@ -327,10 +323,7 @@ class Expr(object):
             else:
                 ExpressionError("unhandled syntax in expression: {0}".format(histbook.util.astunparse.tostring(node).strip()))
 
-        if returnlabel:
-            return recurse(pyast, relations=True), label
-        else:
-            return recurse(pyast, relations=True)
+        return recurse(pyast, relations=True)
         
     maybeconstants = {"pi": numpy.pi, "Pi": numpy.pi,
                       "e": numpy.e, "E": numpy.e,
