@@ -40,6 +40,8 @@ import histbook.fill
 import histbook.hist
 import histbook.util
 
+################################################################ superclass of all books (glorified dict)
+
 class GenericBook(collections.MutableMapping):
     """
     A generic collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) or other ``Books``.
@@ -108,7 +110,10 @@ class GenericBook(collections.MutableMapping):
         return not self.__eq__(other)
 
     def tojson(self):
-        out = {"type": self.__class__.__name__, "content": dict((n, x.tojson()) for n, x in self._content.items())}
+        def merge(name, node):
+            node["name"] = name
+            return node
+        out = {"type": self.__class__.__name__, "content": [merge(n, x.tojson()) for n, x in self._content.items()]}
         if len(self._attachment) != 0:
             out["attachment"] = self._attachment
         return out
@@ -116,7 +121,13 @@ class GenericBook(collections.MutableMapping):
     @staticmethod
     def fromjson(obj):
         cls = getattr(sys.modules[GenericBook.__module__], obj["type"])
-        return cls.fromdicts(dict((n, histbook.hist.Hist.fromjson(x) if x["type"] == "Hist" else GenericBook.fromjson(x)) for n, x in obj["content"]), obj.get("attachment", {}))
+        content = collections.OrderedDict()
+        for node in obj["content"]:
+            if node["type"] == "Hist":
+                content[node["name"]] = histbook.hist.Hist.fromjson(node)
+            else:
+                content[node["name"]] = GenericBook.fromjson(node)
+        return cls.fromdicts(content, obj.get("attachment", {}))
 
     def __len__(self):
         return len(self._content)
@@ -417,6 +428,8 @@ class GenericBook(collections.MutableMapping):
             out[name] = nestcls[0].group(by=by, **dict((n, book[name]) for n, book in books.items() if name in book))
         return out
 
+################################################################ user-level Book (in the histbook.* namespace)
+
 class Book(GenericBook, histbook.fill.Fillable):
     """
     A collection of histograms (:py:class:`Hist <histbook.hist.Hist>`) or other ``Books`` that can be filled with a single ``fill`` call.
@@ -494,3 +507,7 @@ class Book(GenericBook, histbook.fill.Fillable):
             length = self._fill(arrays)
             for x in self.itervalues(recursive=True, onlyhist=True):
                 x._postfill(arrays, length)
+
+################################################################ statistically relevant books
+
+
