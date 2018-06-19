@@ -172,7 +172,7 @@ class GenericBook(collections.MutableMapping):
 
 
         if len(self._content) >= 2:
-            items = self._content.items()
+            items = list(self._content.items())
             for (n1, x1), (n2, x2) in zip(items[:-1], items[1:]):
                 recurse("{" + n1 + "," + n2 + "}", x1, x2)
 

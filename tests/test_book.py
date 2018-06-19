@@ -156,3 +156,16 @@ class TestBook(unittest.TestCase):
         self.assertEqual(book["b"].groupkeys("source"), set(["x", "y"]))
         self.assertEqual(book["c"].groupkeys("source"), set(["y"]))
         self.assertEqual(book["d"].groupkeys("source"), set(["x"]))
+
+    def test_views(self):
+        everything = ChannelsBook(
+            mass = SamplesBook(["data", "signal", "background"],
+                               SystematicsBook(Hist(bin("x", 5, 0, 5), systematic=[0]),
+                                               Hist(bin("x + epsilon", 5, 0, 5), systematic=[1]),
+                                               Hist(bin("x - epsilon", 5, 0, 5), systematic=[-1]))),
+            truth = SamplesBook(["signal", "background"],
+                                Book(par1=Hist(bin("par1", 5, 0, 5)),
+                                     par2=Hist(bin("par2", 5, 0, 5)))))
+
+        # print
+        # print(everything)
