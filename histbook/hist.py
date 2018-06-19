@@ -240,10 +240,10 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
         Parameters
         ----------
-        arrays : dict \u2192 Numpy array or number
+        arrays : dict \u2192 Numpy array or number; Spark DataFrame; Pandas DataFrame
             field values to use in the calculation of independent and dependent variables (axes)
 
-        **more : dict \u2192 Numpy array or number
+        **more : Numpy arrays or numbers
             more field values
         """
         if self._copyonfill:
@@ -251,13 +251,19 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             self._copyonfill = False
 
         if histbook.calc.spark.isspark(arrays, more):
-            # special SparkSQL
+            # pyspark.DataFrame
             wait = histbook.calc.spark.fillspark(self, arrays)
             self._prefill()
             wait()
 
+        elif arrays.__class__.__name__ == "DataFrame" and arrays.__class__.__module__ == "pandas.core.frame":
+            # pandas.DataFrame
+            if len(more) > 0:
+                raise TypeError("if arrays is a Pandas DataFrame, keyword arguments are not allowed")
+            self.fill(dict((n, arrays[n].values) for n in arrays.columns))
+
         else:
-            # standard Numpy
+            # dict-like of numpy.ndarray (or castable)
             if arrays is None:
                 arrays = more
             elif len(more) == 0:

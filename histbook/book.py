@@ -410,15 +410,15 @@ class Book(GenericBook, histbook.fill.Fillable):
 
         Parameters
         ----------
-        arrays : dict \u2192 Numpy array or number
+        arrays : dict \u2192 Numpy array or number; Spark DataFrame; Pandas DataFrame
             field values to use in the calculation of independent and dependent variables (axes)
 
-        **more : dict \u2192 Numpy array or number
+        **more : Numpy arrays or numbers
             more field values
         """
 
         if histbook.calc.spark.isspark(arrays, more):
-            # special SparkSQL
+            # pyspark.DataFrame
             threads = [threading.Thread(target=histbook.calc.spark.fillspark(x, arrays)) for x in self.itervalues(recursive=True, onlyhist=True)]
             for x in self.itervalues(recursive=True, onlyhist=True):
                 x._prefill()
@@ -427,8 +427,14 @@ class Book(GenericBook, histbook.fill.Fillable):
             for x in threads:
                 x.join()
 
+        elif arrays.__class__.__name__ == "DataFrame" and arrays.__class__.__module__ == "pandas.core.frame":
+            # pandas.DataFrame
+            if len(more) > 0:
+                raise TypeError("if arrays is a Pandas DataFrame, keyword arguments are not allowed")
+            self.fill(dict((n, arrays[n].values) for n in arrays.columns))
+
         else:
-            # standard Numpy
+            # dict-like of numpy.ndarray (or castable)
             if arrays is None:
                 arrays = more
             elif len(more) == 0:
