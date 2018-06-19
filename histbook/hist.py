@@ -624,6 +624,38 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
             else:
                 self._content[n] = Hist._copycontent(other._content)
 
+    def tojson(self):
+        out = {"type": "Hist", "axis": [x.tojson() for x in self._group + self._fixed + self._profile]}
+        if self._weightoriginal is not None:
+            out["weight"] = self._weightoriginal
+        if self._filteroriginal is not None:
+            out["filter"] = self._filteroriginal
+        if self._defs is not None and len(self._defs) != 0:
+            out["defs"] = self._defs
+        if self._content is not None:
+            def recurse(node):
+                if isinstance(node, dict):
+                    return dict((n, recurse(x)) for n, x in node.items())
+                else:
+                    return node.tolist()
+            out["content"] = recurse(self._content)
+        return out
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["type"] == "Hist"
+        def recurse(node):
+            if node is None:
+                return None
+            elif isinstance(node, dict):
+                return dict((n, recurse(x)) for n, x in node.items())
+            else:
+                return numpy.array(node, dtype=Hist.COUNTTYPE)
+
+        out = Hist(*[histbook.axis.Axis.fromjson(x) for x in obj["axis"]], weight=obj.get("weight", None), filter=obj.get("filter", None), defs=obj.get("defs", None))
+        out._content = recurse(obj.get("content", None))
+        return out
+
     def __getstate__(self):
         packed = tuple(x._pack() for x in self._group + self._fixed + self._profile)
         return (packed, self._weightoriginal, self._filteroriginal, None if len(self._defs) == 0 else self._defs, self._content)

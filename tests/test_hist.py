@@ -440,3 +440,11 @@ class TestHist(unittest.TestCase):
 
         h.fill(x=[1, 2, 3])
         self.assertEqual(h, pickle.loads(pickle.dumps(h)))
+
+    def test_json(self):
+        h = Hist(split("x", (1, 2, 3)), bin("y", 10, 0, 1), defs={"y": "x + 0.1"}, weight="sqrt(x)", filter="x > 2")
+        self.assertEqual(h, Hist.fromjson(h.tojson()))
+
+        h.fill(x=[1, 2, 3])
+        self.assertEqual(h, Hist.fromjson(h.tojson()))
+

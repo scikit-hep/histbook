@@ -71,6 +71,20 @@ class GenericBook(collections.MutableMapping):
     def __str__(self, indent=",\n      ", first=False):
         return self.__class__.__name__ + "({" + (indent.replace(",", "") if first else "") + indent.join("{0}: {1}".format(repr(n), x.__str__(indent + "      " if isinstance(x, GenericBook) else ", ", True)) for n, x in self.iteritems()) + "})"
 
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._content == other._content
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def tojson(self):
+        return {"type": self.__class__.__name__, "content": dict((n, x.tojson()) for n, x in self._content.items())}
+
+    @staticmethod
+    def fromjson(obj):
+        cls = getattr(sys.modules[GenericBook.__module__], obj["type"])
+        return cls(dict((n, histbook.hist.Hist.fromjson(x) if x["type"] == "Hist" else GenericBook.fromjson(x)) for n, x in obj["content"]))
+
     def __len__(self):
         return len(self._content)
 

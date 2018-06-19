@@ -198,6 +198,25 @@ class Axis(object):
     def _unpack(args):
         return args[0](*args[1:])
 
+    @staticmethod
+    def fromjson(obj):
+        if obj["axis"] == "groupby":
+            return groupby.fromjson(obj)
+        elif obj["axis"] == "groupbin":
+            return groupbin.fromjson(obj)
+        elif obj["axis"] == "bin":
+            return bin.fromjson(obj)
+        elif obj["axis"] == "intbin":
+            return intbin.fromjson(obj)
+        elif obj["axis"] == "split":
+            return split.fromjson(obj)
+        elif obj["axis"] == "cut":
+            return cut.fromjson(obj)
+        elif obj["axis"] == "profile":
+            return profile.fromjson(obj)
+        else:
+            raise ValueError("unrecognized axis: {0}".format(repr(obj["axis"])))
+
 class GroupAxis(Axis):
     """Abstract class for histogram axes that fill bin contents as a dict (dynamic memory allocation)."""
 
@@ -240,6 +259,14 @@ class groupby(GroupAxis):
 
     def __repr__(self):
         return "groupby({0})".format(repr(self._expr))
+
+    def tojson(self):
+        return {"axis": "groupby", "expr": self._expr}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "groupby"
+        return groupby(obj["expr"])
 
     @property
     def expr(self):
@@ -332,6 +359,14 @@ class groupbin(GroupAxis, _RebinFactor):
 
     def _pack(self):
         return (self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow)
+
+    def tojson(self):
+        return {"axis": "groupbin", "expr": self._expr, "binwidth": float(self._binwidth), "origin": float(self._origin), "nanflow": self._nanflow, "closedlow": self._closedlow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "groupbin"
+        return groupbin(obj["expr"], obj["binwidth"], obj["origin"], obj["nanflow"], obj["closedlow"])
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._binwidth)]
@@ -526,13 +561,21 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
 
-    def _pack(self):
-        return (self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
     def _checktot(self):
         if self.totbins == 0:
             raise ValueError("at least one bin is required (may be over/under/nanflow)")
-        
+
+    def _pack(self):
+        return (self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
+    def tojson(self):
+        return {"axis": "bin", "expr": self._expr, "numbins": int(self._numbins), "low": float(self._low), "high": float(self._high), "underflow": self._underflow, "overflow": self._overflow, "nanflow": self._nanflow, "closedlow": self._closedlow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "bin"
+        return bin(obj["expr"], obj["numbins"], obj["low"], obj["high"], obj["underflow"], obj["overflow"], obj["nanflow"], obj["closedlow"])
+
     def __repr__(self):
         args = [repr(self._expr), repr(self._numbins), repr(self._low), repr(self._high)]
         if self._underflow is not True:
@@ -752,12 +795,20 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         self._overflow = self._bool(overflow, "overflow")
         self._checktot()
 
-    def _pack(self):
-        return (self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow)
-
     def _checktot(self):
         if self._min > self._max:
             raise ValueError("min must not be greater than max")
+
+    def _pack(self):
+        return (self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow)
+
+    def tojson(self):
+        return {"axis": "intbin", "expr": self._expr, "min": int(self._min), "max": int(self._max), "underflow": self._underflow, "overflow": self._overflow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "intbin"
+        return intbin(obj["expr"], obj["min"], obj["max"], obj["underflow"], obj["overflow"])
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._min), repr(self._max)]
@@ -966,12 +1017,20 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
         self._closedlow = self._bool(closedlow, "closedlow")
         self._checktot()
 
-    def _pack(self):
-        return (self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
-
     def _checktot(self):
         if self.totbins == 0:
             raise ValueError("at least one bin is required (may be over/under/nanflow)")
+
+    def _pack(self):
+        return (self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
+
+    def tojson(self):
+        return {"axis": "split", "expr": self._expr, "edges": self._edges, "underflow": self._underflow, "overflow": self._overflow, "nanflow": self._nanflow, "closedlow": self._closedlow}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "split"
+        return split(obj["expr"], obj["edges"], obj["underflow"], obj["overflow"], obj["nanflow"], obj["closedlow"])
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._edges)]
@@ -1229,6 +1288,14 @@ class cut(FixedAxis):
     def _pack(self):
         return (self.__class__, self._expr)
 
+    def tojson(self):
+        return {"axis": "cut", "expr": self._expr}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "cut"
+        return cut(obj["expr"])
+
     def __repr__(self):
         return "cut({0})".format(repr(self._expr))
 
@@ -1343,6 +1410,14 @@ class profile(ProfileAxis):
 
     def _pack(self):
         return (self.__class__, self._expr)
+
+    def tojson(self):
+        return {"axis": "profile", "expr": self._expr}
+
+    @staticmethod
+    def fromjson(obj):
+        assert obj["axis"] == "profile"
+        return profile(obj["expr"])
 
     def __repr__(self):
         return "profile({0})".format(repr(self._expr))
