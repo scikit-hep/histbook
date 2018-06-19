@@ -236,7 +236,7 @@ class groupby(GroupAxis):
         return 1
         
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
+        return (self.__class__, self._expr)
 
     def __repr__(self):
         return "groupby({0})".format(repr(self._expr))
@@ -245,6 +245,10 @@ class groupby(GroupAxis):
     def expr(self):
         """`Algebraic expression <histbook.expr.Expr>`"""
         return self._expr
+
+    def copy(self):
+        """Returns a copy of the :py:class:`groupby <histbook.axis.groupby>`."""
+        return groupby(self._expr)
 
     def relabel(self, label):
         """Returns a :py:class:`groupby <histbook.axis.groupby>` with a new ``expr``."""
@@ -327,7 +331,7 @@ class groupbin(GroupAxis, _RebinFactor):
         self._closedlow = self._bool(closedlow, "closedlow")
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._binwidth, self._origin, self._nanflow, self._closedlow)
+        return (self.__class__, self._expr, self._binwidth, self._origin, self._nanflow, self._closedlow)
 
     def __repr__(self):
         args = [repr(self._expr), repr(self._binwidth)]
@@ -358,6 +362,10 @@ class groupbin(GroupAxis, _RebinFactor):
     @property
     def closedlow(self):
         return self._closedlow
+
+    def copy(self):
+        """Returns a copy of the :py:class:`groupbin <histbook.axis.groupbin>`."""
+        return groupbin(self._expr, self._binwidth, origin=self._origin, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def relabel(self, label):
         """Returns a :py:class:`groupbin <histbook.axis.groupbin>` with a new ``expr``."""
@@ -519,7 +527,7 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
         self._checktot()
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
+        return (self.__class__, self._expr, self._numbins, self._low, self._high, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
     def _checktot(self):
         if self.totbins == 0:
@@ -589,6 +597,10 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def totbins(self):
         return self._numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def copy(self):
+        """Returns a copy of the :py:class:`bin <histbook.axis.bin>`."""
+        return bin(self._expr, self._numbins, self._low, self._high, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def relabel(self, label):
         """Returns a :py:class:bin` <histbook.axis.bin>` with a new ``expr``."""
@@ -741,7 +753,7 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
         self._checktot()
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._min, self._max, self._underflow, self._overflow)
+        return (self.__class__, self._expr, self._min, self._max, self._underflow, self._overflow)
 
     def _checktot(self):
         if self._min > self._max:
@@ -793,6 +805,10 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0)
+
+    def copy(self):
+        """Returns a copy of the :py:class:`intbin <histbook.axis.intbin>`."""
+        return intbin(self._expr, self._min, self._max, underflow=self._underflow, overflow=self._overflow)
 
     def relabel(self, label):
         """Returns an :py:class:`intbin <histbook.axis.intbin>` with a new ``expr``."""
@@ -951,7 +967,7 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
         self._checktot()
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr), self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
+        return (self.__class__, self._expr, self._edges, self._underflow, self._overflow, self._nanflow, self._closedlow)
 
     def _checktot(self):
         if self.totbins == 0:
@@ -1026,6 +1042,10 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
     @property
     def totbins(self):
         return self.numbins + (1 if self._underflow else 0) + (1 if self._overflow else 0) + (1 if self._nanflow else 0)
+
+    def copy(self):
+        """Returns a copy of the :py:class:`split <histbook.axis.split>`."""
+        return split(self._expr, self._edges, underflow=self._underflow, overflow=self._overflow, nanflow=self._nanflow, closedlow=self._closedlow)
 
     def relabel(self, label):
         """Returns a :py:class:`split <histbook.axis.split>` with a new ``expr``."""
@@ -1207,7 +1227,7 @@ class cut(FixedAxis):
         self._expr = expr
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
+        return (self.__class__, self._expr)
 
     def __repr__(self):
         return "cut({0})".format(repr(self._expr))
@@ -1215,6 +1235,10 @@ class cut(FixedAxis):
     @property
     def expr(self):
         return self._expr
+
+    def copy(self):
+        """Returns a copy of the :py:class:`cut <histbook.axis.cut>`."""
+        return cut(self._expr)
 
     def relabel(self, label):
         """Returns a :py:class:`cut <histbook.axis.cut>` with a new ``expr``."""
@@ -1274,6 +1298,9 @@ class _nullaxis(FixedAxis):
     def expr(self):
         return histbook.expr.Name("???")
 
+    def copy(self):
+        return self
+
     def relabel(self, label):
         return self
 
@@ -1315,7 +1342,7 @@ class profile(ProfileAxis):
         self._expr = expr
 
     def _pack(self):
-        return (self.__class__, getattr(self, "_original", self._expr))
+        return (self.__class__, self._expr)
 
     def __repr__(self):
         return "profile({0})".format(repr(self._expr))
@@ -1323,6 +1350,10 @@ class profile(ProfileAxis):
     @property
     def expr(self):
         return self._expr
+
+    def copy(self):
+        """Returns a copy of the :py:class:`profile <histbook.axis.profile>`."""
+        return profile(self._expr)
 
     def relabel(self, label):
         """Returns a :py:class:`profile <histbook.axis.profile>` with a new ``expr``."""

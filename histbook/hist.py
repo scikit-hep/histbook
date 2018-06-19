@@ -57,11 +57,11 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
     def weight(self, expr):
         """Returns a copy of this histogram with ``expr`` as weights (for fluent construction)."""
-        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=expr, filter=self._filteroriginal, defs=self._defs)
+        return Hist(*(self._group + self._fixed + self._profile), weight=expr, filter=self._filteroriginal, defs=self._defs)
 
     def filter(self, expr):
         """Returns a copy of this histogram with ``expr`` as filter (for fluent construction)."""
-        return Hist(*[x.relabel(x._original) for x in self._group + self._fixed + self._profile], weight=self._weightoriginal, filter=expr, defs=self._defs)
+        return Hist(*(self._group + self._fixed + self._profile), weight=self._weightoriginal, filter=expr, defs=self._defs)
 
     @classmethod
     def _copycontent(cls, content):
@@ -132,12 +132,11 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
 
         newaxis = []
         for old in axis:
-            if isinstance(old, histbook.axis._nullaxis) or (hasattr(old, "_original") and hasattr(old, "_parsed")):
+            if isinstance(old, histbook.axis._nullaxis) or hasattr(old, "_parsed"):
                 newaxis.append(old)
             else:
-                expr, label = histbook.expr.Expr.parse(old._expr, defs=defs, returnlabel=True)
-                new = old.relabel(label)
-                new._original = old._expr
+                expr = histbook.expr.Expr.parse(old._expr, defs=defs)
+                new = old.copy()
                 new._parsed = expr
                 newaxis.append(new)
 
@@ -580,7 +579,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         for x in hists.values():
             defs.update(x._defs)
 
-        out = cls(*([histbook.axis.groupby(by)] + [x.relabel(x._original) for x in hist._group + hist._fixed + hist._profile]), weight=weight, filter=None, defs=defs)
+        out = cls(*((histbook.axis.groupby(by),) + hist._group + hist._fixed + hist._profile), weight=weight, filter=None, defs=defs)
         out._content = {}
         for n, x in hists.items():
             out._content[n] = cls._copycontent(x._content)

@@ -279,8 +279,8 @@ class Projectable(object):
             else:
                 return projarray(content)
 
-        outaxis = [x.relabel(x._original) for x in allaxis if x in axis] + [x.relabel(x._original) for x in self._profile]
-        out = self.__class__(*outaxis, weight=self._weightoriginal, defs=self._defs)
+        outaxis = [x for x in allaxis if x in axis] + [x for x in self._profile]
+        out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=self._defs)
         if self._content is not None:
             out._content = projcontent(0, self._content)
         return out
@@ -477,7 +477,7 @@ class Projectable(object):
                     out.shape = tuple(sh for sh, sl in zip(out.shape, slc) if sl is not cutslice)
                 return out
 
-        axis = [newaxis if x is cutaxis else x.relabel(x._original) for x in self._group + self._fixed + self._profile]
+        axis = [newaxis if x is cutaxis else x for x in self._group + self._fixed + self._profile]
         if dropnull:
             axis = [x for x in axis if not isinstance(x, histbook.axis._nullaxis)]
         out = self.__class__(*axis, weight=self._weightoriginal, defs=self._defs)
