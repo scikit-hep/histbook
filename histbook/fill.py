@@ -33,6 +33,7 @@ import numpy
 import histbook.calc
 import histbook.expr
 import histbook.instr
+import histbook.util
 
 class Fillable(object):
     """Mix-in for objects with a ``fill`` method, like `Hist <histbook.hist.Hist>` and `Book <histbook.hist.Book>`."""
@@ -108,11 +109,20 @@ class Fillable(object):
         if length is None:
             length = 1
 
+        def full(length, value):
+            if isinstance(value, (string, bytes)):
+                value = numpy.array(value)
+                out = numpy.empty(length, dtype=value.dtype)
+                out[:] = value
+                return out
+            else:
+                return numpy.full(length, value)
+
         symbols = {}
         for instruction in self._instructions:
             if isinstance(instruction, histbook.instr.Param):
                 if isinstance(instruction.extern, histbook.expr.BroadcastConst):
-                    array = numpy.full(length, instruction.extern.value)
+                    array = full(length, instruction.extern.value)
                 elif instruction.name == firstinstruction:
                     array = firstarray
                 else:
@@ -120,14 +130,14 @@ class Fillable(object):
                         array = arrays[instruction.extern.value]
                     except KeyError:
                         if instruction.extern.value in histbook.expr.Expr.maybeconstants:
-                            array = numpy.full(length, histbook.expr.Expr.maybeconstants[instruction.extern.value])
+                            array = full(length, histbook.expr.Expr.maybeconstants[instruction.extern.value])
                         else:
                             raise ValueError("required field {0} not found in fill arguments".format(repr(str(instruction.extern))))
 
                 if not isinstance(array, numpy.ndarray):
                     array = numpy.array(array)
                 if array.shape == ():
-                    array = numpy.full(length, array)
+                    array = full(length, array)
 
                 if length != array.shape[0]:
                     raise ValueError("array {0} has len {1} but other arrays have len {2}".format(repr(str(instruction.extern)), len(array), length))
