@@ -1,6 +1,6 @@
 .. image:: logo-500px.png
    :alt: histbook
-   :target: https://github.com/diana-hep/histbook
+   :target: https://github.com/scikit-hep/histbook
    :align: center
 
 |
@@ -15,12 +15,12 @@ histbook
 Tutorial
 --------
 
-See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tutorial <https://github.com/diana-hep/histbook#tutorial>`__.
+See the `project homepage <https://github.com/scikit-hep/histbook>`__ for a `tutorial <https://github.com/scikit-hep/histbook#tutorial>`__.
 
 Interactive tutorial
 --------------------
 
-Run `this tutorial <https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
+Run `this tutorial <https://mybinder.org/v2/gh/scikit-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
 
 Reference documentation
 -----------------------

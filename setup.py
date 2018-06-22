@@ -44,9 +44,9 @@ def get_description():
     start = description.index(".. inclusion-marker-1-5-do-not-remove")
     stop = description.index(".. inclusion-marker-3-do-not-remove")
 
-    before = """.. image:: https://raw.githubusercontent.com/diana-hep/histbook/master/docs/source/logo-500px.png
+    before = """.. image:: https://raw.githubusercontent.com/scikit-hep/histbook/master/docs/source/logo-500px.png
    :alt: histbook
-   :target: https://github.com/diana-hep/histbook
+   :target: https://github.com/scikit-hep/histbook
 
 |
 
@@ -57,12 +57,12 @@ def get_description():
 Tutorial
 ========
 
-See the `project homepage <https://github.com/diana-hep/histbook>`__ for a `tutorial <https://github.com/diana-hep/histbook#tutorial>`__.
+See the `project homepage <https://github.com/scikit-hep/histbook>`__ for a `tutorial <https://github.com/scikit-hep/histbook#tutorial>`__.
 
 Interactive tutorial
 ====================
 
-Run `this tutorial <https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
+Run `this tutorial <https://mybinder.org/v2/gh/scikit-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
 
 Reference documentation
 =======================
@@ -85,8 +85,8 @@ setup(name = "histbook",
       author_email = "pivarski@fnal.gov",
       maintainer = "Jim Pivarski (DIANA-HEP)",
       maintainer_email = "pivarski@fnal.gov",
-      url = "https://github.com/diana-hep/histbook",
-      download_url = "https://github.com/diana-hep/histbook/releases",
+      url = "https://github.com/scikit-hep/histbook",
+      download_url = "https://github.com/scikit-hep/histbook/releases",
       license = "BSD 3-clause",
       test_suite = "tests",
       install_requires = ["numpy>=1.8.0"],

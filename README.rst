@@ -5,8 +5,8 @@
 histbook
 ========
 
-.. image:: https://travis-ci.org/diana-hep/histbook.svg?branch=master
-   :target: https://travis-ci.org/diana-hep/histbook
+.. image:: https://travis-ci.org/scikit-hep/histbook.svg?branch=master
+   :target: https://travis-ci.org/scikit-hep/histbook
 
 .. image:: https://readthedocs.org/projects/histbook/badge/
    :target: http://histbook.readthedocs.io/
@@ -15,7 +15,7 @@ histbook
    :target: https://doi.org/10.5281/zenodo.1284427
 
 .. image:: https://mybinder.org/badge.svg
-   :target: https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb
+   :target: https://mybinder.org/v2/gh/scikit-hep/histbook/master?filepath=binder%2Ftutorial.ipynb
 
 .. inclusion-marker-1-do-not-remove
 
@@ -96,7 +96,7 @@ Tutorial
 Interactive tutorial
 ====================
 
-Run `this tutorial <https://mybinder.org/v2/gh/diana-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
+Run `this tutorial <https://mybinder.org/v2/gh/scikit-hep/histbook/master?filepath=binder%2Ftutorial.ipynb>`__ on Binder.
 
 Reference documentation
 =======================
