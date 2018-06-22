@@ -112,6 +112,7 @@ class Fillable(object):
         def full(length, value):
             if isinstance(value, (histbook.util.string, bytes)):
                 value = numpy.array(value)
+            if isinstance(value, numpy.ndarray) and value.shape == () and (value.dtype.kind == "U" or value.dtype.kind == "S"):
                 out = numpy.empty(length, dtype=value.dtype)
                 out[:] = value
                 return out
