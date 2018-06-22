@@ -110,7 +110,7 @@ class Fillable(object):
             length = 1
 
         def full(length, value):
-            if isinstance(value, (string, bytes)):
+            if isinstance(value, (histbook.util.string, bytes)):
                 value = numpy.array(value)
                 out = numpy.empty(length, dtype=value.dtype)
                 out[:] = value
