@@ -548,13 +548,12 @@ class Plotable1d(PlotableFrontends):
         def recurse(j, content, row, base):
             if j == len(projectedorder):
                 if base:
-                    row = row + ((0.0, 0.0) if error else (0.0,))
+                    row = row + ((numpy.nextafter(0, 1), numpy.nextafter(0, 1)) if error else (numpy.nextafter(0, 1),))
                 else:
                     row = row + tuple(float(x) for x in content)
 
                 datum = dict(prefix + tuple(zip([varname + str(i) for i in range(len(row))], row)))
-                if datum[varname + str(j)] > 0 or (self._last.yscale != "log" and not (isinstance(self._last.yscale, dict) and self._last.yscale.get("type", None) == "log")):
-                    data.append(datum)
+                data.append(datum)
 
             else:
                 axis = projectedorder[j]
@@ -612,21 +611,21 @@ class Plotable1d(PlotableFrontends):
             xtype = "nominal"
 
         if isinstance(self._last, BarChannel):
-            mark = "bar"
+            mark = {"type": "bar", "clip": True}
         elif isinstance(self._last, StepChannel):
             if xtype == "nominal":
-                mark = "bar"
+                mark = {"type": "bar", "clip": True}
             else:
-                mark = {"type": "line", "interpolate": "step-before"}
+                mark = {"type": "line", "interpolate": "step-before", "clip": True}
         elif isinstance(self._last, AreaChannel):
             if xtype == "nominal":
-                mark = "bar"
+                mark = {"type": "bar", "clip": True}
             else:
-                mark = {"type": "area", "interpolate": "step-before"}
+                mark = {"type": "area", "interpolate": "step-before", "clip": True}
         elif isinstance(self._last, LineChannel):
-            mark = {"type": "line"}
+            mark = {"type": "line", "clip": True}
         elif isinstance(self._last, MarkerChannel):
-            mark = {"type": "point"}
+            mark = {"type": "point", "clip": True}
         else:
             raise AssertionError(self._last)
 
