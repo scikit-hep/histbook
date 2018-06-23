@@ -542,13 +542,14 @@ class Plotable1d(PlotableFrontends):
 
         data = []
         domains = {}
+        logrange = None
         if error and baseline:
             shifts = {}
 
         def recurse(j, content, row, base):
             if j == len(projectedorder):
                 if base:
-                    row = row + ((numpy.nextafter(0, 1), numpy.nextafter(0, 1)) if error else (numpy.nextafter(0, 1),))
+                    row = row + ((0.0, 0.0) if error else (0.0,))
                 else:
                     row = row + tuple(float(x) for x in content)
 
@@ -597,9 +598,21 @@ class Plotable1d(PlotableFrontends):
             for x in data:
                 x[varname + str(lastj) + "c"] = shifts.get(x[varname + str(lastj)], x[varname + str(lastj)])
 
-        return projectedorder, data, domains
+        if self._last.yscale == "log" or (isinstance(self._last.yscale, dict) and self._last.yscale.get("type") == "log"):
+            logrange = (min(x[varname + str(len(projectedorder))] for x in data if x[varname + str(len(projectedorder))] > 0),
+                        max(x[varname + str(len(projectedorder))] for x in data if x[varname + str(len(projectedorder))] > 0))
 
-    def _vegalite(self, axis, domains, varname):
+            if logrange[0] == logrange[1]:
+                logrange = (0.5*logrange[0], 2*logrange[0])
+
+            verysmall = logrange[0] / (logrange[1] / logrange[0])**5   # 5 times as far below the min as the distance between max and min (in log units)
+            for x in data:
+                if x[varname + str(len(projectedorder))] <= 0:
+                    x[varname + str(len(projectedorder))] = verysmall
+
+        return projectedorder, data, domains, logrange
+
+    def _vegalite(self, axis, domains, logrange, varname):
         error = self._last.error
         baseline = isinstance(self._last, (StepChannel, AreaChannel))
         if isinstance(self._last.axis, (histbook.axis.bin, histbook.axis.intbin, histbook.axis.split)):
@@ -686,6 +699,9 @@ class Plotable1d(PlotableFrontends):
                 encoding["y"]["scale"] = self._last.yscale
             else:
                 encoding["y"]["scale"] = {"type": self._last.yscale}
+            if encoding["y"]["scale"].get("type") == "log" and logrange is not None and "domain" not in encoding["y"]["scale"]:
+                diff = logrange[1] / logrange[0]
+                encoding["y"]["scale"]["domain"] = [logrange[0] / diff**0.2, logrange[1] * diff**2]
         if self._last.colorscale is not None and "color" in encoding:
             if isinstance(self._last.colorscale, dict):
                 encoding["color"]["scale"] = self._last.colorscale
@@ -718,8 +734,8 @@ class Plotable1d(PlotableFrontends):
     def vegalite(self):
         """Return the Vega-Lite JSON for this plot."""
 
-        axis, data, domains = self._data((), "a")
-        marks, encodings, transforms = self._vegalite(axis, domains, "a")
+        axis, data, domains, logrange = self._data((), "a")
+        marks, encodings, transforms = self._vegalite(axis, domains, logrange, "a")
 
         if len(marks) == 1:
             return self._options({"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
@@ -780,6 +796,7 @@ class Plotable2d(PlotableFrontends):
         
         data = []
         domains = {}
+        logrange = None
 
         def recurse(j, content, row):
             if j == len(projectedorder):
@@ -813,9 +830,9 @@ class Plotable2d(PlotableFrontends):
                         recurse(j + 1, x, row + (str(n),))
 
         recurse(0, table, ())
-        return projectedorder, data, domains
+        return projectedorder, data, domains, logrange
 
-    def _vegalite(self, axis, domains, varname):
+    def _vegalite(self, axis, domains, logrange, varname):
         if isinstance(self._last.xaxis, histbook.axis.bin):
             xtype = "quantitative"
             xbin = {"extent": [self._last.xaxis.low, self._last.xaxis.high], "minstep": self._last.xaxis.binwidth, "maxbins": self._last.xaxis.numbins + 1, "nice": False}
@@ -886,8 +903,8 @@ class Plotable2d(PlotableFrontends):
     def vegalite(self):
         """Return the Vega-Lite JSON for this plot."""
 
-        axis, data, domains = self._data((), "a")
-        marks, encodings, transforms = self._vegalite(axis, domains, "a")
+        axis, data, domains, logrange = self._data((), "a")
+        marks, encodings, transforms = self._vegalite(axis, domains, logrange, "a")
 
         return self._options({"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                               "data": {"values": data},
@@ -943,6 +960,7 @@ class Combination(PlotableFrontends):
         allaxis = []
         alldata = []
         alldomains = []
+        alllogrange = []
 
         def recurse(i, plotables):
             for plotable in plotables:
@@ -950,15 +968,16 @@ class Combination(PlotableFrontends):
                     i = recurse(i, plotable._plotables)
                 else:
                     varname = self._varname(i)
-                    axis, data, domains = plotable._data((("id", varname),), varname)
+                    axis, data, domains, logrange = plotable._data((("id", varname),), varname)
                     allaxis.append(axis)
                     alldata.extend(data)
                     alldomains.append(domains)
+                    alllogrange.append(logrange)
                     i += 1
             return i
 
         recurse(0, self._plotables)
-        return allaxis, alldata, alldomains
+        return allaxis, alldata, alldomains, alllogrange
 
     def _options(self, out):
         config = {}
@@ -986,10 +1005,10 @@ class overlay(Combination):
     def __init__(self, *plotables, **opts):
         super(overlay, self).__init__(plotables, (Plotable1d,), opts)
 
-    def _fill(self, i, allaxis, alldomains, tofill):
+    def _fill(self, i, allaxis, alldomains, alllogrange, tofill):
         for plotable in self._plotables:
             varname = self._varname(i)
-            marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+            marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], alllogrange[i], varname)
             thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
             if len(marks) == 1:
@@ -1004,13 +1023,13 @@ class overlay(Combination):
         return i
 
     def vegalite(self):
-        allaxis, alldata, alldomains = self._collectdata()
+        allaxis, alldata, alldomains, alllogrange = self._collectdata()
 
         out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                "data": {"values": alldata},
                "layer": []}
 
-        self._fill(0, allaxis, alldomains, out["layer"])
+        self._fill(0, allaxis, alldomains, alllogrange, out["layer"])
         return self._options(out)
 
 class beside(Combination):
@@ -1021,19 +1040,19 @@ class beside(Combination):
         if any(isinstance(x, BesideChannel) for x in self._plotables):
             raise TypeError("cannot place plots beside each other that are already split with beside (can do beside and below)")
 
-    def _fill(self, i, allaxis, alldomains, tofill):
+    def _fill(self, i, allaxis, alldomains, alllogrange, tofill):
         for plotable in self._plotables:
             if isinstance(plotable, overlay):
                 tofill.append({"layer": []})
-                i = plotable._fill(i, allaxis, alldomains, tofill[-1]["layer"])
+                i = plotable._fill(i, allaxis, alldomains, alllogrange, tofill[-1]["layer"])
 
             elif isinstance(plotable, below):
                 tofill.append({"vconcat": []})
-                i = plotable._fill(i, allaxis, alldomains, tofill[-1]["vconcat"])
+                i = plotable._fill(i, allaxis, alldomains, alllogrange, tofill[-1]["vconcat"])
 
             else:
                 varname = self._varname(i)
-                marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+                marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], alllogrange[i], varname)
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
@@ -1045,13 +1064,13 @@ class beside(Combination):
         return i
 
     def vegalite(self):
-        allaxis, alldata, alldomains = self._collectdata()
+        allaxis, alldata, alldomains, alllogrange = self._collectdata()
 
         out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                "data": {"values": alldata},
                "hconcat": []}
 
-        self._fill(0, allaxis, alldomains, out["hconcat"])
+        self._fill(0, allaxis, alldomains, alllogrange, out["hconcat"])
         return self._options(out)
 
 class below(Combination):
@@ -1062,19 +1081,19 @@ class below(Combination):
         if any(isinstance(x, BelowChannel) for x in self._plotables):
             raise TypeError("cannot place plots below each other that are already split with below (can do beside and below)")
 
-    def _fill(self, i, allaxis, alldomains, tofill):
+    def _fill(self, i, allaxis, alldomains, alllogrange, tofill):
         for plotable in self._plotables:
             if isinstance(plotable, overlay):
                 tofill.append({"layer": []})
-                i = plotable._fill(i, allaxis, alldomains, tofill[-1]["layer"])
+                i = plotable._fill(i, allaxis, alldomains, alllogrange, tofill[-1]["layer"])
 
             elif isinstance(plotable, beside):
                 tofill.append({"hconcat": []})
-                i = plotable._fill(i, allaxis, alldomains, tofill[-1]["hconcat"])
+                i = plotable._fill(i, allaxis, alldomains, alllogrange, tofill[-1]["hconcat"])
 
             else:
                 varname = self._varname(i)
-                marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+                marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], alllogrange[i], varname)
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
@@ -1086,13 +1105,13 @@ class below(Combination):
         return i
 
     def vegalite(self):
-        allaxis, alldata, alldomains = self._collectdata()
+        allaxis, alldata, alldomains, alllogrange = self._collectdata()
 
         out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                "data": {"values": alldata},
                "vconcat": []}
 
-        self._fill(0, allaxis, alldomains, out["vconcat"])
+        self._fill(0, allaxis, alldomains, alllogrange, out["vconcat"])
         return self._options(out)
 
 class grid(Combination):
@@ -1104,18 +1123,18 @@ class grid(Combination):
             raise TypeError("cannot place plots in a grid that are already split with beside or below")
         self.numcol = numcol
 
-    def _fill(self, i, allaxis, alldomains, tofill):
+    def _fill(self, i, allaxis, alldomains, alllogrange, tofill):
         for plotable in self._plotables:
             if len(tofill[-1]["hconcat"]) >= self.numcol:
                 tofill.append({"hconcat": []})
 
             if isinstance(plotable, overlay):
                 tofill[-1]["hconcat"].append({"layer": []})
-                i = plotable._fill(i, allaxis, alldomains, tofill[-1]["hconcat"][-1]["layer"])
+                i = plotable._fill(i, allaxis, alldomains, alllogrange, tofill[-1]["hconcat"][-1]["layer"])
 
             else:
                 varname = self._varname(i)
-                marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], varname)
+                marks, encodings, transforms = plotable._vegalite(allaxis[i], alldomains[i], alllogrange[i], varname)
                 thislayer = [{"filter": {"field": "id", "equal": varname}}]
 
                 if len(marks) == 1:
@@ -1129,11 +1148,11 @@ class grid(Combination):
         return i
 
     def vegalite(self):
-        allaxis, alldata, alldomains = self._collectdata()
+        allaxis, alldata, alldomains, alllogrange = self._collectdata()
 
         out = {"$schema": "https://vega.github.io/schema/vega-lite/v2.json",
                "data": {"values": alldata},
                "vconcat": [{"hconcat": []}]}
 
-        self._fill(0, allaxis, alldomains, out["vconcat"])
+        self._fill(0, allaxis, alldomains, alllogrange, out["vconcat"])
         return self._options(out)
