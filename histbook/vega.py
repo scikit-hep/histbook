@@ -559,8 +559,15 @@ class Plotable1d(PlotableFrontends):
             else:
                 axis = projectedorder[j]
                 if axis not in domains:
-                    domains[axis] = set()
-                domains[axis].update(axis.keys(content))
+                    if isinstance(axis, histbook.axis.groupby) and axis.keeporder:
+                        domains[axis] = []
+                    else:
+                        domains[axis] = set()
+
+                if isinstance(domains[axis], list):
+                    domains[axis].extend(axis.keys(content))
+                else:
+                    domains[axis].update(axis.keys(content))
 
                 if isinstance(axis, histbook.axis.intbin):
                     axis = axis.bin()
@@ -668,10 +675,13 @@ class Plotable1d(PlotableFrontends):
                 encoding["color"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "legend": {"title": channel.axis.expr}, "scale": {"domain": overlayorder}}
 
             elif isinstance(channel, StackChannel):
-                if channel.order is None:
-                    stackorder = [str(x) for x in sorted(domains[channel.axis])]
-                else:
+                if channel.order is not None:
                     stackorder = channel.order
+                elif isinstance(domains[channel.axis], list):
+                    stackorder = [str(x) for x in reversed(domains[channel.axis])]
+                else:
+                    stackorder = [str(x) for x in sorted(domains[channel.axis])]
+
                 encoding["color"] = {"field": varname + str(axis.index(channel.axis)), "type": "nominal", "legend": {"title": channel.axis.expr}, "scale": {"domain": list(reversed(stackorder))}}
                 encoding["y"]["aggregate"] = "sum"
                 encoding["order"] = {"field": "stackorder", "type": "nominal"}

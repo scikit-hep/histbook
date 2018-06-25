@@ -243,43 +243,50 @@ class groupby(GroupAxis):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         quantity to use as an independent variable in the probability distribution represented by this histogram; distinct values are used to determine bin membership
+    keeporder : boolean
+        if ``True`` *(not default)*, keep track of the order in which new categories are seen
     """
 
-    def __init__(self, expr):
+    def __init__(self, expr, keeporder=False):
         self._expr = expr
+        self._keeporder = keeporder
 
     @property
     def binwidth(self):
         return 1
         
     def _pack(self):
-        return (self.__class__, self._expr)
+        return (self.__class__, self._expr, self._keeporder)
 
     def __repr__(self):
-        return "groupby({0})".format(repr(self._expr))
+        return "groupby({0}{1})".format(repr(self._expr), "" if not self._keeporder else ", keeporder=True")
 
     def tojson(self):
-        return {"axis": "groupby", "expr": self._expr}
+        return {"axis": "groupby", "expr": self._expr, "keeporder": self._keeporder}
 
     @staticmethod
     def fromjson(obj):
         assert obj["axis"] == "groupby"
-        return groupby(obj["expr"])
+        return groupby(obj["expr"], obj["keeporder"])
 
     @property
     def expr(self):
         """`Algebraic expression <histbook.expr.Expr>`"""
         return self._expr
 
+    @property
+    def keeporder(self):
+        return self._keeporder
+
     def copy(self):
         """Returns a copy of the :py:class:`groupby <histbook.axis.groupby>`."""
-        return groupby(self._expr)
+        return groupby(self._expr, keeporder=self._keeporder)
 
     def relabel(self, label):
         """Returns a :py:class:`groupby <histbook.axis.groupby>` with a new ``expr``."""
-        return groupby(label)
+        return groupby(label, keeporder=self._keeporder)
 
     def _goals(self, parsed=None):
         if parsed is None:
@@ -293,10 +300,10 @@ class groupby(GroupAxis):
         return self.__class__ is other.__class__
 
     def __eq__(self, other):
-        return self.__class__ is other.__class__ and self._expr == other._expr
+        return self.__class__ is other.__class__ and self._expr == other._expr and self._keeporder == other._keeporder
 
     def __hash__(self):
-        return hash((self.__class__, self._expr))
+        return hash((self.__class__, self._expr, self._keeporder))
 
     def _select(self, cmp, value, tolerance):
         if cmp == "==":
@@ -336,7 +343,7 @@ class groupbin(GroupAxis, _RebinFactor):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         quantity to use as an independent variable in the probability distribution represented by this histogram
 
     binwidth : positive number
@@ -532,7 +539,7 @@ class bin(FixedAxis, _RebinFactor, _RebinSplit):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         quantity to use as an independent variable in the probability distribution represented by this histogram
 
     numbins : positive integer
@@ -784,7 +791,7 @@ class intbin(FixedAxis, _RebinFactor, _RebinSplit):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         quantity to use as an independent variable in the probability distribution represented by this histogram
 
     min : integer
@@ -999,7 +1006,7 @@ class split(FixedAxis, _RebinFactor, _RebinSplit):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         quantity to use as an independent variable in the probability distribution represented by this histogram
 
     edges : non-empty iterable of numbers or a single number
@@ -1298,7 +1305,7 @@ class cut(FixedAxis):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         boolean quantity to use as an independent variable in the probability distribution represented by this histogram; ``False`` and ``True`` values are the two distinct bins
     """
 
@@ -1426,7 +1433,7 @@ class profile(ProfileAxis):
 
     Parameters
     ----------
-    expr : algebraic expression (lambda or string)
+    expr : algebraic expression (string)
         quantity to use as a dependent variable, binned by other axes in the :py:class:`Hist <histbook.hist.Hist>`
     """
     def __init__(self, expr):
