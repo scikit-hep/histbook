@@ -710,7 +710,7 @@ class Plotable1d(PlotableFrontends):
                 encoding["y"]["scale"] = {"type": self._last.yscale}
             if encoding["y"]["scale"].get("type") == "log" and logrange is not None and "domain" not in encoding["y"]["scale"]:
                 diff = logrange[1] / logrange[0]
-                encoding["y"]["scale"]["domain"] = [logrange[0] / diff**0.2, logrange[1] * diff**2]
+                encoding["y"]["scale"]["domain"] = logrange
         if self._last.colorscale is not None and "color" in encoding:
             if isinstance(self._last.colorscale, dict):
                 encoding["color"]["scale"] = self._last.colorscale

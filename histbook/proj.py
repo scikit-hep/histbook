@@ -270,9 +270,9 @@ class Projectable(object):
             left = values[:len(values) // 2]
             right = values[len(values) // 2:]
             if len(left) == 0:
-                return right
+                return right[0]
             elif len(right) == 0:
-                return left
+                return left[0]
             elif len(left) == 1 and len(right) == 1:
                 return addany(left[0], right[0])
             else:
@@ -288,7 +288,9 @@ class Projectable(object):
                 return projarray(content)
 
         outaxis = [x for x in allaxis if x in axis] + [x for x in self._profile]
+
         out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
+
         if self._content is not None:
             out._content = projcontent(0, self._content)
         return out
