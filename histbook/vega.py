@@ -605,10 +605,9 @@ class Plotable1d(PlotableFrontends):
             if logrange[0] == logrange[1]:
                 logrange = (0.5*logrange[0], 2*logrange[0])
 
-            verysmall = logrange[0] / (logrange[1] / logrange[0])**5   # 5 times as far below the min as the distance between max and min (in log units)
             for x in data:
                 if x[varname + str(len(projectedorder))] <= 0:
-                    x[varname + str(len(projectedorder))] = verysmall
+                    x[varname + str(len(projectedorder))] = 1e-45
 
         return projectedorder, data, domains, logrange
 
