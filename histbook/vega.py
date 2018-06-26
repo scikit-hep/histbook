@@ -612,9 +612,14 @@ class Plotable1d(PlotableFrontends):
             if logrange[0] == logrange[1]:
                 logrange = (0.5*logrange[0], 2*logrange[0])
 
+            if isinstance(self._last, (LineChannel, MarkerChannel)):
+                fillvalue = None    # means "do not draw"
+            else:
+                fillvalue = 1e-45   # smallest positive float32 value
+
             for x in data:
                 if x[varname + str(len(projectedorder))] <= 0:
-                    x[varname + str(len(projectedorder))] = 1e-45
+                    x[varname + str(len(projectedorder))] = fillvalue
 
         return projectedorder, data, domains, logrange
 
