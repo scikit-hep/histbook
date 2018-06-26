@@ -29,7 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import absolute_import
-
+import copy
 import numbers
 
 import numpy
@@ -606,8 +606,11 @@ class Plotable1d(PlotableFrontends):
                 x[varname + str(lastj) + "c"] = shifts.get(x[varname + str(lastj)], x[varname + str(lastj)])
 
         if self._last.yscale == "log" or (isinstance(self._last.yscale, dict) and self._last.yscale.get("type") == "log"):
-            logrange = (min(x[varname + str(len(projectedorder))] for x in data if x[varname + str(len(projectedorder))] > 0),
-                        max(x[varname + str(len(projectedorder))] for x in data if x[varname + str(len(projectedorder))] > 0))
+            try:
+                logrange = (min(x[varname + str(len(projectedorder))] for x in data if x[varname + str(len(projectedorder))] > 0),
+                            max(x[varname + str(len(projectedorder))] for x in data if x[varname + str(len(projectedorder))] > 0))
+            except ValueError:
+                logrange = (0.5, 2.0)
 
             if logrange[0] == logrange[1]:
                 logrange = (0.5*logrange[0], 2*logrange[0])
@@ -705,27 +708,26 @@ class Plotable1d(PlotableFrontends):
 
         if self._last.xscale is not None and "x" in encoding:
             if isinstance(self._last.xscale, dict):
-                encoding["x"]["scale"] = self._last.xscale
+                encoding["x"]["scale"] = copy.deepcopy(self._last.xscale)
             else:
-                encoding["x"]["scale"] = {"type": self._last.xscale}
+                encoding["x"]["scale"] = {"type": copy.deepcopy(self._last.xscale)}
         if self._last.yscale is not None and "y" in encoding:
             if isinstance(self._last.yscale, dict):
-                encoding["y"]["scale"] = self._last.yscale
+                encoding["y"]["scale"] = copy.deepcopy(self._last.yscale)
             else:
-                encoding["y"]["scale"] = {"type": self._last.yscale}
+                encoding["y"]["scale"] = {"type": copy.deepcopy(self._last.yscale)}
             if encoding["y"]["scale"].get("type") == "log" and logrange is not None and "domain" not in encoding["y"]["scale"]:
-                diff = logrange[1] / logrange[0]
                 encoding["y"]["scale"]["domain"] = logrange
         if self._last.colorscale is not None and "color" in encoding:
             if isinstance(self._last.colorscale, dict):
-                encoding["color"]["scale"] = self._last.colorscale
+                encoding["color"]["scale"] = copy.deepcopy(self._last.colorscale)
             else:
-                encoding["color"]["scale"] = {"type": self._last.colorscale}
+                encoding["color"]["scale"] = {"type": copy.deepcopy(self._last.colorscale)}
         if self._last.shapescale is not None and "shape" in encoding:
             if isinstance(self._last.shapescale, dict):
-                encoding["shape"]["scale"] = self._last.shapescale
+                encoding["shape"]["scale"] = copy.deepcopy(self._last.shapescale)
             else:
-                encoding["shape"]["scale"] = {"type": self._last.shapescale}
+                encoding["shape"]["scale"] = {"type": copy.deepcopy(self._last.shapescale)}
 
         if not error:
             return [mark], [encoding], [transform]
@@ -765,13 +767,13 @@ class Plotable1d(PlotableFrontends):
 
     def _options(self, out, config=True):
         if self._last.width is not None:
-            out["width"] = self._last.width
+            out["width"] = copy.deepcopy(self._last.width)
         if self._last.height is not None:
-            out["height"] = self._last.height
+            out["height"] = copy.deepcopy(self._last.height)
         if self._last.title is not None:
-            out["title"] = self._last.title
+            out["title"] = copy.deepcopy(self._last.title)
         if config and self._last.config is not None:
-            out["config"] = self._last.config
+            out["config"] = copy.deepcopy(self._last.config)
         return out
 
 class Plotable2d(PlotableFrontends):
@@ -898,19 +900,19 @@ class Plotable2d(PlotableFrontends):
 
         if self._last.xscale is not None and "x" in encoding:
             if isinstance(self._last.xscale, dict):
-                encoding["x"]["scale"] = self._last.xscale
+                encoding["x"]["scale"] = copy.deepcopy(self._last.xscale)
             else:
-                encoding["x"]["scale"] = {"type": self._last.xscale}
+                encoding["x"]["scale"] = {"type": copy.deepcopy(self._last.xscale)}
         if self._last.yscale is not None and "y" in encoding:
             if isinstance(self._last.yscale, dict):
-                encoding["y"]["scale"] = self._last.yscale
+                encoding["y"]["scale"] = copy.deepcopy(self._last.yscale)
             else:
-                encoding["y"]["scale"] = {"type": self._last.yscale}
+                encoding["y"]["scale"] = {"type": copy.deepcopy(self._last.yscale)}
         if self._last.colorscale is not None and "color" in encoding:
             if isinstance(self._last.colorscale, dict):
-                encoding["color"]["scale"] = self._last.colorscale
+                encoding["color"]["scale"] = copy.deepcopy(self._last.colorscale)
             else:
-                encoding["color"]["scale"] = {"type": self._last.colorscale}
+                encoding["color"]["scale"] = {"type": copy.deepcopy(self._last.colorscale)}
 
         return ["rect"], [encoding], [[]]
 
@@ -928,13 +930,13 @@ class Plotable2d(PlotableFrontends):
 
     def _options(self, out, config=True):
         if self._last.width is not None:
-            out["width"] = self._last.width
+            out["width"] = copy.deepcopy(self._last.width)
         if self._last.height is not None:
-            out["height"] = self._last.height
+            out["height"] = copy.deepcopy(self._last.height)
         if self._last.title is not None:
-            out["title"] = self._last.title
+            out["title"] = copy.deepcopy(self._last.title)
         if config and self._last.config is not None:
-            out["config"] = self._last.config
+            out["config"] = copy.deepcopy(self._last.config)
         return out
 
 class Combination(PlotableFrontends):
