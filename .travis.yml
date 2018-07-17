@@ -17,10 +17,14 @@ addons:
       - python-setuptools
 
 script:
-  python setup.py test
+  coverage run --source=histbook setup.py test
+
+after_success:
+  coveralls
 
 install:
   - pip install --upgrade setuptools_scm
+  - pip install coveralls
 
 notifications:
   slack: scikit-hep:b6cgBXwccPoaCNLn5VKFJFVy
