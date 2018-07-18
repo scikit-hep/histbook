@@ -8,6 +8,9 @@ histbook
 .. image:: https://travis-ci.org/scikit-hep/histbook.svg?branch=master
    :target: https://travis-ci.org/scikit-hep/histbook
 
+.. image:: https://coveralls.io/repos/github/scikit-hep/histbook/badge.svg?branch=master
+   :target: https://coveralls.io/github/scikit-hep/histbook?branch=master
+
 .. image:: https://readthedocs.org/projects/histbook/badge/
    :target: http://histbook.readthedocs.io/
 
@@ -156,7 +159,7 @@ We could also access the data as a table, as a `Pandas DataFrame <https://pandas
 .. code-block::
 
                    count()  err(count())
-    data                                
+    data
     [-inf, -5.0)       0.0      0.000000
     [-5.0, -4.0)      33.0      5.744563
     [-4.0, -3.0)    1247.0     35.312887
@@ -197,7 +200,7 @@ The data contained in the `Hist <http://histbook.readthedocs.io/en/latest/histog
 .. code-block::
 
                                                         count()  err(count())
-    sqrt(x**2 + y**2) arctan2(y, x)                                            
+    sqrt(x**2 + y**2) arctan2(y, x)
     [-inf, 0.0)       [-inf, -3.14159265359)                0.0      0.000000
                       [-3.14159265359, -1.0471975512)       0.0      0.000000
                       [-1.0471975512, 1.0471975512)         0.0      0.000000
@@ -368,7 +371,7 @@ We can profile "``y``" and "``z``" or as many distributions as we want in a sing
 .. code-block::
 
                   count()  err(count())         y    err(y)         z    err(z)
-    x                                                                          
+    x
     [-1.0, -0.9)    243.0     15.588457  1.104575  0.319523  1.135648  0.301416
     [-0.9, -0.8)    275.0     16.583124  0.775029  0.312829  0.485808  0.302074
     [-0.8, -0.7)    317.0     17.804494  0.505641  0.300481  0.427452  0.274324
@@ -411,7 +414,7 @@ For example: without weights, counts are integers and the effective counts (used
 .. code-block::
 
                   count()  err(count())  effcount()         y    err(y)
-    x                                                                  
+    x
     [-0.5, -0.4)    381.0     19.519221       381.0  0.124497  0.251414
     [-0.4, -0.3)    388.0     19.697716       388.0  0.215915  0.241851
     [-0.3, -0.2)    376.0     19.390719       376.0 -0.029105  0.252925
@@ -434,7 +437,7 @@ Below, we make the weights normal-distributed with a mean of 1 and a standard de
 .. code-block::
 
                      count()  err(count())  effcount()         y    err(y)
-    x                                                                     
+    x
     [-0.5, -0.4)  310.641444     83.340859   13.893218 -0.405683  1.690065
     [-0.4, -0.3)  425.941704     84.217430   25.579754  0.184349  0.836336
     [-0.3, -0.2)  375.066116     82.471825   20.682568 -0.608185  1.064126
@@ -527,7 +530,7 @@ Categorical `groupby <http://histbook.readthedocs.io/en/latest/axis-descriptors.
 .. code-block::
 
            count()  err(count())
-    c                           
+    c
     one        1.0      1.000000
     three      3.0      1.732051
     two        2.0      1.414214
@@ -539,7 +542,7 @@ Categorical `groupby <http://histbook.readthedocs.io/en/latest/axis-descriptors.
 .. code-block::
 
          count()  err(count())
-    c                         
+    c
     one      1.0      1.000000
     two      2.0      1.414214
 
@@ -589,7 +592,7 @@ Adding them mixes data into the same bins, after which they are no longer sepera
 .. code-block::
 
                    count()  err(count())
-    x                                   
+    x
     [-inf, -5.0)    6228.0     78.917679
     [-5.0, -4.0)   60582.0    246.134110
     [-4.0, -3.0)  241904.0    491.837371
@@ -614,7 +617,7 @@ But grouping them creates a new categorical axis, "``source``" by default, where
 .. code-block::
 
                           count()  err(count())
-    source x                                   
+    source x
     a      [-inf, -5.0)    6228.0     78.917679
            [-5.0, -4.0)   60582.0    246.134110
            [-4.0, -3.0)  241904.0    491.837371
