@@ -28,6 +28,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import math
 import numbers
 
@@ -214,7 +215,7 @@ class Projectable(object):
 
         def dropcontent(content):
             if isinstance(content, dict):
-                return dict((n, dropcontent(x)) for n, x in content.items())
+                return type(content)((n, dropcontent(x)) for n, x in content.items())
             else:
                 return content[slc]
 
@@ -249,11 +250,18 @@ class Projectable(object):
 
         def addany(left, right):
             if isinstance(left, dict) and isinstance(right, dict):
-                out = dict((n, addany(x, right[n]) if n in right else x) for n, x in left.items())
+                if isinstance(left, collections.OrderedDict) or isinstance(right, collections.OrderedDict):
+                    dictclass = collections.OrderedDict
+                else:
+                    dictclass = dict
+
+                out = dictclass((n, addany(x, right[n]) if n in right else x) for n, x in left.items())
+
                 for n, x in right.items():
                     if n not in left:
                         out[n] = x
                 return out
+
             else:
                 return left + right
 
@@ -262,9 +270,9 @@ class Projectable(object):
             left = values[:len(values) // 2]
             right = values[len(values) // 2:]
             if len(left) == 0:
-                return right
+                return right[0]
             elif len(right) == 0:
-                return left
+                return left[0]
             elif len(left) == 1 and len(right) == 1:
                 return addany(left[0], right[0])
             else:
@@ -273,14 +281,16 @@ class Projectable(object):
         def projcontent(j, content):
             if j < len(self._group):
                 if allaxis[j] in axis:
-                    return dict((n, projcontent(j + 1, x)) for n, x in content.items())
+                    return type(content)((n, projcontent(j + 1, x)) for n, x in content.items())
                 else:
                     return addall([projcontent(j + 1, x) for x in content.values()])
             else:
                 return projarray(content)
 
         outaxis = [x for x in allaxis if x in axis] + [x for x in self._profile]
+
         out = self.__class__(*outaxis, weight=self._weightoriginal, filter=self._filteroriginal, defs=dict(self._defs), attachment=dict(self._attachment))
+
         if self._content is not None:
             out._content = projcontent(0, self._content)
         return out
@@ -466,9 +476,9 @@ class Projectable(object):
 
             if isinstance(allaxis[i], (histbook.axis.groupby, histbook.axis.groupbin)):
                 if allaxis[i] is cutaxis:
-                    return dict((n, x) for n, x in content.items() if cutslice(n))
+                    return type(content)((n, x) for n, x in content.items() if cutslice(n))
                 else:
-                    return dict((n, cutcontent(i + 1, x)) for n, x in content.items())
+                    return type(content)((n, cutcontent(i + 1, x)) for n, x in content.items())
 
             else:
                 slc = tuple(cutslice if j < len(allaxis) and allaxis[j] is cutaxis else slice(None) for j in range(i, len(allaxis) + 1))
@@ -618,7 +628,7 @@ class Projectable(object):
 
         def handle(content):
             if isinstance(content, dict):
-                return dict((n, handle(x)) for n, x in content.items())
+                return type(content)((n, handle(x)) for n, x in content.items())
             else:
                 return handlearray(content)
 
@@ -779,7 +789,7 @@ class Projectable(object):
 
         def handle(denomcontent, cutcontent):
             if isinstance(denomcontent, dict):
-                return dict((n, handle(x, [cc[n] for cc in cutcontent])) for n, x in denomcontent.items())
+                return type(denomcontent)((n, handle(x, [cc[n] for cc in cutcontent])) for n, x in denomcontent.items())
             else:
                 return handlearray(denomcontent, cutcontent)
 

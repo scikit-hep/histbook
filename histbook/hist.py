@@ -28,6 +28,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import numbers
 import threading
 
@@ -373,6 +374,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                 arrays = histbook.util.ChainedDict(arrays, more)
 
             self._prefill()
+
             length = self._fill(arrays)
             self._postfill(arrays, length)
 
@@ -380,6 +382,10 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
         if self._content is None:
             if len(self._group) == 0:
                 self._content = numpy.zeros(self._shape, dtype=self.COUNTTYPE)
+
+            elif isinstance(self._group[0], histbook.axis.groupby) and self._group[0].keeporder:
+                self._content = collections.OrderedDict()
+
             else:
                 self._content = {}
 
@@ -464,6 +470,10 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                     if unique not in content:
                         if j + 1 == len(self._group):
                             content[unique] = numpy.zeros(self._shape, dtype=self.COUNTTYPE)
+
+                        elif isinstance(self._group[j + 1], histbook.axis.groupby) and self._group[j + 1].keeporder:
+                            content[unique] = collections.OrderedDict()
+
                         else:
                             content[unique] = {}
 
@@ -489,7 +499,7 @@ class Hist(histbook.fill.Fillable, histbook.proj.Projectable, histbook.export.Ex
                     filldict(j + 1, subcontent, subindexes, subaxissumx, subaxissumx2, subweight, subweight2, suballselection)
 
         filldict(0, self._content, indexes, axissumx, axissumx2, weight, weight2, None)
-            
+
         for j in range(len(self._destination[0])):
             self._destination[0][j] = None
 
