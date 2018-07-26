@@ -32,6 +32,7 @@ import collections
 import fnmatch
 import functools
 import sys
+import threading
 
 import numpy
 
