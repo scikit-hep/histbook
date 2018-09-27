@@ -45,7 +45,7 @@ Install histbook like any other Python package:
 
     pip install histbook --user
 
-or similar (use ``sudo``, ``virtualenv``, or ``conda`` if you wish).
+or similar (use ``sudo``, ``--user``, ``virtualenv``, or pip-in-conda if you wish).
 
 Strict dependencies:
 ====================
