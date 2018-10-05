@@ -264,7 +264,7 @@ The `stack <http://histbook.readthedocs.io/en/latest/plotting.html#histbook.vega
 
     >>> r = "sqrt(x**2 + y**2)"
     >>> phi = "arctan2(y, x)"
-    >>> hist.stack("arctan2(y, x)").area("sqrt(x**2+y**2)").to(canvas)
+    >>> hist.stack(phi).area(r).to(canvas)
 
 .. image:: docs/source/intro-4.png
 
