@@ -288,8 +288,23 @@ class Exportable(object):
                     out.SetBinError(i, rooterrors[i])
 
         elif len(binaxis) == 2:
+            xaxis = binaxis[0]
+            yaxis = binaxis[1]
+
             if profile is None:
-                raise NotImplementedError("TH2")
+                out = ROOT.TH2D(name, title, xaxis.numbins, xaxis.low, xaxis.high, yaxis.numbins, yaxis.low, yaxis.high)
+
+                entries = numpy.zeros((xaxis.numbins + 2, yaxis.numbins + 2), dtype=numpy.float64)
+                entries[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1), (0 if yaxis.underflow else 1) : (None if yaxis.overflow else -1)] = content["count()"][: (-1 if xaxis.nanflow else None), : (-1 if yaxis.nanflow else None)]
+                for idx, val in numpy.ndenumerate(entries):
+                    out.SetBinContent(idx[0], idx[1], val)
+                out.SetEntries(entries.sum())
+
+                if "err(count())" in content.dtype.names:
+                    errors = numpy.zeros(xaxis.numbins + 2, yaxis.numbins + 2, dtype=numpy.float64)
+                    errors[(0 if xaxis.underflow else 1) : (None if xaxis.overflow else -1), (0 if yaxis.underflow else 1) : (None if yaxis.overflow else -1)] = content["err(count())"][: (-1 if xaxis.nanflow else None), : (-1 if yaxis.nanflow else None)]
+                    for idx, val in numpy.ndenumerate(errors):
+                        out.SetBinError(idx[0], idx[1], val)
 
             else:
                 raise NotImplementedError("TProfile2D")
