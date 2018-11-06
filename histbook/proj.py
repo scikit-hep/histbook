@@ -692,7 +692,10 @@ class Projectable(object):
                 cutindex.append(self._fixed.index(c))
         cut = [self._fixed[i] for i in cutindex]
 
-        noprofiles = self.drop(*self._profile)
+        if len(self._profile) == 0:
+            noprofiles = self
+        else:
+            noprofiles = self.drop(*self._profile)
         denomhist = noprofiles.project(*[x for x in self._group + self._fixed if x not in cut])
         cuthist = []
         for c in cut:
